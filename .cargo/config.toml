@@ -1,0 +1,6 @@
+# 本仓库默认 host 工具链为 x86_64-pc-windows-gnu。本机 PATH 上的 mingw（w64devkit）
+# 缺少 libgcc_eh.a，导致 rustc 的外部链接探测放弃 self-contained 库后链接失败；
+# 强制启用 rustup 自带的 self-contained mingw 运行库（libgcc_eh/crt2.o）修复链接。
+# 仅作用于 GNU 目标：CI（windows-latest，MSVC 工具链）不受影响。
+[target.x86_64-pc-windows-gnu]
+rustflags = ["-C", "link-self-contained=yes"]
