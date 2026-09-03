@@ -1,0 +1,110 @@
+name: Build
+
+on:
+  push:
+    branches: ['**']
+    tags-ignore: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: GlanceMD-windows-x64
+            binary: target/x86_64-pc-windows-msvc/release/GlanceMD.exe
+          - name: macOS Apple Silicon
+            os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: GlanceMD-macos-arm64
+            binary: target/aarch64-apple-darwin/release/GlanceMD
+            formats: app,dmg
+            packages: dist/*
+          - name: macOS Intel
+            os: macos-15-intel
+            target: x86_64-apple-darwin
+            artifact: GlanceMD-macos-x64
+            binary: target/x86_64-apple-darwin/release/GlanceMD
+            formats: app,dmg
+            packages: dist/*
+          - name: Linux x64
+            os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            artifact: GlanceMD-linux-x64
+            binary: target/x86_64-unknown-linux-gnu/release/GlanceMD
+            formats: deb,appimage
+            packages: |
+              dist/*.deb
+              dist/*.AppImage
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Linux 构建依赖
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libgtk-3-dev libwebkit2gtk-4.1-dev librsvg2-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+          components: rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: 检查格式
+        if: matrix.target == 'x86_64-pc-windows-msvc'
+        run: cargo fmt --check
+
+      - name: 运行测试
+        run: cargo test --target ${{ matrix.target }}
+
+      - name: 构建发行版
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: 安装打包工具
+        if: matrix.formats != ''
+        run: cargo install cargo-packager --version 0.11.8 --locked
+
+      - name: 验证原生软件包
+        if: matrix.formats != ''
+        run: |
+          for attempt in 1 2 3; do
+            # 清理可能残留的挂载卷，避免 hdiutil eject 偶发 Resource busy
+            if command -v hdiutil >/dev/null 2>&1; then
+              hdiutil detach "/Volumes/GlanceMD" -force >/dev/null 2>&1 || true
+            fi
+            rm -rf dist
+            if cargo packager --release --target ${{ matrix.target }} --formats ${{ matrix.formats }} --out-dir dist; then
+              exit 0
+            fi
+            echo "cargo packager 第 $attempt 次尝试失败，5 秒后重试..."
+            sleep 5
+          done
+          exit 1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.binary }}
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        if: matrix.formats != ''
+        with:
+          name: ${{ matrix.artifact }}-packages
+          path: ${{ matrix.packages }}
+          if-no-files-found: error

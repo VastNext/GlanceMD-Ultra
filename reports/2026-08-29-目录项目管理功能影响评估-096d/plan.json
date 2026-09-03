@@ -1,0 +1,32 @@
+{
+  "question": "为 GlanceMD 增加单目录项目树、目录内 Markdown 打开和在系统文件管理器中显示功能，对架构和工作量有多大影响？",
+  "report_shape": "技术影响评估与分阶段实施建议",
+  "dimensions": [
+    {
+      "id": "backend",
+      "title": "Rust 文件系统、IPC 与平台能力",
+      "questions": ["目录如何选择和枚举", "IPC 如何建模", "如何安全地 reveal 文件", "跨平台差异是什么"]
+    },
+    {
+      "id": "frontend",
+      "title": "前端项目树与现有 Tab 架构",
+      "questions": ["侧栏如何接入布局", "如何复用 createTab", "右键菜单和项目状态如何管理"]
+    },
+    {
+      "id": "quality",
+      "title": "性能、安全、测试与发布",
+      "questions": ["大型目录和软链接风险", "需要哪些测试", "工作量与分阶段范围"]
+    }
+  ],
+  "search_strategy": [
+    "以当前仓库源码和 workflow 为主证据",
+    "以 Rust 官方 Command 文档核对外部进程参数安全",
+    "以三平台文件管理器能力差异评估 reveal 实现"
+  ],
+  "completion_criteria": [
+    "列出具体受影响文件与接口",
+    "给出至少两种实现方案并推荐一种",
+    "给出 MVP 与生产级工作量范围",
+    "明确最大风险与非目标范围"
+  ]
+}

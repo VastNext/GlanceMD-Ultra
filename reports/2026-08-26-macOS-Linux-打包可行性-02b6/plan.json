@@ -1,0 +1,96 @@
+{
+  "research_goal": "判断 GlanceMD 跨平台发布到 macOS 和 Linux 的工程可行性，并形成可执行的适配、打包、验证与发布路线。",
+  "scope": {
+    "objects": ["GlanceMD 当前 Rust/Wry/Tao 代码", "macOS 应用包与发布", "Linux 桌面包与发布"],
+    "time_range": "截至 2026-08-26 的当前项目与官方工具链资料",
+    "region": "全球桌面发行；Linux 以 Ubuntu/Debian 系为首发基线",
+    "audience_or_use": "项目维护者的跨平台技术决策与实施排期",
+    "exclusions": ["直接实施代码适配", "移动端支持", "Mac App Store 上架全流程", "覆盖全部 Linux 发行版"],
+    "assumptions": ["继续使用 Wry/Tao，而非迁移 Electron", "允许 macOS/Linux 使用系统 WebKit/WebKitGTK", "GitHub Actions 用各平台原生 Runner 构建"]
+  },
+  "report_shape": {
+    "format_basis": [{
+      "type": "domain_convention",
+      "name": "跨平台桌面应用技术可行性评估惯例",
+      "credibility_reason": "面向实施决策，需要同时覆盖代码差距、运行时依赖、交付格式、安全签名、CI 与风险",
+      "what_extracted": "结论先行、平台矩阵、代码适配清单、发布链路、分阶段路线与验收标准"
+    }],
+    "sections": ["执行摘要", "当前阻塞点", "macOS 适配与打包", "Linux 适配与打包", "共用架构调整", "CI/CD 与测试矩阵", "实施路线与工作量", "风险与最终建议"],
+    "mandatory_elements": ["可行性结论", "Windows 专属代码清单", "平台适配矩阵", "软件包格式比较", "分阶段实施清单", "验证矩阵"],
+    "style": "简体中文、面向工程决策、明确区分必做与可选项；结论需注明成立条件，不把未经实机构建验证的事项写成已验证事实。"
+  },
+  "completion_criteria": [
+    "逐项定位当前项目中的 Windows 专属依赖与代码路径",
+    "使用官方或一手资料确认 Wry/Tao/Rfd 在 macOS 与 Linux 的后端和系统依赖",
+    "明确 macOS 与 Linux 的推荐包格式、签名/公证及构建宿主限制",
+    "给出按优先级划分的实施路线、验证矩阵和主要风险"
+  ],
+  "change_notes": [],
+  "dimensions": [
+    {
+      "id": "d1",
+      "name": "现有代码可移植性审计",
+      "description": "审计仓库内依赖、FFI、窗口行为、前端快捷键与构建脚本，不展开外部发行政策。",
+      "key_questions": ["哪些内容会直接导致非 Windows 编译失败？", "哪些内容能编译但会产生平台体验或功能缺陷？", "哪些模块已经天然跨平台？"],
+      "method": "代码与配置逐项审计，并按编译阻塞、运行阻塞、体验差异分类。",
+      "search_strategy": {
+        "source_types": ["项目源码", "Cargo 配置", "现有文档"],
+        "seed_queries": ["Windows API imports", "cfg target_os", "single instance", "keyboard modifiers", "window decorations"],
+        "freshness_requirement": "以当前工作区代码为准",
+        "sufficiency": ["覆盖全部 Rust 源文件和构建配置", "关键前端平台交互被检查", "每个阻塞点关联具体文件位置"]
+      },
+      "expected_output": "Windows 专属点清单、跨平台复用部分、最小重构边界。",
+      "depends_on": [],
+      "status": "done"
+    },
+    {
+      "id": "d2",
+      "name": "跨平台运行时与 API 能力",
+      "description": "核查 Wry、Tao、Rfd 及底层 WebView 在 macOS/Linux 的支持范围和限制。",
+      "key_questions": ["macOS/Linux 分别使用什么 WebView 后端？", "Linux 的 X11/Wayland 和 GTK 集成有哪些限制？", "现有 API 哪些需要平台条件编译或替换？"],
+      "method": "官方文档、crate 元数据与上游源码交叉核对。",
+      "search_strategy": {
+        "source_types": ["官方 crate 文档", "上游 GitHub 仓库", "系统组件官方文档"],
+        "seed_queries": ["wry platform considerations", "wry Linux WebKitGTK dependencies", "tao platform support", "rfd Linux backend"],
+        "freshness_requirement": "核对当前项目锁定版本及当前上游文档",
+        "sufficiency": ["每个平台后端有一手来源", "X11/Wayland 差异被确认", "文件对话框依赖被确认"]
+      },
+      "expected_output": "运行时依赖、API 差异和兼容边界。",
+      "depends_on": ["d1"],
+      "status": "done"
+    },
+    {
+      "id": "d3",
+      "name": "原生打包与可信分发",
+      "description": "研究 macOS/Linux 软件包、架构产物、签名、公证与桌面集成，不讨论功能实现。",
+      "key_questions": ["各平台应产出哪些包？", "是否能从 Windows 交叉编译？", "签名、公证、图标、文件关联和桌面元数据需要什么？"],
+      "method": "官方平台文档和成熟 Rust 打包工具文档对照。",
+      "search_strategy": {
+        "source_types": ["Apple 官方文档", "GitHub Actions 官方文档", "Rust 打包工具官方文档", "Linux 打包规范"],
+        "seed_queries": ["Apple distribute outside Mac App Store notarization", "cargo bundle macOS app", "cargo packager formats", "AppImage desktop file", "Debian package desktop application"],
+        "freshness_requirement": "必须使用当前发布与签名要求",
+        "sufficiency": ["macOS 签名和公证链路有官方依据", "Linux 至少比较 AppImage 与 deb", "构建宿主与 CPU 架构策略明确"]
+      },
+      "expected_output": "包格式矩阵、发布链路、CI 产物建议。",
+      "depends_on": ["d2"],
+      "status": "done"
+    },
+    {
+      "id": "d4",
+      "name": "实施路线、验证与风险",
+      "description": "综合前三维度，形成分阶段实施建议、测试矩阵和工作量级别。",
+      "key_questions": ["最小可行跨平台版本应包含什么？", "哪些工作应先共用重构、哪些按平台推进？", "如何验证功能、兼容性与发布可信度？", "主要风险和回退选择是什么？"],
+      "method": "差距分析、依赖排序和风险分级。",
+      "search_strategy": {
+        "source_types": ["前三维度证据", "官方 CI/平台支持矩阵"],
+        "seed_queries": ["cross platform desktop release test matrix", "GitHub hosted runner architectures"],
+        "freshness_requirement": "基于当前项目和当前 CI 能力",
+        "sufficiency": ["每项必做适配有验收方式", "路线体现真实依赖", "工作量以范围级别表达并注明前提"]
+      },
+      "expected_output": "优先级路线、验收矩阵、风险登记和最终建议。",
+      "depends_on": ["d1", "d2", "d3"],
+      "status": "done"
+    }
+  ],
+  "execution_order": ["d1", "d2", "d3", "d4"]
+}

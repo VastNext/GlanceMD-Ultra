@@ -1,0 +1,97 @@
+{
+  "research_goal": "判断 GlanceMD 进入飞牛 OS 的可行产品形态、工程改造范围、FPK 打包方式和应用商店上架路径。",
+  "scope": {
+    "objects": ["飞牛 OS/fnOS", "飞牛应用中心与开发者平台", "GlanceMD 当前桌面架构"],
+    "time_range": "截至 2026-08-26 的现行资料",
+    "region": "中国大陆飞牛私有云生态",
+    "audience_or_use": "GlanceMD 维护者的产品和技术决策",
+    "exclusions": ["直接编码实现", "代替用户完成实名认证", "未经真机测试即提交审核", "研究其他 NAS 平台"],
+    "assumptions": ["NAS 主要通过浏览器或飞牛桌面使用应用", "优先覆盖 x86_64，视官方架构支持再考虑 ARM", "应用必须遵守飞牛目录授权和商店审核规则"]
+  },
+  "report_shape": {
+    "format_basis": [{
+      "type": "domain_convention",
+      "name": "NAS 应用技术选型与商店发布可行性评估",
+      "credibility_reason": "需要同时判断运行模型、包规范、权限边界、工程改造和平台准入",
+      "what_extracted": "结论先行、路线对比、目标架构、FPK 结构、上架步骤、风险和实施阶段"
+    }],
+    "sections": ["执行摘要", "飞牛 OS 应用模型", "三条适配路线比较", "推荐目标架构", "工程改造清单", "FPK 打包与权限", "应用商店上架流程", "实施路线与验证", "风险与最终建议"],
+    "mandatory_elements": ["可行性结论", "产品形态对比矩阵", "目标架构图", "FPK 文件结构示意", "上架流程", "适配清单", "风险与验收矩阵"],
+    "style": "简体中文，面向实际落地；区分官方确认、社区验证和推断；不把未公开或需群内获取的审核规则写成确定事实。"
+  },
+  "completion_criteria": [
+    "确认飞牛 OS 的系统基础、CPU 架构和应用入口模型",
+    "确认 FPK 工具、Manifest、生命周期脚本、UI 和权限机制",
+    "确认第三方开发者认证、提交、审核和上架的可得流程",
+    "比较桌面 GUI、宿主 Web 和 Docker 三种适配路线",
+    "给出 GlanceMD 推荐架构、具体改造清单和分阶段验收"
+  ],
+  "change_notes": [],
+  "dimensions": [
+    {
+      "id": "d1",
+      "name": "飞牛 OS 平台与应用运行模型",
+      "description": "研究系统基础、硬件架构、用户访问方式、应用入口和宿主能力，不展开商店审核。",
+      "key_questions": ["飞牛 OS 基于什么系统和架构？", "应用是本地 GUI、浏览器 Web、宿主服务还是 Docker？", "应用如何从飞牛桌面启动和访问 NAS 文件？"],
+      "method": "官方产品/开发文档检索，结合已上架应用结构验证。",
+      "search_strategy": {
+        "source_types": ["飞牛官方产品文档", "飞牛官方开发文档", "已上架应用源码", "社区实践"],
+        "seed_queries": ["飞牛 OS 系统架构 Debian", "fnOS application UI service", "飞牛 desktop_uidir", "飞牛应用中心 Web 应用"],
+        "freshness_requirement": "使用当前官网和近期应用案例",
+        "sufficiency": ["平台基础由官方或两个独立来源确认", "应用入口和运行模型有真实包案例", "架构差异有明确证据"]
+      },
+      "expected_output": "平台能力边界和应用形态约束。",
+      "depends_on": [],
+      "status": "done"
+    },
+    {
+      "id": "d2",
+      "name": "FPK 包规范与开发工具",
+      "description": "研究 fnpack、Manifest、app/ui/config、生命周期脚本、权限与目录结构。",
+      "key_questions": ["FPK 包由哪些文件组成？", "fnpack 如何创建、构建和验证？", "宿主应用和 Docker 应用结构有何差异？", "如何声明端口、架构、目录授权和文件入口？"],
+      "method": "官方 CLI/规范文档与开源 FPK 项目逐项对照。",
+      "search_strategy": {
+        "source_types": ["官方开发者文档", "fnpack 文档", "应用中心实例仓库", "社区打包工具"],
+        "seed_queries": ["developer.fnnas.com fnpack", "fnOS Manifest config privilege", "fnOS app.tgz fpk", "fnOS lifecycle scripts"],
+        "freshness_requirement": "以现行 fnpack/应用规范为准",
+        "sufficiency": ["关键字段有官方依据", "包结构由至少两个真实应用验证", "权限和生命周期不依赖猜测"]
+      },
+      "expected_output": "可执行的包结构、字段和构建要求清单。",
+      "depends_on": ["d1"],
+      "status": "done"
+    },
+    {
+      "id": "d3",
+      "name": "应用商店准入与发布流程",
+      "description": "研究第三方开发者认证、开发者后台、提交材料、审核、更新和当前公开程度。",
+      "key_questions": ["个人或企业如何成为开发者？", "通过什么渠道提交 FPK？", "需要哪些商店素材和合规信息？", "哪些步骤仍需群内专员或非公开文档？"],
+      "method": "官方开发者站、官方论坛和已上架维护者说明交叉验证。",
+      "search_strategy": {
+        "source_types": ["官方开发者平台", "官方论坛公告", "已上架第三方开发者说明", "应用仓库"],
+        "seed_queries": ["飞牛应用中心开发者认证", "飞牛第三方应用上架审核", "developer.fnnas.com 应用发布", "fnOS 应用商店提交"],
+        "freshness_requirement": "必须核查当前可公开访问流程",
+        "sufficiency": ["公开步骤和非公开步骤明确分开", "至少一个已上架案例说明真实流程", "不编造审核时长或收费"]
+      },
+      "expected_output": "准入步骤、材料清单、外部依赖和不确定性。",
+      "depends_on": ["d2"],
+      "status": "done"
+    },
+    {
+      "id": "d4",
+      "name": "GlanceMD 适配路线与工程评估",
+      "description": "基于平台约束比较三种路线，形成推荐架构、范围和验证标准。",
+      "key_questions": ["现有 Wry/GTK 桌面包能否直接用于 NAS？", "宿主 Web 与 Docker 路线分别需改什么？", "如何安全读写用户授权的 Markdown 文件？", "哪些现有前端模块可复用？", "首版支持 x86 还是同时 ARM？"],
+      "method": "当前源码架构审计、差距分析、路线比较和风险分级。",
+      "search_strategy": {
+        "source_types": ["前三维度证据", "GlanceMD 当前源码", "同类 NAS 文档编辑应用案例"],
+        "seed_queries": ["fnOS markdown editor app", "fnOS file manager open with application", "fnOS web file authorization", "fnOS host web service app"],
+        "freshness_requirement": "基于当前项目分支和平台规范",
+        "sufficiency": ["三条路线逐项比较", "推荐路线每个改造点有平台依据", "权限、并发和数据安全有验收标准"]
+      },
+      "expected_output": "推荐产品形态、架构图、工程清单、阶段路线和风险。",
+      "depends_on": ["d1", "d2", "d3"],
+      "status": "done"
+    }
+  ],
+  "execution_order": ["d1", "d2", "d3", "d4"]
+}

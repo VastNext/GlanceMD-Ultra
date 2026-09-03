@@ -1,0 +1,185 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag（例如 v1.4.0）'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      ref: ${{ steps.release.outputs.ref }}
+      prerelease: ${{ steps.release.outputs.prerelease }}
+    steps:
+      - name: 确定并校验发布标签
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DISPATCH_TAG: ${{ inputs.tag }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="$DISPATCH_TAG"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "无效的发布标签：$TAG" >&2
+            exit 1
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" >/dev/null
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "ref=refs/tags/$TAG" >> "$GITHUB_OUTPUT"
+          if [[ "$TAG" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.ref }}
+
+      - name: 校验标签与 Cargo 版本一致
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          VERSION=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["version"])')
+          if [ "$TAG" != "v$VERSION" ]; then
+            echo "发布标签 $TAG 与 Cargo 版本 v$VERSION 不一致" >&2
+            exit 1
+          fi
+
+  windows:
+    needs: prepare
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.ref }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release --target x86_64-pc-windows-msvc
+      - name: 整理 Windows 产物
+        shell: bash
+        run: cp target/x86_64-pc-windows-msvc/release/GlanceMD.exe GlanceMD-windows-x64.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: GlanceMD-windows-x64.exe
+
+  macos:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            arch: arm64
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            arch: x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.ref }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - run: cargo install cargo-packager --version 0.11.8 --locked
+      - run: cargo build --release --target ${{ matrix.target }}
+      - name: 打包 macOS 应用
+        run: |
+          for attempt in 1 2 3; do
+            # 清理可能残留的挂载卷，避免 hdiutil eject 偶发 Resource busy
+            if command -v hdiutil >/dev/null 2>&1; then
+              hdiutil detach "/Volumes/GlanceMD" -force >/dev/null 2>&1 || true
+            fi
+            rm -rf dist
+            if cargo packager --release --target ${{ matrix.target }} --formats app,dmg --out-dir dist; then
+              exit 0
+            fi
+            echo "cargo packager 第 $attempt 次尝试失败，5 秒后重试..."
+            sleep 5
+          done
+          exit 1
+      - name: 标记未签名预览包
+        run: |
+          for file in dist/*; do
+            case "$file" in
+              *.dmg) mv "$file" "GlanceMD-macos-${{ matrix.arch }}-unsigned.dmg" ;;
+            esac
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-macos-${{ matrix.arch }}
+          path: GlanceMD-macos-${{ matrix.arch }}-unsigned.dmg
+          if-no-files-found: error
+
+  linux:
+    needs: prepare
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.ref }}
+      - name: 安装 Linux 构建依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libgtk-3-dev libwebkit2gtk-4.1-dev librsvg2-dev
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo install cargo-packager --version 0.11.8 --locked
+      - run: cargo build --release --target x86_64-unknown-linux-gnu
+      - name: 打包 Linux 应用
+        run: cargo packager --release --target x86_64-unknown-linux-gnu --formats deb,appimage --out-dir dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-linux-x64
+          path: |
+            dist/*.deb
+            dist/*.AppImage
+          if-no-files-found: error
+
+  publish:
+    needs: [prepare, windows, macos, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: release-assets
+      - name: 创建或更新 Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            PRERELEASE_ARG=""
+            if [ "${{ needs.prepare.outputs.prerelease }}" = "true" ]; then
+              PRERELEASE_ARG="--prerelease"
+            fi
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" $PRERELEASE_ARG \
+              --title "GlanceMD $TAG" \
+              --notes "跨平台测试版本：包含 Windows x64、macOS Apple Silicon/Intel 和 Linux x64 构建产物。macOS 包当前未签名，首次运行可能需要在系统设置中手动允许。"
+          fi
+          gh release upload "$TAG" release-assets/* --repo "$GITHUB_REPOSITORY" --clobber
