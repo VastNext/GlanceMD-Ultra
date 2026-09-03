@@ -1,5 +1,7 @@
 # mdview — Lightweight Windows Markdown Viewer/Editor
 
+> **归档说明**（2026-09-04）：本文档是 GlanceMD 前身（mdview/Peekdown 时期）的初始开发计划，描述的"Windows 单文件查看器"定位已被 GlanceMD Ultra 工作区产品取代，**内容已失效，仅作历史档案保留**。现行有效的开发计划见 `docs/plans/2026-09-04-glancemd-ultra-workspace-implementation-plan.md`，独立仓库决策见 `docs/adr/0001-glancemd-ultra-独立仓库.md`。
+
 ## Context
 Build a native Windows markdown reader/editor that feels as fast as old-school Notepad but looks modern (Obsidian/Discord aesthetic). Single `.exe`, near-instant startup, minimal footprint.
 
