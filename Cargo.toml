@@ -17,6 +17,7 @@ rfd = "0.15"
 dirs = "6"
 percent-encoding = "2"
 png = "0.17"
+trash = "5"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 webview2-com = "0.35"

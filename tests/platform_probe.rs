@@ -6,9 +6,10 @@
 //! 对外行为契约；集成方在 main.rs 加上 `mod platform;` 后，src 侧可再补充
 //! 单元测试，两者并存不冲突。
 //!
-//! 测试纪律：只调用"命令参数拼装"纯函数，以及不会真正 spawn 外部进程的
-//! 路径（Unsupported 语义、空候选列表、工厂分发）。任何测试都不得真的
-//! 启动 explorer / 终端 / xdg-open。
+//! 测试纪律：只调用"命令参数拼装"纯函数、std::fs 薄封装与不会真正 spawn 外部
+//! 进程的路径（空候选列表、工厂分发、缺失路径报错）。任何测试都不得真的启动
+//! explorer / 终端 / xdg-open；真实移入系统回收站的用例放在
+//! `tests/operations_probe.rs` 并标注 `#[ignore]`，避免常规测试污染回收站。
 
 #[path = "../src/platform/mod.rs"]
 mod platform;
@@ -54,18 +55,72 @@ fn windows_terminal_candidates_prefer_wt_then_fallback_to_cmd() {
     );
 }
 
-// ---------- Windows：回收站占位（阶段 3 接入 trash crate 前为 Unsupported） ----------
+// ---------- 回收站（阶段 3 起为 trash crate / std::fs 真实现） ----------
+
+/// 测试临时目录计数器（进程内唯一，避免并行测试互相覆盖）。
+static TRASH_TEMP_SEQ: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+fn trash_temp_path(tag: &str) -> std::path::PathBuf {
+    std::env::temp_dir().join(format!(
+        "glancemd-ultra-trash-{}-{}-{}",
+        std::process::id(),
+        tag,
+        TRASH_TEMP_SEQ.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+    ))
+}
 
 #[test]
-fn windows_trash_ops_report_unsupported_until_stage3() {
-    let path = Path::new(r"C:\tmp\whatever.md");
+fn trash_ops_delete_permanently_removes_files_and_dirs_on_all_impls() {
+    // 三平台实现体的 delete_permanently 均为 std::fs 薄封装，可在任意宿主上
+    // 验证真实删除行为（文件与嵌套目录树）。
+    let impls: Vec<(&str, &dyn TrashOps)> = vec![
+        ("windows", &windows::Windows),
+        ("macos", &macos::MacOs),
+        ("linux", &linux::Linux),
+    ];
+    for (idx, (name, ops)) in impls.iter().enumerate() {
+        let file = trash_temp_path(&format!("del-file-{idx}"));
+        std::fs::write(&file, "x").unwrap();
+        ops.delete_permanently(&file).unwrap();
+        assert!(!file.exists(), "{name} 未删除文件");
+
+        let dir = trash_temp_path(&format!("del-dir-{idx}"));
+        let nested = dir.join("a").join("b");
+        std::fs::create_dir_all(&nested).unwrap();
+        std::fs::write(nested.join("note.md"), "x").unwrap();
+        ops.delete_permanently(&dir).unwrap();
+        assert!(!dir.exists(), "{name} 未递归删除目录");
+
+        // 对已不存在的路径再删应报 Io 错误（NotFound），而非 panic 或误报成功
+        let missing = trash_temp_path(&format!("del-missing-{idx}"));
+        assert!(
+            matches!(ops.delete_permanently(&missing), Err(PlatformError::Io(_))),
+            "{name} 对缺失路径应返回 Io 错误"
+        );
+    }
+}
+
+#[test]
+fn trash_ops_to_trash_missing_path_reports_io_error_not_unsupported() {
+    // 阶段 3 起 to_trash 为 trash crate 真实现：不存在的路径由
+    // From<trash::Error> 折叠为 Io 错误，不再返回阶段 0 的 Unsupported 占位。
+    let missing = trash_temp_path("to-trash-missing");
     assert!(matches!(
-        windows::Windows.to_trash(path),
-        Err(PlatformError::Unsupported)
+        windows::Windows.to_trash(&missing),
+        Err(PlatformError::Io(_))
     ));
     assert!(matches!(
-        windows::Windows.delete_permanently(path),
-        Err(PlatformError::Unsupported)
+        macos::MacOs.to_trash(&missing),
+        Err(PlatformError::Io(_))
+    ));
+    assert!(matches!(
+        linux::Linux.to_trash(&missing),
+        Err(PlatformError::Io(_))
+    ));
+    let factory = platform::trash_ops();
+    assert!(matches!(
+        factory.to_trash(&missing),
+        Err(PlatformError::Io(_))
     ));
 }
 
@@ -130,29 +185,9 @@ fn linux_terminal_candidates_order_gnome_konsole_then_fallback() {
 
 // ---------- 跨平台通用语义 ----------
 
-#[test]
-fn trash_ops_are_unsupported_on_all_platforms_until_stage3() {
-    // 结构体级覆盖三平台（macos/linux 的实现在 Windows 宿主上同样参与编译）；
-    // trait 对象级覆盖当前平台的工厂分发结果。
-    let path = Path::new("does-not-matter.md");
-    assert!(matches!(
-        macos::MacOs.to_trash(path),
-        Err(PlatformError::Unsupported)
-    ));
-    assert!(matches!(
-        linux::Linux.to_trash(path),
-        Err(PlatformError::Unsupported)
-    ));
-    let trash = platform::trash_ops();
-    assert!(matches!(
-        trash.to_trash(path),
-        Err(PlatformError::Unsupported)
-    ));
-    assert!(matches!(
-        trash.delete_permanently(path),
-        Err(PlatformError::Unsupported)
-    ));
-}
+// （回收站通用语义见上方"回收站"小节：三平台 delete_permanently 真实删除、
+//   to_trash 缺失路径报 Io 错误。真实移入回收站的冒烟为 operations_probe.rs
+//   中 #[ignore] 的手动用例，避免常规测试污染系统回收站。）
 
 #[test]
 fn factories_dispatch_to_current_platform_impl() {

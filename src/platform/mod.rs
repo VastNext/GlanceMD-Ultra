@@ -15,9 +15,9 @@
 //! - [`revealer`] / [`trash_ops`] / [`terminal_opener`] 三个工厂按 `cfg!(target_os)`
 //!   把请求分发到 `windows` / `macos` / `linux` 子模块的实现。
 //!
-//! 接线说明：本模块是纯新增模块，`main.rs` 的 `mod platform;` 声明由集成方在合并时
-//! 添加；阶段 3 才接入 trash crate 与前端 IPC，在那之前没有生产调用方，因此整个
-//! 模块暂时允许 dead_code（含尚未构造的 [`PlatformError::CommandFailed`] 变体）。
+//! 接线说明：本模块由 `main.rs` 的 `mod platform;` 声明引入；阶段 3 起回收站
+//! 操作接入 trash crate（三平台统一 `trash::delete`），reveal / 终端打开仍走
+//! 平台子模块拼装的命令序列。
 
 #![allow(dead_code)]
 
@@ -32,7 +32,7 @@ pub mod windows;
 /// 平台能力调用失败的原因。
 #[derive(Debug)]
 pub enum PlatformError {
-    /// 当前平台不支持该能力（如阶段 3 接入 trash crate 之前的回收站操作）。
+    /// 当前平台不支持该能力（无可用候选命令等，如终端候选列表为空）。
     Unsupported,
     /// 外部命令已启动但以非零状态退出（阶段 3 引入退出码校验后启用）。
     CommandFailed {
@@ -69,6 +69,28 @@ impl std::error::Error for PlatformError {
 impl From<std::io::Error> for PlatformError {
     fn from(err: std::io::Error) -> Self {
         PlatformError::Io(err)
+    }
+}
+
+impl From<trash::Error> for PlatformError {
+    fn from(err: trash::Error) -> Self {
+        // trash::Error 的多数变体不携带 io::Error（携带的 FileSystem 变体仅
+        // FreeDesktop 平台存在），统一折叠为带原始描述的 Io 错误，保持
+        // PlatformError 形状稳定（阶段 3 回收站接入）。
+        PlatformError::Io(std::io::Error::other(err.to_string()))
+    }
+}
+
+/// 永久删除的 std::fs 薄封装（三平台 `TrashOps::delete_permanently` 共用）：
+/// 目录（含目录符号链接之外的普通目录树）递归 `remove_dir_all`，文件/符号链接
+/// 用 `remove_file`。调用方必须先完成项目根路径边界校验（主计划阶段 3
+/// "禁止越出项目根"）。
+pub(crate) fn delete_permanently_std(path: &Path) -> Result<(), PlatformError> {
+    let meta = std::fs::symlink_metadata(path)?;
+    if meta.is_dir() {
+        std::fs::remove_dir_all(path).map_err(PlatformError::from)
+    } else {
+        std::fs::remove_file(path).map_err(PlatformError::from)
     }
 }
 
