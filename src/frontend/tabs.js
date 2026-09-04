@@ -174,7 +174,7 @@ var TabManager = (function() {
   function updateWindowTitle() {
     var tab = getActiveTab();
     if (!tab) return;
-    var title = 'GlanceMD - ' + tab.filename;
+    var title = 'GlanceMD Ultra - ' + tab.filename;
     if (tab.dirty) title += ' *';
     sendToRust('set_title', { title: title });
     setTitle(tab.filename + (tab.dirty ? ' *' : ''));

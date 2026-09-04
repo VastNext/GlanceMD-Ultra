@@ -45,7 +45,7 @@ cargo fmt --check            # CI 会检查格式（Windows target 上执行）
 
 **本地构建注意事项**：
 
-- Windows 本机若未安装 MSVC 资源编译器（rc.exe），`build.rs` 的 `winresource` 图标嵌入会失败（`program not found`）。这只影响本机，**GitHub Actions 的 windows-latest 有完整工具链**。此时不必死磕本地构建，直接推送后以 CI Build 结果为准
+- Windows 本机默认使用 GNU Rust 工具链时，需让 PATH 包含 mingw-w64 的 `dlltool`/`windres`（当前开发机使用 `D:/Software/w64devkit/w64devkit/bin`）。`webview2-com-sys` 在 GNU 目标下动态加载 `WebView2Loader.dll`，`build.rs` 会自动把 `assets/windows/WebView2Loader.dll` 复制到 `target/<profile>/`；本地运行/分发 GNU 产物时必须让该 DLL 与 exe 同目录。GitHub Actions 的 Windows 发布构建使用 MSVC，loader 静态链接，正式 Release 仍为单 exe
 - 前端（`src/frontend/`）改动不影响 Rust 编译正确性；验证前端行为的方式是**组装测试页在浏览器中实测**：以与 `main.rs::build_html` 相同的占位符替换方式拼接 `index.html + style.css + 各 js`，注入 `window.ipc` 等 mock，用 Playwright/浏览器工具验证交互逻辑并截图确认视觉效果
 - **回归以 Playwright 冒烟套件为准**（阶段 0 建立，策略见主实施计划 §2"回归自动化策略"）：套件随阶段累积，每次改动先跑套件；人工验证仅保留系统交互与视觉项
 - 涉及 UI 的改动必须提供明暗两个主题下的截图验证
