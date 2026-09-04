@@ -1,0 +1,13 @@
+{
+  "name": "glancemd-ultra-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GlanceMD Ultra 阶段 0 端到端冒烟（Playwright，file:// 加载组装页）",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "playwright": "^1.62.1"
+  }
+}
