@@ -1,0 +1,5 @@
+const assert=require('node:assert/strict');const test=require('node:test');const vm=require('node:vm');const fs=require('node:fs');
+function load(){const els={};const doc={body:{appendChild(e){els[e.id]=e;}},getElementById:id=>els[id]||null,createElement:()=>({hidden:false,innerHTML:'',querySelector(){return {value:'',focus(){},addEventListener(){}};},querySelectorAll(){return [];}}),addEventListener(){}};const c={window:{},document:doc,console};c.window=c;c.Workspace={on(){}};vm.runInNewContext(fs.readFileSync('src/frontend/quick-open.js','utf8'),c);return {c,els};}
+test('quick open score favors matching filename',()=>{const h=load();assert.ok(h.c.QuickOpen.score('read','docs/readme.md')>h.c.QuickOpen.score('read','docs/example.md'));});
+test('quick open toggle creates floating panel',()=>{const h=load();h.c.QuickOpen.open();assert.ok(h.els['quick-open']);assert.equal(h.els['quick-open'].hidden,false);h.c.QuickOpen.close();assert.equal(h.els['quick-open'].hidden,true);});
+test('quick open setFiles updates state',()=>{const h=load();h.c.QuickOpen.setFiles(['a.md','docs/b.md']);assert.deepEqual(h.c.QuickOpen.getState().files,['a.md','docs/b.md']);});
