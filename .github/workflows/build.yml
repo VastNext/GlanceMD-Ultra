@@ -20,27 +20,27 @@ jobs:
           - name: Windows x64
             os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact: GlanceMD-windows-x64
-            binary: target/x86_64-pc-windows-msvc/release/GlanceMD.exe
+            artifact: GlanceMD-Ultra-windows-x64
+            binary: target/x86_64-pc-windows-msvc/release/GlanceMD-Ultra.exe
           - name: macOS Apple Silicon
             os: macos-latest
             target: aarch64-apple-darwin
-            artifact: GlanceMD-macos-arm64
-            binary: target/aarch64-apple-darwin/release/GlanceMD
+            artifact: GlanceMD-Ultra-macos-arm64
+            binary: target/aarch64-apple-darwin/release/GlanceMD-Ultra
             formats: app,dmg
             packages: dist/*
           - name: macOS Intel
             os: macos-15-intel
             target: x86_64-apple-darwin
-            artifact: GlanceMD-macos-x64
-            binary: target/x86_64-apple-darwin/release/GlanceMD
+            artifact: GlanceMD-Ultra-macos-x64
+            binary: target/x86_64-apple-darwin/release/GlanceMD-Ultra
             formats: app,dmg
             packages: dist/*
           - name: Linux x64
             os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
-            artifact: GlanceMD-linux-x64
-            binary: target/x86_64-unknown-linux-gnu/release/GlanceMD
+            artifact: GlanceMD-Ultra-linux-x64
+            binary: target/x86_64-unknown-linux-gnu/release/GlanceMD-Ultra
             formats: deb,appimage
             packages: |
               dist/*.deb
@@ -85,7 +85,7 @@ jobs:
           for attempt in 1 2 3; do
             # 清理可能残留的挂载卷，避免 hdiutil eject 偶发 Resource busy
             if command -v hdiutil >/dev/null 2>&1; then
-              hdiutil detach "/Volumes/GlanceMD" -force >/dev/null 2>&1 || true
+              hdiutil detach "/Volumes/GlanceMD-Ultra" -force >/dev/null 2>&1 || true
             fi
             rm -rf dist
             if cargo packager --release --target ${{ matrix.target }} --formats ${{ matrix.formats }} --out-dir dist; then

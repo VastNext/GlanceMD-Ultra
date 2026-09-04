@@ -276,7 +276,7 @@ function updateWordCount() {
 
 // Recent Files
 function getRecentFiles() {
-  try { return JSON.parse(localStorage.getItem('glancemd-recent')) || []; } catch(e) { return []; }
+  try { return JSON.parse(localStorage.getItem('glancemd-ultra-recent')) || []; } catch(e) { return []; }
 }
 
 function addRecentFile(path) {
@@ -286,7 +286,7 @@ function addRecentFile(path) {
   recent = recent.filter(function(r) { return r.path.replace(/\\/g, '/').toLowerCase() !== path.replace(/\\/g, '/').toLowerCase(); });
   recent.unshift({ path: path, filename: filename });
   if (recent.length > 10) recent = recent.slice(0, 10);
-  try { localStorage.setItem('glancemd-recent', JSON.stringify(recent)); } catch(e) {}
+  try { localStorage.setItem('glancemd-ultra-recent', JSON.stringify(recent)); } catch(e) {}
 }
 
 function showRecentPanel() {
@@ -440,7 +440,7 @@ document.addEventListener('wheel', function(e) {
   var MIN_WIDTH = 300;
 
   var saved = null;
-  try { saved = localStorage.getItem('glancemd-preview-width'); } catch(e) {}
+  try { saved = localStorage.getItem('glancemd-ultra-preview-width'); } catch(e) {}
   if (saved) preview.style.maxWidth = saved + 'px';
 
   var dragging = false;
@@ -466,12 +466,12 @@ document.addEventListener('wheel', function(e) {
     dragging = false;
     handle.classList.remove('dragging');
     document.body.classList.remove('preview-resizing');
-    try { localStorage.setItem('glancemd-preview-width', parseInt(preview.style.maxWidth)); } catch(e) {}
+    try { localStorage.setItem('glancemd-ultra-preview-width', parseInt(preview.style.maxWidth)); } catch(e) {}
   });
 
   handle.addEventListener('dblclick', function() {
     preview.style.maxWidth = DEFAULT_WIDTH + 'px';
-    try { localStorage.setItem('glancemd-preview-width', DEFAULT_WIDTH); } catch(e) {}
+    try { localStorage.setItem('glancemd-ultra-preview-width', DEFAULT_WIDTH); } catch(e) {}
   });
 })();
 
@@ -483,7 +483,7 @@ document.addEventListener('wheel', function(e) {
   var MIN_PANE = 240; /* 任一栏最小宽度，保证两侧始终可用 */
   var savedRatio = null;
   try {
-    var v = parseFloat(localStorage.getItem('glancemd-split-ratio'));
+    var v = parseFloat(localStorage.getItem('glancemd-ultra-split-ratio'));
     if (v > 0 && v < 1) savedRatio = v;
   } catch (e) {}
 
@@ -521,7 +521,7 @@ document.addEventListener('wheel', function(e) {
     var w = currentWidth();
     if (w > 0) {
       savedRatio = w / area.getBoundingClientRect().width;
-      try { localStorage.setItem('glancemd-split-ratio', String(savedRatio)); } catch (e) {}
+      try { localStorage.setItem('glancemd-ultra-split-ratio', String(savedRatio)); } catch (e) {}
     }
   });
 
@@ -529,7 +529,7 @@ document.addEventListener('wheel', function(e) {
   handle.addEventListener('dblclick', function() {
     container.style.flex = '';
     savedRatio = null;
-    try { localStorage.removeItem('glancemd-split-ratio'); } catch (e) {}
+    try { localStorage.removeItem('glancemd-ultra-split-ratio'); } catch (e) {}
   });
 
   /* 进入 split 时按记忆的比例恢复两栏宽度 */
@@ -551,7 +551,7 @@ document.addEventListener('wheel', function(e) {
 
   // 恢复上次宽度（CSS 变量驱动 #toc-panel 与 #toc-list）
   try {
-    var saved = localStorage.getItem('glancemd-toc-width');
+    var saved = localStorage.getItem('glancemd-ultra-toc-width');
     if (saved) {
       document.documentElement.style.setProperty('--toc-width', saved + 'px');
     }
@@ -579,7 +579,7 @@ document.addEventListener('wheel', function(e) {
     handle.classList.remove('dragging');
     document.body.classList.remove('toc-resizing');
     try {
-      localStorage.setItem('glancemd-toc-width',
+      localStorage.setItem('glancemd-ultra-toc-width',
         parseInt(document.documentElement.style.getPropertyValue('--toc-width')) || DEFAULT_WIDTH);
     } catch(e) {}
   });
@@ -587,7 +587,7 @@ document.addEventListener('wheel', function(e) {
   // 双击手柄恢复默认宽度
   handle.addEventListener('dblclick', function() {
     document.documentElement.style.setProperty('--toc-width', DEFAULT_WIDTH + 'px');
-    try { localStorage.setItem('glancemd-toc-width', DEFAULT_WIDTH); } catch(e) {}
+    try { localStorage.setItem('glancemd-ultra-toc-width', DEFAULT_WIDTH); } catch(e) {}
   });
 })();
 
@@ -793,7 +793,7 @@ function setTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   document.getElementById('icon-sun').style.display = theme === 'light' ? '' : 'none';
   document.getElementById('icon-moon').style.display = theme === 'light' ? 'none' : '';
-  try { localStorage.setItem('glancemd-theme', theme); } catch(e) {}
+  try { localStorage.setItem('glancemd-ultra-theme', theme); } catch(e) {}
 }
 
 document.getElementById('btn-theme').addEventListener('click', function() {
@@ -809,7 +809,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   var saved = null;
-  try { saved = localStorage.getItem('glancemd-theme'); } catch(e) {}
+  try { saved = localStorage.getItem('glancemd-ultra-theme'); } catch(e) {}
   setTheme(saved || 'light');
   TabManager.createTab(null, '');
   updateWordCount();

@@ -41,9 +41,9 @@ const ICON_PNG: &[u8] = include_bytes!("../assets/icon.png");
 
 pub(crate) const fn platform_base_url() -> &'static str {
     if cfg!(target_os = "windows") {
-        "http://glancemd.localhost/"
+        "http://glancemd-ultra.localhost/"
     } else {
-        "glancemd://localhost/"
+        "glancemd-ultra://localhost/"
     }
 }
 
@@ -115,10 +115,10 @@ fn is_app_navigation(url: &str) -> bool {
     let without_fragment = url.split('#').next().unwrap_or(url);
     matches!(
         without_fragment,
-        "http://glancemd.localhost/"
-            | "http://glancemd.localhost/index.html"
-            | "glancemd://localhost/"
-            | "glancemd://localhost/index.html"
+        "http://glancemd-ultra.localhost/"
+            | "http://glancemd-ultra.localhost/index.html"
+            | "glancemd-ultra://localhost/"
+            | "glancemd-ultra://localhost/index.html"
     )
 }
 
@@ -210,7 +210,7 @@ fn main() {
     }
 
     let window = WindowBuilder::new()
-        .with_title("GlanceMD - Untitled")
+        .with_title("GlanceMD Ultra - Untitled")
         .with_decorations(!cfg!(target_os = "windows"))
         .with_window_icon(load_window_icon())
         .with_inner_size(LogicalSize::new(size.0 as f64, size.1 as f64))
@@ -230,7 +230,7 @@ fn main() {
 
     let state_proto = Arc::clone(&app_state);
     let webview_builder = WebViewBuilder::new()
-        .with_custom_protocol("glancemd".to_string(), move |_id, request| {
+        .with_custom_protocol("glancemd-ultra".to_string(), move |_id, request| {
             let uri = request.uri().path();
             if uri == "/" || uri == "/index.html" {
                 let st = state_proto.lock().unwrap();
@@ -447,7 +447,7 @@ fn main() {
 
                     MessageDialog::new()
                         .set_level(MessageLevel::Warning)
-                        .set_title("GlanceMD")
+                        .set_title("GlanceMD Ultra")
                         .set_description("存在未保存的修改，确定要关闭吗？")
                         .set_buttons(MessageButtons::YesNo)
                         .show()
@@ -493,15 +493,21 @@ mod tests {
 
     #[test]
     fn 仅允许应用根页面和页内导航() {
-        assert!(is_app_navigation("http://glancemd.localhost/"));
-        assert!(is_app_navigation("http://glancemd.localhost/#usage"));
-        assert!(is_app_navigation("http://glancemd.localhost/index.html"));
-        assert!(is_app_navigation("glancemd://localhost/"));
-        assert!(is_app_navigation("glancemd://localhost/index.html"));
-        assert!(is_app_navigation("glancemd://localhost/#usage"));
+        assert!(is_app_navigation("http://glancemd-ultra.localhost/"));
+        assert!(is_app_navigation("http://glancemd-ultra.localhost/#usage"));
+        assert!(is_app_navigation(
+            "http://glancemd-ultra.localhost/index.html"
+        ));
+        assert!(is_app_navigation("glancemd-ultra://localhost/"));
+        assert!(is_app_navigation("glancemd-ultra://localhost/index.html"));
+        assert!(is_app_navigation("glancemd-ultra://localhost/#usage"));
         assert!(!is_app_navigation("about:blank"));
-        assert!(!is_app_navigation("http://glancemd.localhost/README_CN.md"));
-        assert!(!is_app_navigation("glancemd://localhost/README_CN.md"));
+        assert!(!is_app_navigation(
+            "http://glancemd-ultra.localhost/README_CN.md"
+        ));
+        assert!(!is_app_navigation(
+            "glancemd-ultra://localhost/README_CN.md"
+        ));
         assert!(!is_app_navigation("https://example.com"));
     }
 }

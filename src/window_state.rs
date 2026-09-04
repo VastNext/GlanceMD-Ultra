@@ -12,7 +12,7 @@ struct WindowState {
 
 fn config_path() -> PathBuf {
     let mut p = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
-    p.push("glancemd");
+    p.push("glancemd-ultra");
     p.push("window_state.json");
     p
 }
