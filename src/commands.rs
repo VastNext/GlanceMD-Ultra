@@ -201,9 +201,16 @@ fn open_file(ctx: &CommandContext, p: &CommandPayload) {
 }
 
 fn workspace_open(_: &CommandContext, p: &CommandPayload) {
-    let Some(path) = p.path.as_deref() else {
-        error("workspace.open 缺少 path 参数");
-        return;
+    let picked;
+    let path = match p.path.as_deref() {
+        Some(path) => path,
+        None => {
+            picked = file_ops::pick_workspace_folder();
+            let Some(path) = picked.as_deref() else {
+                return;
+            };
+            path
+        }
     };
     match workspace::Workspace::open_root(path) {
         Ok(ws) => {

@@ -84,16 +84,15 @@ test('run(file.open) 发送与原按钮等效的 open_file 上行消息', () => 
   assert.deepEqual(messages[0], { command: 'open_file' });
 });
 
-test('run(workspace.open) 携带 path 参数', () => {
+test('run(workspace.open) 有路径时直接打开，无路径时请求原生目录选择器', () => {
   const { commands, messages } = loadCommands();
   commands.run('workspace.open', { path: 'G:/proj' });
-  assert.equal(messages.length, 1);
   assert.deepEqual(messages[0], { command: 'workspace.open', path: 'G:/proj' });
 
-  // 无 path 的调用不产生上行消息（目录选择对话框在阶段 1 提供）
   commands.run('workspace.open');
   commands.run('workspace.open', {});
-  assert.equal(messages.length, 1);
+  assert.deepEqual(messages[1], { command: 'workspace.open' });
+  assert.deepEqual(messages[2], { command: 'workspace.open' });
 });
 
 test('未知命令与重复注册都报错', () => {
@@ -123,7 +122,13 @@ test('register 后可 run，unregister 后不可再 run', () => {
   assert.deepEqual(messages, []);
 });
 
-test('接管打开文件按钮：克隆替换原节点并经命令表触发', () => {
+test('上方文件夹按钮经命令表请求打开项目目录', () => {
+  const { messages, replacedBy } = loadCommands();
+  replacedBy.listeners.click({ preventDefault() {} });
+  assert.deepEqual(messages, [{ command: 'workspace.open' }]);
+});
+
+test('接管打开按钮：克隆替换原节点，旧 app.js 绑定不再触发', () => {
   const { messages, original, replacedBy, legacyClicks } = loadCommands();
   // 原节点被无监听器的克隆替换（旧 app.js 绑定随之失效）
   assert.equal(replacedBy !== original, true);
@@ -134,7 +139,7 @@ test('接管打开文件按钮：克隆替换原节点并经命令表触发', ()
   replacedBy.listeners.click({ preventDefault() { prevented = true; } });
   assert.equal(prevented, true);
   assert.equal(messages.length, 1);
-  assert.deepEqual(messages[0], { command: 'open_file' });
+  assert.deepEqual(messages[0], { command: 'workspace.open' });
   // 旧绑定未随克隆复制，不会被触发（无双重对话框）
   assert.equal(legacyClicks.length, 0);
 });

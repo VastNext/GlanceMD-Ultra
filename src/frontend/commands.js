@@ -69,13 +69,15 @@
     }
   });
 
-  // 打开可信项目根；目录选择对话框在阶段 1 提供，当前仅接受显式 path。
+  // 打开可信项目根：有 path 时直接打开，无 path 时由 Rust 弹原生目录选择器。
   register('workspace.open', {
     label: '打开项目文件夹…',
     run: function(arg) {
       var path = arg && typeof arg === 'object' ? arg.path : arg;
       if (typeof path === 'string' && path) {
         sendToRust('workspace.open', { path: path });
+      } else {
+        sendToRust('workspace.open');
       }
     }
   });
@@ -91,9 +93,11 @@
     }
     var clone = btn.cloneNode(true);
     btn.parentNode.replaceChild(clone, btn);
+    clone.title = 'Open Folder';
+    clone.setAttribute && clone.setAttribute('aria-label', 'Open Folder');
     clone.addEventListener('click', function(event) {
       event.preventDefault();
-      run('file.open');
+      run('workspace.open');
     });
   }
 

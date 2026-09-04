@@ -136,6 +136,29 @@ fn is_app_navigation(url: &str) -> bool {
     )
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DropAction {
+    OpenWorkspace,
+    OpenFile,
+    Ignore,
+}
+
+fn classify_drop_path(path: &std::path::Path) -> DropAction {
+    if path.is_dir() {
+        return DropAction::OpenWorkspace;
+    }
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if matches!(ext.as_str(), "md" | "markdown" | "txt") {
+        DropAction::OpenFile
+    } else {
+        DropAction::Ignore
+    }
+}
+
 fn main() {
     let app_state = Arc::new(Mutex::new(state::AppState::new()));
 
@@ -319,19 +342,17 @@ fn main() {
                     let leave = serde_json::json!({"command": "drag_leave"}).to_string();
                     let _ = proxy_drop.send_event(UserEvent::IpcMessage(leave));
                     for path in &paths {
-                        let ext = path
-                            .extension()
-                            .and_then(|e| e.to_str())
-                            .unwrap_or("")
-                            .to_lowercase();
-                        if ext == "md" || ext == "markdown" || ext == "txt" {
-                            let msg = serde_json::json!({
-                                "command": "open_file",
-                                "path": path.to_string_lossy()
-                            })
-                            .to_string();
-                            let _ = proxy_drop.send_event(UserEvent::IpcMessage(msg));
-                        }
+                        let command = match classify_drop_path(path) {
+                            DropAction::OpenWorkspace => "workspace.open",
+                            DropAction::OpenFile => "open_file",
+                            DropAction::Ignore => continue,
+                        };
+                        let msg = serde_json::json!({
+                            "command": command,
+                            "path": path.to_string_lossy()
+                        })
+                        .to_string();
+                        let _ = proxy_drop.send_event(UserEvent::IpcMessage(msg));
                     }
                 }
                 wry::DragDropEvent::Leave => {
@@ -480,8 +501,9 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_app_navigation, should_close_window};
+    use super::{classify_drop_path, is_app_navigation, should_close_window, DropAction};
     use std::cell::Cell;
+    use std::fs;
 
     #[test]
     fn clean_window_closes_without_prompting() {
@@ -503,6 +525,22 @@ mod tests {
     #[test]
     fn dirty_window_closes_when_discard_is_confirmed() {
         assert!(should_close_window(true, || true));
+    }
+
+    #[test]
+    fn 拖放目录打开工作区_文本文件打开文件_其他文件忽略() {
+        let root = std::env::temp_dir().join(format!("glancemd-ultra-drop-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let markdown = root.join("note.md");
+        let other = root.join("image.png");
+        fs::write(&markdown, "# note").unwrap();
+        fs::write(&other, b"png").unwrap();
+
+        assert_eq!(classify_drop_path(&root), DropAction::OpenWorkspace);
+        assert_eq!(classify_drop_path(&markdown), DropAction::OpenFile);
+        assert_eq!(classify_drop_path(&other), DropAction::Ignore);
+        fs::remove_dir_all(&root).unwrap();
     }
 
     #[test]
