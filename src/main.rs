@@ -20,6 +20,7 @@ use wry::WebViewBuilder;
 mod commands;
 mod file_ops;
 mod ipc;
+mod platform;
 #[cfg(target_os = "windows")]
 mod single_instance;
 mod state;

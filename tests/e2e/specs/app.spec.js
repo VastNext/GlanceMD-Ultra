@@ -73,11 +73,11 @@ test('主题切换：data-theme 在 light/dark 间往返并持久化', async ({ 
 
   await page.click('#btn-theme');
   await expect(root).toHaveAttribute('data-theme', 'dark');
-  expect(await page.evaluate(() => localStorage.getItem('glancemd-theme'))).toBe('dark');
+  expect(await page.evaluate(() => localStorage.getItem('glancemd-ultra-theme'))).toBe('dark');
 
   await page.click('#btn-theme');
   await expect(root).toHaveAttribute('data-theme', 'light');
-  expect(await page.evaluate(() => localStorage.getItem('glancemd-theme'))).toBe('light');
+  expect(await page.evaluate(() => localStorage.getItem('glancemd-ultra-theme'))).toBe('light');
 
   // 持久化：dark 时 reload，偏好应恢复
   await page.click('#btn-theme');

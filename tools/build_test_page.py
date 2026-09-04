@@ -9,8 +9,9 @@
 拼接规则（与 main.rs::build_html 保持一致，勿单方面改动）：
 - index.html 中 ``/* __CSS__ */`` 替换为 style.css 全文；
 - ``<body>`` 替换为 ``<body data-platform="{platform}">``；
-- ``<!-- __SCRIPTS__ -->`` 替换为按序 6 个内联 <script>：
-  highlight.min.js -> marked.min.js -> preview.js -> tabs.js -> editor.js -> app.js；
+- ``<!-- __SCRIPTS__ -->`` 替换为按序 8 个内联 <script>：
+  highlight.min.js -> marked.min.js -> preview.js -> tabs.js -> editor.js -> app.js
+  -> commands.js -> workspace.js；
 - 每个 JS 经 ``</script`` -> ``<\\/script`` 转义后内联，防止提前闭合标签。
 
 用法
@@ -42,6 +43,8 @@ SCRIPT_ORDER = (
     "tabs.js",
     "editor.js",
     "app.js",
+    "commands.js",
+    "workspace.js",
 )
 
 
