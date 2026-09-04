@@ -1072,8 +1072,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "glancemd"
-version = "1.4.0"
+name = "glancemd-ultra"
+version = "0.1.0"
 dependencies = [
  "dirs",
  "gtk",
