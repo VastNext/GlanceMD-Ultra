@@ -17,12 +17,14 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 use wry::WebViewBuilder;
 
+mod commands;
 mod file_ops;
 mod ipc;
 #[cfg(target_os = "windows")]
 mod single_instance;
 mod state;
 mod window_state;
+mod workspace;
 
 const INDEX_HTML: &str = include_str!("frontend/index.html");
 const STYLE_CSS: &str = include_str!("frontend/style.css");
@@ -32,6 +34,9 @@ const PREVIEW_JS: &str = include_str!("frontend/preview.js");
 const TABS_JS: &str = include_str!("frontend/tabs.js");
 const MARKED_JS: &str = include_str!("frontend/marked.min.js");
 const HLJS: &str = include_str!("frontend/highlight.min.js");
+// 阶段 0 新增前端模块：排在既有脚本（app.js）之后加载
+const COMMANDS_JS: &str = include_str!("frontend/commands.js");
+const WORKSPACE_JS: &str = include_str!("frontend/workspace.js");
 const ICON_PNG: &[u8] = include_bytes!("../assets/icon.png");
 
 pub(crate) const fn platform_base_url() -> &'static str {
@@ -102,6 +107,8 @@ fn load_window_icon() -> Option<tao::window::Icon> {
 enum UserEvent {
     IpcMessage(String),
     NavigationBlocked(String),
+    /// Workspace 事件桥：后台线程产生的事件经此送达主线程后广播给前端
+    WorkspaceEvent(workspace::events::Event),
 }
 
 fn is_app_navigation(url: &str) -> bool {
@@ -117,6 +124,9 @@ fn is_app_navigation(url: &str) -> bool {
 
 fn main() {
     let app_state = Arc::new(Mutex::new(state::AppState::new()));
+
+    // 阶段 0：引导内置命令注册表（幂等，可安全重复调用）
+    commands::register_builtin();
 
     // Parse CLI args
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -170,6 +180,13 @@ fn main() {
 
     let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
     let proxy: EventLoopProxy<UserEvent> = event_loop.create_proxy();
+
+    // Workspace 事件桥：后台线程/命令处理产生的事件经事件循环广播到前端
+    // （workspace::events::emit → EventLoopProxy → 下方 WorkspaceEvent 分支 → send_to_js）
+    let proxy_workspace = proxy.clone();
+    workspace::events::set_sender(Box::new(move |event| {
+        let _ = proxy_workspace.send_event(UserEvent::WorkspaceEvent(event));
+    }));
 
     // Windows 主实例：后台线程监听管道，把第二实例转发的文件参数变成 open_file IPC。
     #[cfg(target_os = "windows")]
@@ -338,7 +355,14 @@ fn main() {
 
     // Store CLI file path to open once JS is ready
     if let Some(file_path) = cli_file {
-        app_state.lock().unwrap().pending_files.push(file_path);
+        if std::path::Path::new(&file_path).is_dir() {
+            // 阶段 0 垂直切片：CLI 传入已存在的目录 → 打开 Workspace。
+            // 暂存待前端 ready 后再打开，确保 workspace:* 事件不早于前端装载。
+            workspace::set_pending_root(file_path);
+        } else {
+            // 既有单文件行为保持不变（含路径不存在时走错误提示的老路径）
+            app_state.lock().unwrap().pending_files.push(file_path);
+        }
     }
 
     event_loop.run(move |event, _, control_flow| {
@@ -347,6 +371,9 @@ fn main() {
         match event {
             Event::UserEvent(UserEvent::IpcMessage(msg)) => {
                 ipc::handle_ipc_message(&msg, &_webview, &window, &app_state);
+            }
+            Event::UserEvent(UserEvent::WorkspaceEvent(event)) => {
+                workspace::events::broadcast_event(&_webview, &event);
             }
             Event::UserEvent(UserEvent::NavigationBlocked(url)) => {
                 ipc::send_to_js(
@@ -494,6 +521,14 @@ fn build_html() -> String {
         escape_for_script_tag(TABS_JS),
         escape_for_script_tag(EDITOR_JS),
         escape_for_script_tag(APP_JS),
+    );
+
+    // 阶段 0 追加：commands.js、workspace.js 排在 app.js 之后（保持既有脚本顺序不变）
+    let scripts = format!(
+        "{}\n<script>{}</script>\n<script>{}</script>",
+        scripts,
+        escape_for_script_tag(COMMANDS_JS),
+        escape_for_script_tag(WORKSPACE_JS),
     );
 
     INDEX_HTML
