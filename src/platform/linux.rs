@@ -1,4 +1,4 @@
-//! Linux 平台实现：xdg-open 显示父目录、桌面环境终端探测、回收站占位。
+//! Linux 平台实现：xdg-open 显示父目录、桌面环境终端探测、回收站（trash crate）。
 
 use std::path::Path;
 
@@ -67,15 +67,13 @@ impl TerminalOpener for Linux {
 }
 
 impl TrashOps for Linux {
-    fn to_trash(&self, _path: &Path) -> Result<(), PlatformError> {
-        // TODO(阶段 3)：接入 trash crate（主计划 §1 候选依赖），走 FreeDesktop
-        // 回收站规范（~/.local/share/Trash，可"从回收站还原"）。
-        Err(PlatformError::Unsupported)
+    fn to_trash(&self, path: &Path) -> Result<(), PlatformError> {
+        // trash crate（FreeDesktop 回收站规范 ~/.local/share/Trash，
+        // 可"从回收站还原"）。
+        trash::delete(path).map_err(PlatformError::from)
     }
 
-    fn delete_permanently(&self, _path: &Path) -> Result<(), PlatformError> {
-        // TODO(阶段 3)：std::fs::remove_file / remove_dir_all；调用前必须先经过
-        // workspace 的项目根路径边界校验（主计划阶段 3"禁止越出项目根"）。
-        Err(PlatformError::Unsupported)
+    fn delete_permanently(&self, path: &Path) -> Result<(), PlatformError> {
+        super::delete_permanently_std(path)
     }
 }

@@ -1,4 +1,4 @@
-//! macOS 平台实现：Finder 显示、Terminal 打开、废纸篓占位。
+//! macOS 平台实现：Finder 显示、Terminal 打开、废纸篓（trash crate）。
 
 use std::path::Path;
 
@@ -51,16 +51,12 @@ impl TerminalOpener for MacOs {
 }
 
 impl TrashOps for MacOs {
-    fn to_trash(&self, _path: &Path) -> Result<(), PlatformError> {
-        // TODO(阶段 3)：接入 trash crate（主计划 §1 候选依赖），走 Finder 语义的
-        // 废纸篓（支持"放回原处"）。不在此处用 osascript 临时实现，避免阶段 0
-        // 引入未经三平台矩阵实测的行为。
-        Err(PlatformError::Unsupported)
+    fn to_trash(&self, path: &Path) -> Result<(), PlatformError> {
+        // trash crate（macOS 后端走 Finder 语义的废纸篓，支持"放回原处"）。
+        trash::delete(path).map_err(PlatformError::from)
     }
 
-    fn delete_permanently(&self, _path: &Path) -> Result<(), PlatformError> {
-        // TODO(阶段 3)：std::fs::remove_file / remove_dir_all；调用前必须先经过
-        // workspace 的项目根路径边界校验（主计划阶段 3"禁止越出项目根"）。
-        Err(PlatformError::Unsupported)
+    fn delete_permanently(&self, path: &Path) -> Result<(), PlatformError> {
+        super::delete_permanently_std(path)
     }
 }

@@ -1,4 +1,4 @@
-//! Windows 平台实现：Explorer 显示、终端打开（Windows Terminal 优先）、回收站占位。
+//! Windows 平台实现：Explorer 显示、终端打开（Windows Terminal 优先）、回收站（trash crate）。
 
 use std::path::Path;
 
@@ -57,16 +57,13 @@ impl TerminalOpener for Windows {
 }
 
 impl TrashOps for Windows {
-    fn to_trash(&self, _path: &Path) -> Result<(), PlatformError> {
-        // TODO(阶段 3)：接入 trash crate（主计划 §1 候选依赖，随 Wave 2 由主 Agent
-        // 加入 Cargo.toml）。Windows 走 Shell IFileOperation，保证在资源管理器中
-        // 可"还原"（阶段 3 验收标准）。
-        Err(PlatformError::Unsupported)
+    fn to_trash(&self, path: &Path) -> Result<(), PlatformError> {
+        // trash crate（Windows 后端走 Shell IFileOperation），资源管理器中可"还原"
+        //（阶段 3 验收标准）。
+        trash::delete(path).map_err(PlatformError::from)
     }
 
-    fn delete_permanently(&self, _path: &Path) -> Result<(), PlatformError> {
-        // TODO(阶段 3)：std::fs::remove_file / remove_dir_all；调用前必须先经过
-        // workspace 的项目根路径边界校验（主计划阶段 3"禁止越出项目根"）。
-        Err(PlatformError::Unsupported)
+    fn delete_permanently(&self, path: &Path) -> Result<(), PlatformError> {
+        super::delete_permanently_std(path)
     }
 }
