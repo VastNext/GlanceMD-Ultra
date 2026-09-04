@@ -18,14 +18,30 @@ struct IpcMessage {
     title: Option<String>,
     #[serde(default)]
     dirty: Option<bool>,
+    /// 各阶段命令的扩展参数（searchId/options/tab_id/new_name/dest_dir/undo_id…），
+    /// 原样透传给命令 handler；字段名以各契约 `docs/dev/contracts/*.md` 为准。
+    #[serde(flatten)]
+    extra: serde_json::Value,
 }
 
 /// 上行 wire 命令名 → 命令注册表 ID 的映射（契约见 `docs/dev/interfaces.md`）。
 /// 命中即离开既有 match，经 `commands::dispatch` 分发；未命中走原有分支。
-fn registry_command_id(wire_command: &str) -> Option<&'static str> {
+/// 除个别历史命令外，`workspace.*` / `watcher.*` 前缀的 wire 命令与注册表 ID 一致，直接透传。
+fn registry_command_id(wire_command: &str) -> Option<String> {
     match wire_command {
-        "open_file" => Some("file.open"),
-        "workspace.open" => Some("workspace.open"),
+        "open_file" => Some("file.open".to_string()),
+        "workspace.open" => Some("workspace.open".to_string()),
+        _ if wire_command.starts_with("workspace.")
+            || wire_command.starts_with("watcher.")
+            || wire_command.starts_with("recovery.")
+            || wire_command.starts_with("project.")
+            || wire_command.starts_with("search.")
+            || wire_command.starts_with("quickopen.")
+            || wire_command.starts_with("palette.")
+            || wire_command.starts_with("settings.") =>
+        {
+            Some(wire_command.to_string())
+        }
         _ => None,
     }
 }
@@ -52,13 +68,14 @@ pub fn handle_ipc_message(
             path: parsed.path,
             title: parsed.title,
             dirty: parsed.dirty,
+            extra: parsed.extra,
         };
         let ctx = commands::CommandContext {
             webview,
             window,
             state,
         };
-        if let Err(e) = commands::dispatch(id, &payload, &ctx) {
+        if let Err(e) = commands::dispatch(&id, &payload, &ctx) {
             eprintln!("命令分发失败: {e}");
         }
         return;

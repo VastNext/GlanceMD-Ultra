@@ -46,6 +46,14 @@ SCRIPT_ORDER = (
     "commands.js",
     "workspace.js",
     "layout.js",
+    "outline.js",
+    "project-tree.js",
+    "search-panel.js",
+    "quick-open.js",
+    "settings.js",
+    "keybindings.js",
+    "command-palette.js",
+    "recovery.js",
 )
 
 

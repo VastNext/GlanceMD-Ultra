@@ -1,0 +1,15 @@
+(function () {
+  'use strict';
+  var state={open:false,root:'',files:[],selected:0};
+  function send(m){if(window.ipc&&window.ipc.postMessage)window.ipc.postMessage(JSON.stringify(m));}
+  function score(query,file){var q=query.toLowerCase(),s=file.toLowerCase(),i=0,total=0,last=-2;for(var c=0;c<q.length;c++){var at=s.indexOf(q[c],i);if(at<0)return -1;total+=1+(at===last+1?3:0)+(at===0||'/\\_- '.indexOf(s[at-1])>=0?2:0);last=at;i=at+1;}return total+(s.split(/[\\/]/).pop().indexOf(q)>=0?5:0);}
+  function ensure(){var p=document.getElementById('quick-open');if(p)return p;p=document.createElement('section');p.id='quick-open';p.className='quick-open';p.hidden=true;p.innerHTML='<input id="quick-open-input" placeholder="快速打开文件"><div id="quick-open-list"></div>';document.body.appendChild(p);p.querySelector('input').addEventListener('input',render);return p;}
+  function render(){var p=ensure(),q=p.querySelector('input').value.trim(),items=state.files.map(function(f){return {f:f,s:q?score(q,f):0};}).filter(function(x){return x.s>=0;}).sort(function(a,b){return b.s-a.s||a.f.localeCompare(b.f);}).slice(0,50);p.querySelector('#quick-open-list').innerHTML=items.map(function(x,i){return '<button class="quick-open-item '+(i===state.selected?'active':'')+'" data-file="'+x.f.replace(/"/g,'&quot;')+'">'+x.f+'</button>';}).join('')||'<p>无匹配文件</p>';Array.prototype.forEach.call(p.querySelectorAll('.quick-open-item'),function(b){b.addEventListener('click',function(){send({command:'open_file',path:(state.root?state.root+'/':'')+b.dataset.file});close();});});}
+  function open(){state.open=true;state.selected=0;var p=ensure();p.hidden=false;p.querySelector('input').focus();render();}
+  function close(){state.open=false;var p=document.getElementById('quick-open');if(p)p.hidden=true;}
+  function rebuild(){state.files=[];send({command:'workspace.tree.list',path:''});}
+  function receive(e,d){if(e==='workspace:opened'){state.root=d.root||'';rebuild();}if(e==='workspace:tree-listed'){(d.entries||[]).forEach(function(x){var rel=x.relPath||x.rel_path;if((x.kind==='dir'||x.kind==='Dir')&&rel)send({command:'workspace.tree.list',path:rel});else if(rel)state.files.push(rel);});if(state.open)render();}}
+  if(window.Workspace&&Workspace.on){Workspace.on('workspace:opened',function(d){receive('workspace:opened',d);});Workspace.on('workspace:tree-listed',function(d){receive('workspace:tree-listed',d);});}
+  document.addEventListener('keydown',function(e){if(e.ctrlKey&&!e.shiftKey&&e.key.toLowerCase()==='p'){e.preventDefault();state.open?close():open();}else if(state.open&&e.key==='Escape')close();else if(state.open&&(e.key==='ArrowDown'||e.key==='ArrowUp')){e.preventDefault();state.selected=Math.max(0,state.selected+(e.key==='ArrowDown'?1:-1));render();}else if(state.open&&e.key==='Enter'){var b=ensure().querySelector('.quick-open-item.active');if(b)b.click();}});
+  window.QuickOpen={open:open,close:close,toggle:function(){state.open?close():open();},setFiles:function(v){state.files=v.slice();render();},score:score,getState:function(){return {open:state.open,files:state.files.slice()};}};
+})();

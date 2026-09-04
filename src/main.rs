@@ -17,7 +17,9 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 use wry::WebViewBuilder;
 
+mod atomic_save;
 mod commands;
+mod file_codec;
 mod file_ops;
 mod ipc;
 mod platform;
@@ -40,6 +42,22 @@ const COMMANDS_JS: &str = include_str!("frontend/commands.js");
 const WORKSPACE_JS: &str = include_str!("frontend/workspace.js");
 // 阶段 1 前端骨架：三栏布局的面板折叠/拖宽/持久化，追加在 workspace.js 之后
 const LAYOUT_JS: &str = include_str!("frontend/layout.js");
+// 阶段 1–6 前端面板（Wave 2b）：一律追加在 layout.js 之后；同名 css 拼在 style.css 之后
+const OUTLINE_JS: &str = include_str!("frontend/outline.js");
+const PROJECT_TREE_JS: &str = include_str!("frontend/project-tree.js");
+const SEARCH_PANEL_JS: &str = include_str!("frontend/search-panel.js");
+const QUICK_OPEN_JS: &str = include_str!("frontend/quick-open.js");
+const SETTINGS_JS: &str = include_str!("frontend/settings.js");
+const KEYBINDINGS_JS: &str = include_str!("frontend/keybindings.js");
+const COMMAND_PALETTE_JS: &str = include_str!("frontend/command-palette.js");
+const RECOVERY_JS: &str = include_str!("frontend/recovery.js");
+const OUTLINE_CSS: &str = include_str!("frontend/outline.css");
+const PROJECT_TREE_CSS: &str = include_str!("frontend/project-tree.css");
+const SEARCH_PANEL_CSS: &str = include_str!("frontend/search-panel.css");
+const QUICK_OPEN_CSS: &str = include_str!("frontend/quick-open.css");
+const SETTINGS_CSS: &str = include_str!("frontend/settings.css");
+const COMMAND_PALETTE_CSS: &str = include_str!("frontend/command-palette.css");
+const RECOVERY_CSS: &str = include_str!("frontend/recovery.css");
 const ICON_PNG: &[u8] = include_bytes!("../assets/icon.png");
 
 pub(crate) const fn platform_base_url() -> &'static str {
@@ -547,8 +565,44 @@ fn build_html() -> String {
         escape_for_script_tag(LAYOUT_JS),
     );
 
+    // 阶段 1–6 前端面板：顺序 outline → project-tree → search-panel → quick-open
+    // → settings → keybindings → command-palette → recovery（keybindings 晚于 settings，
+    // palette 晚于 keybindings；面板均只依赖 commands/workspace/layout 的公开命名空间）
+    let scripts = format!(
+        "{}\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>",
+        scripts,
+        escape_for_script_tag(OUTLINE_JS),
+        escape_for_script_tag(PROJECT_TREE_JS),
+        escape_for_script_tag(SEARCH_PANEL_JS),
+        escape_for_script_tag(QUICK_OPEN_JS),
+        escape_for_script_tag(SETTINGS_JS),
+        escape_for_script_tag(KEYBINDINGS_JS),
+        escape_for_script_tag(COMMAND_PALETTE_JS),
+        escape_for_script_tag(RECOVERY_JS),
+    );
+
+    // 面板样式拼在 style.css 之后（同特异性下后写的规则生效；各面板 css 内
+    // 使用 style.css 的既有 token，明暗两套均已在 shell 或面板文件内定义）
+    const PANEL_CSS: &str = concat!(
+        "\n/* ── outline.css ── */\n",
+        include_str!("frontend/outline.css"),
+        "\n/* ── project-tree.css ── */\n",
+        include_str!("frontend/project-tree.css"),
+        "\n/* ── search-panel.css ── */\n",
+        include_str!("frontend/search-panel.css"),
+        "\n/* ── quick-open.css ── */\n",
+        include_str!("frontend/quick-open.css"),
+        "\n/* ── settings.css ── */\n",
+        include_str!("frontend/settings.css"),
+        "\n/* ── command-palette.css ── */\n",
+        include_str!("frontend/command-palette.css"),
+        "\n/* ── recovery.css ── */\n",
+        include_str!("frontend/recovery.css"),
+    );
+    let full_css = format!("{STYLE_CSS}{PANEL_CSS}");
+
     INDEX_HTML
-        .replace("/* __CSS__ */", STYLE_CSS)
+        .replace("/* __CSS__ */", &full_css)
         .replace(
             "<body>",
             &format!("<body data-platform=\"{}\">", platform_name()),

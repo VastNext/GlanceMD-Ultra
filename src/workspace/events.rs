@@ -11,7 +11,8 @@ use wry::WebView;
 
 use crate::ipc;
 
-/// 阶段 0 最小事件集（事件名全集与负载契约见 `docs/dev/interfaces.md`）。
+/// 工作区事件全集（事件名与负载契约见 `docs/dev/interfaces.md` §3；
+/// 字段级事实源为各模块契约 `docs/dev/contracts/*.md`）。
 #[derive(Debug, Clone, PartialEq)]
 pub enum Event {
     /// 工作区已打开：`root` 为规范化后的项目根；`file_count` 为已知文件数
@@ -21,6 +22,64 @@ pub enum Event {
     ScanProgress { scanned: usize },
     /// 工作区错误：`message` 为面向用户的中文描述。
     Error { message: String },
+    /// 目录树单层列出结果（`workspace.tree.list` 回执；entries 为 TreeEntry 序列化）。
+    TreeListed {
+        rel_dir: String,
+        entries: serde_json::Value,
+    },
+    /// 搜索增量结果（worker 攒批下发）。
+    SearchResult {
+        search_id: String,
+        hits: serde_json::Value,
+    },
+    /// 搜索结束（含取消与截断状态，summary 为 SearchSummary 序列化）。
+    SearchCompleted {
+        search_id: String,
+        summary: serde_json::Value,
+    },
+    /// 文件操作完成（payload 见 operations 契约 §3：{op, paths, undo_id, undoId}）。
+    FsOpDone { payload: serde_json::Value },
+    /// 外部文件变更（watcher 去抖合并后；kind: created/modified/removed/renamed，
+    /// renamed 时额外携带 `from`）。
+    FileChanged { payload: serde_json::Value },
+    /// 监听后端错误。
+    WatcherError { message: String },
+    /// 设置已变更（`scope`: global/project）。
+    SettingsChanged { scope: String },
+    /// 设置回执：全局设置。
+    SettingsGlobal {
+        settings: serde_json::Value,
+        warnings: Vec<String>,
+    },
+    /// 设置回执：当前生效值 + 被项目覆盖的 key_path 列表。
+    SettingsEffective {
+        settings: serde_json::Value,
+        warnings: Vec<String>,
+        overridden: Vec<String>,
+    },
+    /// 设置回执：项目补丁。
+    SettingsProject {
+        patch: serde_json::Value,
+        warnings: Vec<String>,
+        path: Option<String>,
+    },
+    /// 崩溃恢复：待恢复条目（仅元数据，不含 content）。
+    RecoveryAvailable {
+        entries: serde_json::Value,
+        warnings: Vec<String>,
+    },
+    /// 崩溃恢复：单条恢复内容（前端据此建 dirty tab）。
+    RecoveryRestored {
+        tab_id: String,
+        path: Option<String>,
+        content: String,
+    },
+    /// 崩溃恢复：`recovery.open-as-tab` 回执（内容进可编辑 tab）。
+    RecoveryOpened {
+        tab_id: String,
+        path: Option<String>,
+        content: String,
+    },
 }
 
 impl Event {
@@ -30,6 +89,19 @@ impl Event {
             Event::Opened { .. } => "workspace:opened",
             Event::ScanProgress { .. } => "workspace:scan-progress",
             Event::Error { .. } => "workspace:error",
+            Event::TreeListed { .. } => "workspace:tree-listed",
+            Event::SearchResult { .. } => "workspace:search-result",
+            Event::SearchCompleted { .. } => "workspace:search-completed",
+            Event::FsOpDone { .. } => "workspace:fs-op-done",
+            Event::FileChanged { .. } => "workspace:file-changed",
+            Event::WatcherError { .. } => "workspace:watcher-error",
+            Event::SettingsChanged { .. } => "workspace:settings-changed",
+            Event::SettingsGlobal { .. } => "workspace:settings-global",
+            Event::SettingsEffective { .. } => "workspace:settings-effective",
+            Event::SettingsProject { .. } => "workspace:settings-project",
+            Event::RecoveryAvailable { .. } => "workspace:recovery-available",
+            Event::RecoveryRestored { .. } => "workspace:recovery-restored",
+            Event::RecoveryOpened { .. } => "workspace:recovery-opened",
         }
     }
 
@@ -41,6 +113,51 @@ impl Event {
             }
             Event::ScanProgress { scanned } => json!({ "scanned": scanned }),
             Event::Error { message } => json!({ "message": message }),
+            Event::TreeListed { rel_dir, entries } => {
+                json!({ "relDir": rel_dir, "rel_dir": rel_dir, "entries": entries })
+            }
+            Event::SearchResult { search_id, hits } => {
+                json!({ "searchId": search_id, "hits": hits })
+            }
+            Event::SearchCompleted { search_id, summary } => {
+                json!({ "searchId": search_id, "summary": summary })
+            }
+            Event::FsOpDone { payload } => payload.clone(),
+            Event::FileChanged { payload } => payload.clone(),
+            Event::WatcherError { message } => json!({ "message": message }),
+            Event::SettingsChanged { scope } => json!({ "scope": scope }),
+            Event::SettingsGlobal { settings, warnings } => {
+                json!({ "settings": settings, "warnings": warnings })
+            }
+            Event::SettingsEffective {
+                settings,
+                warnings,
+                overridden,
+            } => {
+                json!({ "settings": settings, "warnings": warnings, "overridden": overridden })
+            }
+            Event::SettingsProject {
+                patch,
+                warnings,
+                path,
+            } => {
+                json!({ "patch": patch, "warnings": warnings, "path": path })
+            }
+            Event::RecoveryAvailable { entries, warnings } => {
+                json!({ "entries": entries, "warnings": warnings })
+            }
+            Event::RecoveryRestored {
+                tab_id,
+                path,
+                content,
+            }
+            | Event::RecoveryOpened {
+                tab_id,
+                path,
+                content,
+            } => {
+                json!({ "tab_id": tab_id, "tabId": tab_id, "path": path, "content": content })
+            }
         }
     }
 }

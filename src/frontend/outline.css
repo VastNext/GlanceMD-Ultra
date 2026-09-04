@@ -1,0 +1,63 @@
+/* ============================================
+   OUTLINE PANEL — 预览大纲面板（Wave 2b）
+   视觉对照：docs/design/01-project-tree.html 的 Outline 竖栏
+   （.toc-item 缩进层级 + 激活项渐变文字）。
+   本文件必须拼接在 style.css 之后装载（G1 接线点）：
+   DOM 契约：outline.js 接管 #panel-outline > #outline-root（.panel-body），
+   列表挂载为 #outline-list；空态复用 style.css 的 .panel-empty 样式。
+   ============================================ */
+
+.outline-list {
+  padding: 6px 0;
+}
+
+.outline-item {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 4px 12px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.1s, background 0.1s;
+}
+
+.outline-item:hover {
+  color: var(--text);
+  background: var(--hover-bg);
+}
+
+/* 缩进按标题级别递进（12px 基准 + 每级 12px，同设计稿 h1 12 / h2 24 / h3 36） */
+.outline-h1 { padding-left: 12px; font-weight: 600; }
+.outline-h2 { padding-left: 24px; }
+.outline-h3 { padding-left: 36px; font-size: 11px; }
+.outline-h4 { padding-left: 48px; font-size: 11px; }
+.outline-h5 { padding-left: 60px; font-size: 10.5px; }
+.outline-h6 { padding-left: 72px; font-size: 10.5px; }
+
+/* 级别标记（H1–H6 小字 chip，同设计稿 .toc-lv） */
+.outline-lv {
+  flex-shrink: 0;
+  font-size: 9px;
+  color: var(--text-dim);
+}
+
+.outline-line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 激活项：紫→粉渐变文字（同 --heading-gradient 设计语言） */
+.outline-item.active {
+  background: var(--heading-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 600;
+}
+
+.outline-item.active .outline-lv { color: transparent; }

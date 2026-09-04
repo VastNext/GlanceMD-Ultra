@@ -8,6 +8,13 @@
 //! - 事件定义与 Rust → JS 广播见 [`events`]（契约唯一事实源 `docs/dev/interfaces.md`）。
 
 pub mod events;
+pub mod operations;
+pub mod recovery;
+pub mod search;
+pub mod session;
+pub mod settings;
+pub mod tree;
+pub mod watcher;
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
