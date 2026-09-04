@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GlanceMD Ultra · UI 设计基线索引</title>
+<style>
+/* ════════════════════════════════════════════════════════
+   设计 token —— 摘录自 src/frontend/style.css（产品事实源）。
+   本页为自包含静态稿，不引用 style.css 文件本身。
+   ════════════════════════════════════════════════════════ */
+:root {
+  /* ── 产品既有 token（暗色默认）── */
+  --bg-base: #111113;
+  --bg-surface: #18181b;
+  --bg-raised: #1f1f23;
+  --bg-overlay: #27272b;
+  --text: #c8c8d0;
+  --text-secondary: #85858f;
+  --text-dim: #6a6a78;
+  --tab-active-text: #f4f4f8;
+  --editor-bg: #111113;
+  --link: #7aafcf;
+  --border: #252529;
+  --border-subtle: #1e1e22;
+  --danger: #c15050;
+  --scrollbar: #2a2a30;
+  --radius: 4px;
+  --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+  --font-body: 'Segoe UI', -apple-system, sans-serif;
+  --mk-heading: #a855f7;
+  --mk-heading-end: #ec4899;
+  --mk-link-hover: #c084fc;
+  --mk-mark-bg: #f59e0b;
+  --mk-mark-color: #0a0a0a;
+  --heading-gradient: linear-gradient(180deg, var(--mk-heading), var(--mk-heading-end));
+  --heading-glow: linear-gradient(180deg, rgba(168, 85, 247, 0.16), rgba(236, 72, 153, 0.16));
+  --heading-soft: rgba(168, 85, 247, 0.2);
+  --selection-bg: rgba(192, 132, 252, 0.4);
+  /* ── 设计稿新增 token（登记见下文"新增 token 登记表"，确认后迁入 style.css）── */
+  --warning: #d29922;
+  --warning-soft: rgba(210, 153, 34, 0.14);
+  --danger-soft: rgba(193, 80, 80, 0.14);
+  --hover-bg: rgba(128, 128, 128, 0.08);
+  --hover-strong: rgba(128, 128, 128, 0.1);
+  --overlay-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  --menu-shadow: 0 12px 34px rgba(0, 0, 0, 0.28);
+  --tree-row-height: 22px;
+  --tree-indent: 14px;
+  --tree-selected-bg: rgba(168, 85, 247, 0.14);
+  --tree-active-bg: rgba(168, 85, 247, 0.28);
+}
+[data-theme="light"] {
+  --bg-base: #eff1f5;
+  --bg-surface: #e6e9ef;
+  --bg-raised: #dce0e8;
+  --bg-overlay: #ccd0da;
+  --text: #4c4f69;
+  --text-secondary: #6c6f85;
+  --text-dim: #8c8fa1;
+  --tab-active-text: #2a2d3a;
+  --editor-bg: #ffffff;
+  --selection-bg: rgba(168, 85, 247, 0.25);
+  --link: #1e66f5;
+  --border: #ccd0da;
+  --border-subtle: #dce0e8;
+  --danger: #d20f39;
+  --danger-soft: rgba(210, 15, 57, 0.1);
+  --scrollbar: #bcc0cc;
+  --mk-mark-bg: #fef3c7;
+  --mk-mark-color: #1a1a1a;
+  --warning: #df8e1d;
+  --warning-soft: rgba(223, 142, 29, 0.16);
+  --tree-selected-bg: rgba(168, 85, 247, 0.12);
+  --tree-active-bg: rgba(168, 85, 247, 0.18);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg-base);
+  color: var(--text);
+  font-family: var(--font-body);
+  min-height: 100vh;
+}
+::-webkit-scrollbar { width: 7px; height: 7px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+::selection { background: var(--selection-bg); }
+
+/* ── 页顶标注条（每稿必备）── */
+.meta-bar {
+  position: sticky; top: 0; z-index: 400;
+  display: flex; align-items: center; gap: 10px;
+  height: 34px; padding: 0 14px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px; color: var(--text-secondary);
+  white-space: nowrap; overflow: hidden;
+}
+.meta-bar .id {
+  font-weight: 600;
+  background: var(--heading-gradient);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.meta-bar .status {
+  padding: 1px 8px; border-radius: 999px;
+  background: var(--warning-soft); color: var(--warning);
+  font-weight: 600;
+}
+.theme-toggle {
+  margin-left: auto; flex-shrink: 0;
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 24px; padding: 0 10px;
+  background: transparent; border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-secondary); font-size: 11px; font-family: var(--font-body);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.theme-toggle:hover { color: var(--text); background: var(--hover-bg); border-color: var(--mk-heading); }
+.theme-toggle svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 1.3; stroke-linecap: round; }
+
+/* ── 页面版式 ── */
+.page { max-width: 1080px; margin: 0 auto; padding: 32px 24px 64px; }
+.hero { text-align: center; margin: 24px 0 36px; }
+.brand {
+  font-size: 40px; font-weight: 700; letter-spacing: 0.01em;
+  background: var(--heading-gradient);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.hero .sub { margin-top: 10px; font-size: 14px; color: var(--text-secondary); }
+.hero .usage {
+  display: inline-block; margin-top: 18px; padding: 10px 18px;
+  max-width: 720px; text-align: left;
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: 8px; font-size: 12px; color: var(--text-secondary); line-height: 1.8;
+}
+.hero .usage b { color: var(--text); font-weight: 600; }
+
+.sec-title {
+  margin: 40px 0 14px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-dim);
+}
+.sec-title::after { content: ''; display: block; width: 42px; height: 2px; margin-top: 8px; border-radius: 2px; background: var(--heading-gradient); }
+
+/* ── 设计稿卡片 ── */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.card {
+  display: block; padding: 16px 18px;
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: 10px; text-decoration: none; color: inherit;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.card:hover {
+  border-color: var(--mk-heading);
+  transform: translateY(-2px);
+  box-shadow: var(--overlay-shadow);
+}
+.card .num {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 26px; height: 20px; padding: 0 7px; margin-bottom: 10px;
+  border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff;
+  background: var(--heading-gradient);
+}
+.card h2 { font-size: 15px; font-weight: 600; color: var(--tab-active-text); }
+.card .stage { margin: 4px 0 10px; font-size: 11px; color: var(--mk-heading); }
+.card ul { list-style: none; }
+.card li { font-size: 12px; color: var(--text-secondary); line-height: 1.9; padding-left: 14px; position: relative; }
+.card li::before { content: ''; position: absolute; left: 2px; top: 0.85em; width: 5px; height: 5px; border-radius: 50%; background: var(--heading-soft); }
+.card .open { display: inline-block; margin-top: 12px; font-size: 12px; color: var(--mk-link-hover); }
+
+/* ── token 表 ── */
+table.tok { width: 100%; border-collapse: collapse; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; font-size: 12px; }
+table.tok th, table.tok td { padding: 7px 12px; text-align: left; border-bottom: 1px solid var(--border-subtle); vertical-align: middle; }
+table.tok th { font-size: 11px; font-weight: 600; color: var(--text-dim); letter-spacing: 0.04em; background: var(--bg-raised); }
+table.tok tr:last-child td { border-bottom: none; }
+table.tok td.name { font-family: var(--font-mono); font-size: 11.5px; color: var(--tab-active-text); white-space: nowrap; }
+table.tok td.use { color: var(--text-secondary); }
+table.tok code {
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary);
+  background: var(--bg-base); border: 1px solid var(--border-subtle);
+  border-radius: 3px; padding: 1px 5px; white-space: nowrap;
+}
+.sw {
+  display: inline-block; width: 14px; height: 14px; margin-right: 7px;
+  border-radius: 3px; vertical-align: -2px;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+}
+
+/* ── 决策点卡片 ── */
+.decisions { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.decision { padding: 14px 16px; background: var(--bg-surface); border: 1px solid var(--border); border-left: 3px solid var(--warning); border-radius: 8px; }
+.decision h3 { font-size: 13px; color: var(--tab-active-text); margin-bottom: 6px; }
+.decision p { font-size: 12px; color: var(--text-secondary); line-height: 1.8; }
+.decision .tag { display: inline-block; margin-bottom: 8px; padding: 1px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 600; background: var(--warning-soft); color: var(--warning); }
+
+footer.page-foot { margin-top: 48px; font-size: 11px; color: var(--text-dim); line-height: 1.9; border-top: 1px solid var(--border-subtle); padding-top: 16px; }
+</style>
+</head>
+<body>
+
+<div class="meta-bar">
+  <span class="id">设计稿 00 · 对应阶段 0（交付项 7：UI 设计基线）· 状态=待确认</span>
+  <span>索引页 · 设计 token 摘录与登记</span>
+  <button class="theme-toggle" id="theme-toggle" type="button">
+    <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="3.2"></circle><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M12.6 3.4l-1.4 1.4M4.8 11.2l-1.4 1.4"></path></svg>
+    <span id="theme-label">暗色</span>
+  </button>
+</div>
+
+<main class="page">
+
+  <header class="hero">
+    <h1 class="brand">GlanceMD Ultra</h1>
+    <p class="sub">UI 设计基线稿 · 明暗双主题 · 供阶段 1 开工前确认</p>
+    <div class="usage">
+      <b>使用方式</b>：双击任意页面即可打开，无网络、无构建、无外部资源依赖；右上角按钮切换暗色 / 亮色主题。
+      <b>实现对照</b>：设计语言事实源为 <b>src/frontend/style.css</b>（本稿已内联其 token 副本，未引用该文件）；实现新界面时按本页 token 取值落地，<b>新增 token</b>（见下方登记表）经维护者确认后迁入 style.css，命名延续 <b>--</b> 前缀 kebab-case。
+    </div>
+  </header>
+
+  <div class="sec-title">设计稿清单</div>
+  <div class="cards">
+    <a class="card" href="01-project-tree.html">
+      <span class="num">01</span>
+      <h2>主工作区布局</h2>
+      <p class="stage">对应阶段 1 · 项目浏览</p>
+      <ul>
+        <li>项目树：目录展开、文件图标、激活 / 多选 / 悬停态、符号链接、右键菜单</li>
+        <li>编辑器占位 + Outline 竖栏并排双栏、拖宽手柄</li>
+        <li>标题栏 / tab 栏 / 状态栏整体编排</li>
+        <li>窄屏 1024px 变体：最小宽度与折叠形态</li>
+      </ul>
+      <span class="open">打开设计稿 →</span>
+    </a>
+    <a class="card" href="02-welcome.html">
+      <span class="num">02</span>
+      <h2>欢迎页</h2>
+      <p class="stage">对应阶段 1 · 项目浏览</p>
+      <ul>
+        <li>品牌区与打开 / 新建入口</li>
+        <li>最近项目列表：固定、移除、失效记录</li>
+        <li>空状态插画（纯 CSS 绘制，不用图片文件）</li>
+      </ul>
+      <span class="open">打开设计稿 →</span>
+    </a>
+    <a class="card" href="03-conflict-banner.html">
+      <span class="num">03</span>
+      <h2>冲突横幅</h2>
+      <p class="stage">对应阶段 2 · 监听与冲突</p>
+      <ul>
+        <li>外部修改：重新加载 / 保留编辑版本 / 另存为</li>
+        <li>外部删除：另存为 / 关闭</li>
+        <li>文件名与修改时间文案、自动重载状态提示</li>
+        <li>非模态横幅的下推布局示意</li>
+      </ul>
+      <span class="open">打开设计稿 →</span>
+    </a>
+    <a class="card" href="04-search-panel.html">
+      <span class="num">04</span>
+      <h2>全文搜索面板</h2>
+      <p class="stage">对应阶段 4 · 搜索</p>
+      <ul>
+        <li>搜索输入与大小写 / 全词 / 正则开关</li>
+        <li>包含 / 排除 glob 输入</li>
+        <li>结果树：按文件分组、命中行 <mark> 高亮</li>
+        <li>结果计数、取消按钮、正则错误态</li>
+      </ul>
+      <span class="open">打开设计稿 →</span>
+    </a>
+    <a class="card" href="05-settings.html">
+      <span class="num">05</span>
+      <h2>设置页</h2>
+      <p class="stage">对应阶段 5 · 设置与快捷键</p>
+      <ul>
+        <li>左分类（方案 §7.1 七类）右设置项 + 顶部搜索框</li>
+        <li>文本输入 / 开关 / 下拉 / 快捷键录制四控件</li>
+        <li>"打开设置 JSON"入口、项目覆盖徽标、冲突阻止态</li>
+      </ul>
+      <span class="open">打开设计稿 →</span>
+    </a>
+  </div>
+
+  <div class="sec-title">Token A · 基础表面与文本（暗色 / 亮色）</div>
+  <table class="tok">
+    <tr><th>token</th><th>暗色值</th><th>亮色值</th><th>用途</th></tr>
+    <tr><td class="name">--bg-base</td><td><i class="sw" style="background:#111113"></i><code>#111113</code></td><td><i class="sw" style="background:#eff1f5"></i><code>#eff1f5</code></td><td class="use">窗口底；暗色下兼作编辑画布（沉浸惯例）</td></tr>
+    <tr><td class="name">--bg-surface</td><td><i class="sw" style="background:#18181b"></i><code>#18181b</code></td><td><i class="sw" style="background:#e6e9ef"></i><code>#e6e9ef</code></td><td class="use">标题栏、tab 栏、面板、状态栏等 chrome 层</td></tr>
+    <tr><td class="name">--bg-raised</td><td><i class="sw" style="background:#1f1f23"></i><code>#1f1f23</code></td><td><i class="sw" style="background:#dce0e8"></i><code>#dce0e8</code></td><td class="use">抬升层：列表悬停卡、横幅、回退卡</td></tr>
+    <tr><td class="name">--bg-overlay</td><td><i class="sw" style="background:#27272b"></i><code>#27272b</code></td><td><i class="sw" style="background:#ccd0da"></i><code>#ccd0da</code></td><td class="use">浮层：菜单、输入框、激活 tab、tooltip</td></tr>
+    <tr><td class="name">--editor-bg</td><td><i class="sw" style="background:#111113"></i><code>#111113</code></td><td><i class="sw" style="background:#ffffff"></i><code>#ffffff</code></td><td class="use">编辑画布：亮色为纸面白，"纸放在桌上"层次</td></tr>
+    <tr><td class="name">--text</td><td><i class="sw" style="background:#c8c8d0"></i><code>#c8c8d0</code></td><td><i class="sw" style="background:#4c4f69"></i><code>#4c4f69</code></td><td class="use">主文本</td></tr>
+    <tr><td class="name">--text-secondary</td><td><i class="sw" style="background:#85858f"></i><code>#85858f</code></td><td><i class="sw" style="background:#6c6f85"></i><code>#6c6f85</code></td><td class="use">次级文本（路径、说明）</td></tr>
+    <tr><td class="name">--text-dim</td><td><i class="sw" style="background:#6a6a78"></i><code>#6a6a78</code></td><td><i class="sw" style="background:#8c8fa1"></i><code>#8c8fa1</code></td><td class="use">弱文本（行号、占位、标注）</td></tr>
+    <tr><td class="name">--tab-active-text</td><td><i class="sw" style="background:#f4f4f8"></i><code>#f4f4f8</code></td><td><i class="sw" style="background:#2a2d3a"></i><code>#2a2d3a</code></td><td class="use">激活态高对比文本（tab、激活行）</td></tr>
+    <tr><td class="name">--border</td><td><i class="sw" style="background:#252529"></i><code>#252529</code></td><td><i class="sw" style="background:#ccd0da"></i><code>#ccd0da</code></td><td class="use">面板分隔线、控件描边</td></tr>
+    <tr><td class="name">--border-subtle</td><td><i class="sw" style="background:#1e1e22"></i><code>#1e1e22</code></td><td><i class="sw" style="background:#dce0e8"></i><code>#dce0e8</code></td><td class="use">弱分隔（表格线、卡片内线）</td></tr>
+    <tr><td class="name">--link</td><td><i class="sw" style="background:#7aafcf"></i><code>#7aafcf</code></td><td><i class="sw" style="background:#1e66f5"></i><code>#1e66f5</code></td><td class="use">正文链接（预览区）</td></tr>
+    <tr><td class="name">--danger</td><td><i class="sw" style="background:#c15050"></i><code>#c15050</code></td><td><i class="sw" style="background:#d20f39"></i><code>#d20f39</code></td><td class="use">危险动作与错误提示</td></tr>
+    <tr><td class="name">--scrollbar</td><td><i class="sw" style="background:#2a2a30"></i><code>#2a2a30</code></td><td><i class="sw" style="background:#bcc0cc"></i><code>#bcc0cc</code></td><td class="use">滚动条 thumb（宽 7px、圆角 4px、hover 用 --text-dim）</td></tr>
+  </table>
+
+  <div class="sec-title">Token B · 紫→粉渐变高亮系（核心设计语言）</div>
+  <table class="tok">
+    <tr><th>token</th><th>暗色值</th><th>亮色值</th><th>用途</th></tr>
+    <tr><td class="name">--mk-heading</td><td><i class="sw" style="background:#a855f7"></i><code>#a855f7</code></td><td><i class="sw" style="background:#a855f7"></i><code>#a855f7</code></td><td class="use">渐变起点、主强调紫（两主题一致）</td></tr>
+    <tr><td class="name">--mk-heading-end</td><td><i class="sw" style="background:#ec4899"></i><code>#ec4899</code></td><td><i class="sw" style="background:#ec4899"></i><code>#ec4899</code></td><td class="use">渐变终点粉（两主题一致）</td></tr>
+    <tr><td class="name">--heading-gradient</td><td><i class="sw" style="background:linear-gradient(180deg,#a855f7,#ec4899)"></i><code>linear-gradient(180deg, …)</code></td><td>同左</td><td class="use">激活指示条、主按钮、品牌字、dirty 标记</td></tr>
+    <tr><td class="name">--heading-glow</td><td><i class="sw" style="background:linear-gradient(180deg,rgba(168,85,247,.16),rgba(236,72,153,.16))"></i><code>rgba(…, 0.16)</code></td><td>同左</td><td class="use">激活态淡渐变底（active 按钮、多选工具）</td></tr>
+    <tr><td class="name">--heading-soft</td><td><i class="sw" style="background:rgba(168,85,247,.2)"></i><code>rgba(168,85,247,0.2)</code></td><td>同左</td><td class="use">淡紫底（find 命中、focus 点缀）</td></tr>
+    <tr><td class="name">--selection-bg</td><td><i class="sw" style="background:rgba(192,132,252,.4)"></i><code>rgba(192,132,252,0.4)</code></td><td><i class="sw" style="background:rgba(168,85,247,.25)"></i><code>rgba(168,85,247,0.25)</code></td><td class="use">文本选区（暗底需更高明度与不透明度）</td></tr>
+    <tr><td class="name">--mk-mark-bg</td><td><i class="sw" style="background:#f59e0b"></i><code>#f59e0b</code></td><td><i class="sw" style="background:#fef3c7"></i><code>#fef3c7</code></td><td class="use">命中高亮底（find / 全文搜索 <mark>）</td></tr>
+    <tr><td class="name">--mk-mark-color</td><td><i class="sw" style="background:#0a0a0a"></i><code>#0a0a0a</code></td><td><i class="sw" style="background:#1a1a1a"></i><code>#1a1a1a</code></td><td class="use">命中文字色（保证对比）</td></tr>
+  </table>
+
+  <div class="sec-title">Token C · 字体与形状约定</div>
+  <table class="tok">
+    <tr><th>项</th><th>取值</th><th>说明</th></tr>
+    <tr><td class="name">--font-body</td><td><code>'Segoe UI', -apple-system, sans-serif</code></td><td class="use">UI 字体（系统字体，不引入外部字体）</td></tr>
+    <tr><td class="name">--font-mono</td><td><code>'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace</code></td><td class="use">路径、行号、快捷键、文件名等场景</td></tr>
+    <tr><td class="name">圆角</td><td><code>控件 3–5px · 浮层 8px · 设计稿外框 10px</code></td><td class="use">控件沿用 --radius: 4px 基准；浮层与 find-bar 一致取 8px</td></tr>
+    <tr><td class="name">投影</td><td><code>浮层 0 4px 16px rgba(0,0,0,.25) · 大卡 0 12px 34px rgba(0,0,0,.28)</code></td><td class="use">沿用 find-bar 与导航回退卡既有投影</td></tr>
+    <tr><td class="name">密度</td><td><code>树行高 22px · 标题栏 38px · tab 栏 30px · 状态栏 22px</code></td><td class="use">树密度参照 VS Code，配色用本项目 token</td></tr>
+  </table>
+
+  <div class="sec-title">新增 token 登记表（设计稿 → 产品迁移清单）</div>
+  <table class="tok">
+    <tr><th>token</th><th>暗色值</th><th>亮色值</th><th>用途</th><th>引用稿</th></tr>
+    <tr><td class="name">--warning</td><td><i class="sw" style="background:#d29922"></i><code>#d29922</code></td><td><i class="sw" style="background:#df8e1d"></i><code>#df8e1d</code></td><td class="use">警示前景：外部修改横幅、状态徽标、watcher 提示</td><td>03 / index</td></tr>
+    <tr><td class="name">--warning-soft</td><td><i class="sw" style="background:rgba(210,153,34,.14)"></i><code>rgba(210,153,34,0.14)</code></td><td><i class="sw" style="background:rgba(223,142,29,.16)"></i><code>rgba(223,142,29,0.16)</code></td><td class="use">警示淡底：横幅背景、徽标底</td><td>03</td></tr>
+    <tr><td class="name">--danger-soft</td><td><i class="sw" style="background:rgba(193,80,80,.14)"></i><code>rgba(193,80,80,0.14)</code></td><td><i class="sw" style="background:rgba(210,15,57,.1)"></i><code>rgba(210,15,57,0.1)</code></td><td class="use">危险淡底：外部删除横幅、危险菜单项悬停</td><td>01 / 03</td></tr>
+    <tr><td class="name">--hover-bg</td><td><i class="sw" style="background:rgba(128,128,128,.08)"></i><code>rgba(128,128,128,0.08)</code></td><td>同左</td><td class="use">行 / 按钮通用悬停底（既有惯例具名化）</td><td>全部</td></tr>
+    <tr><td class="name">--hover-strong</td><td><i class="sw" style="background:rgba(128,128,128,.1)"></i><code>rgba(128,128,128,0.1)</code></td><td>同左</td><td class="use">按钮悬停底（既有惯例具名化）</td><td>全部</td></tr>
+    <tr><td class="name">--overlay-shadow</td><td><code>0 4px 16px rgba(0,0,0,0.25)</code></td><td>同左</td><td class="use">浮层投影（同 find-bar）</td><td>01 / 04 / 05</td></tr>
+    <tr><td class="name">--menu-shadow</td><td><code>0 12px 34px rgba(0,0,0,0.28)</code></td><td>同左</td><td class="use">菜单 / 大浮卡投影（同导航回退卡）</td><td>01 / 03 / 05</td></tr>
+    <tr><td class="name">--tree-row-height</td><td><code>22px</code></td><td>同左</td><td class="use">树行高（VS Code 密度基准）</td><td>01</td></tr>
+    <tr><td class="name">--tree-indent</td><td><code>14px</code></td><td>同左</td><td class="use">树每级缩进</td><td>01</td></tr>
+    <tr><td class="name">--tree-selected-bg</td><td><i class="sw" style="background:rgba(168,85,247,.14)"></i><code>rgba(168,85,247,0.14)</code></td><td><i class="sw" style="background:rgba(168,85,247,.12)"></i><code>rgba(168,85,247,0.12)</code></td><td class="use">多选行底色（决策点 1）</td><td>01</td></tr>
+    <tr><td class="name">--tree-active-bg</td><td><i class="sw" style="background:rgba(168,85,247,.28)"></i><code>rgba(168,85,247,0.28)</code></td><td><i class="sw" style="background:rgba(168,85,247,.18)"></i><code>rgba(168,85,247,0.18)</code></td><td class="use">激活行底色（决策点 1）</td><td>01 / 04</td></tr>
+  </table>
+
+  <div class="sec-title">待维护者确认的设计决策点</div>
+  <div class="decisions">
+    <div class="decision">
+      <span class="tag">决策点 1</span>
+      <h3>多选 / 激活高亮色</h3>
+      <p>本稿方案：激活行 = <b>--tree-active-bg</b>（紫 28%）+ 2px 渐变左条 + --tab-active-text 文字；多选行 = <b>--tree-selected-bg</b>（紫 14%）文字不变；悬停 = 灰 8%。备选：多选改用灰底、激活才用紫。多选时 reveal 禁用（主计划 §0.2 已固化）。</p>
+    </div>
+    <div class="decision">
+      <span class="tag">决策点 2</span>
+      <h3>冲突横幅配色</h3>
+      <p>本稿方案：外部修改 = 琥珀警示（--warning / --warning-soft），外部删除 = 危险红淡底（--danger-soft + --danger 文字），语义分级。备选：统一中性 bg-raised + 左缘色条（同既有导航回退卡样式）。横幅均为非模态、下推内容区。</p>
+    </div>
+    <div class="decision">
+      <span class="tag">决策点 3</span>
+      <h3>主按钮是否渐变填充</h3>
+      <p>本稿方案：欢迎页"打开项目"用 --heading-gradient 填充白字作为唯一主按钮示范；冲突横幅三按钮保持中性描边（避免在警示语境里强化危险动作）。备选：全部按钮中性、渐变只用于指示条与文字。</p>
+    </div>
+    <div class="decision">
+      <span class="tag">决策点 4</span>
+      <h3>文件图标着色策略</h3>
+      <p>本稿方案：单色线性图标（folder / doc / link），仅激活件图标着 --mk-heading，克制且省体积。备选：按扩展名着色（VS Code Seti 风格）——与零依赖原则兼容但增加图标资产维护面。</p>
+    </div>
+  </div>
+
+  <footer class="page-foot">
+    状态=待确认：本基线稿为主计划阶段 0 交付项 7（"UI 设计基线稿经维护者确认并入库 docs/design/"），确认前各项以本页决策点为讨论载体；确认后阶段 1–5 的 UI 实现与 Playwright 截图验收均以本稿为对照基准。<br>
+    每稿页顶标注条格式：设计稿 0x · 对应阶段 N · 状态=待确认。
+  </footer>
+
+</main>
+
+<script>
+(function () {
+  var btn = document.getElementById('theme-toggle');
+  var label = document.getElementById('theme-label');
+  btn.addEventListener('click', function () {
+    var root = document.documentElement;
+    var wasLight = root.getAttribute('data-theme') === 'light';
+    if (wasLight) { root.removeAttribute('data-theme'); } else { root.setAttribute('data-theme', 'light'); }
+    label.textContent = wasLight ? '暗色' : '亮色';
+  });
+})();
+</script>
+</body>
+</html>

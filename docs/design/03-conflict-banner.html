@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>设计稿 03 · 冲突横幅（外部修改 / 外部删除 / 自动重载提示）</title>
+<style>
+/* ════════════════════════════════════════════════════════
+   设计 token —— 摘录自 src/frontend/style.css（产品事实源）。
+   新增 token 登记见 index.html。
+   ════════════════════════════════════════════════════════ */
+:root {
+  /* ── 产品既有 token（暗色默认）── */
+  --bg-base: #111113;
+  --bg-surface: #18181b;
+  --bg-raised: #1f1f23;
+  --bg-overlay: #27272b;
+  --text: #c8c8d0;
+  --text-secondary: #85858f;
+  --text-dim: #6a6a78;
+  --tab-active-text: #f4f4f8;
+  --editor-bg: #111113;
+  --link: #7aafcf;
+  --border: #252529;
+  --border-subtle: #1e1e22;
+  --danger: #c15050;
+  --scrollbar: #2a2a30;
+  --radius: 4px;
+  --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+  --font-body: 'Segoe UI', -apple-system, sans-serif;
+  --mk-heading: #a855f7;
+  --mk-heading-end: #ec4899;
+  --mk-link-hover: #c084fc;
+  --mk-mark-bg: #f59e0b;
+  --mk-mark-color: #0a0a0a;
+  --heading-gradient: linear-gradient(180deg, var(--mk-heading), var(--mk-heading-end));
+  --heading-glow: linear-gradient(180deg, rgba(168, 85, 247, 0.16), rgba(236, 72, 153, 0.16));
+  --heading-soft: rgba(168, 85, 247, 0.2);
+  --selection-bg: rgba(192, 132, 252, 0.4);
+  /* ── 设计稿新增 token（登记表见 index.html）── */
+  --warning: #d29922;
+  --warning-soft: rgba(210, 153, 34, 0.14);
+  --danger-soft: rgba(193, 80, 80, 0.14);
+  --hover-bg: rgba(128, 128, 128, 0.08);
+  --hover-strong: rgba(128, 128, 128, 0.1);
+  --overlay-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  --menu-shadow: 0 12px 34px rgba(0, 0, 0, 0.28);
+}
+[data-theme="light"] {
+  --bg-base: #eff1f5;
+  --bg-surface: #e6e9ef;
+  --bg-raised: #dce0e8;
+  --bg-overlay: #ccd0da;
+  --text: #4c4f69;
+  --text-secondary: #6c6f85;
+  --text-dim: #8c8fa1;
+  --tab-active-text: #2a2d3a;
+  --editor-bg: #ffffff;
+  --selection-bg: rgba(168, 85, 247, 0.25);
+  --link: #1e66f5;
+  --border: #ccd0da;
+  --border-subtle: #dce0e8;
+  --danger: #d20f39;
+  --danger-soft: rgba(210, 15, 57, 0.1);
+  --scrollbar: #bcc0cc;
+  --mk-mark-bg: #fef3c7;
+  --mk-mark-color: #1a1a1a;
+  --warning: #df8e1d;
+  --warning-soft: rgba(223, 142, 29, 0.16);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg-base); color: var(--text); font-family: var(--font-body); min-height: 100vh; }
+::-webkit-scrollbar { width: 7px; height: 7px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+::selection { background: var(--selection-bg); }
+
+/* ── 页顶标注条 ── */
+.meta-bar {
+  position: sticky; top: 0; z-index: 400;
+  display: flex; align-items: center; gap: 10px;
+  height: 34px; padding: 0 14px;
+  background: var(--bg-surface); border-bottom: 1px solid var(--border);
+  font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden;
+}
+.meta-bar .id { font-weight: 600; background: var(--heading-gradient); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.meta-bar a { color: var(--text-secondary); text-decoration: none; border-bottom: 1px dotted var(--text-dim); }
+.meta-bar a:hover { color: var(--text); }
+.meta-bar .status { padding: 1px 8px; border-radius: 999px; background: var(--warning-soft); color: var(--warning); font-weight: 600; }
+.theme-toggle {
+  margin-left: auto; flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px;
+  height: 24px; padding: 0 10px; background: transparent; border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text-secondary); font-size: 11px; font-family: var(--font-body);
+  cursor: pointer; transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.theme-toggle:hover { color: var(--text); background: var(--hover-bg); border-color: var(--mk-heading); }
+.theme-toggle svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 1.3; stroke-linecap: round; }
+
+/* ── 页面版式 ── */
+.stage { max-width: 1280px; margin: 0 auto; padding: 22px 20px 56px; }
+.sec-title {
+  margin: 26px 0 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-dim);
+}
+.sec-title:first-child { margin-top: 0; }
+.sec-note { margin: -6px 0 12px; font-size: 12px; color: var(--text-secondary); line-height: 1.8; }
+.sec-note b { color: var(--text); font-weight: 600; }
+
+/* ══════════ 应用框架 ══════════ */
+.frame { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: var(--menu-shadow); background: var(--bg-surface); }
+.titlebar { display: flex; align-items: center; height: 38px; background: var(--bg-surface); border-bottom: 1px solid var(--border); }
+.tb-actions { display: flex; align-items: center; gap: 2px; padding: 0 8px; flex-shrink: 0; }
+.tb-btn {
+  width: 30px; height: 26px; border: none; border-radius: 5px; background: transparent;
+  color: var(--text-secondary); display: flex; align-items: center; justify-content: center;
+}
+.tb-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+.tb-title { flex: 1; text-align: center; font-size: 11.5px; letter-spacing: 0.02em; color: var(--text-secondary); }
+.tb-win { display: flex; flex-shrink: 0; }
+.tb-win span { width: 40px; height: 38px; display: flex; align-items: center; justify-content: center; }
+.tb-win span::before { content: ''; width: 10px; height: 10px; border: 1px solid var(--text-dim); }
+.tb-win .min::before { border: none; border-bottom: 1px solid var(--text-dim); height: 1px; }
+.tb-win .close::before { border: none; background: linear-gradient(45deg, transparent 44%, var(--text-dim) 44%, var(--text-dim) 56%, transparent 56%), linear-gradient(-45deg, transparent 44%, var(--text-dim) 44%, var(--text-dim) 56%, transparent 56%); }
+.tabbar { display: flex; align-items: center; height: 30px; background: var(--bg-surface); border-bottom: 1px solid var(--border); padding: 0 6px; gap: 3px; }
+.tab {
+  display: flex; align-items: center; gap: 5px; height: 24px; padding: 0 6px 0 10px;
+  border-radius: 4px; font-size: 11px; color: var(--text-dim); position: relative; white-space: nowrap;
+}
+.tab.active { color: var(--tab-active-text); background: var(--bg-overlay); font-weight: 500; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28), inset 0 0 0 1px var(--border); }
+.tab.active::after { content: ''; position: absolute; left: 8px; right: 8px; bottom: 0; height: 2px; border-radius: 2px 2px 0 0; background: linear-gradient(90deg, var(--mk-heading), var(--mk-heading-end)); }
+.tab-dirty { width: 7px; height: 7px; border-radius: 50%; background: var(--heading-gradient); }
+.statusbar {
+  display: flex; align-items: center; gap: 12px; height: 22px; padding: 0 10px;
+  background: var(--bg-surface); border-top: 1px solid var(--border);
+  font-size: 10.5px; color: var(--text-secondary); position: relative;
+}
+.status-mode { background: var(--heading-gradient); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; font-weight: 600; font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; }
+.statusbar .right { margin-left: auto; color: var(--text-dim); }
+
+/* ══════════ 冲突横幅（非模态，置于 tab 栏与内容区之间，下推内容）══════════ */
+.banner {
+  display: flex; align-items: center; gap: 12px;
+  min-height: 46px; padding: 8px 12px 8px 14px;
+  position: relative;
+}
+.banner::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+.banner-modify { background: var(--warning-soft); border-bottom: 1px solid var(--border); }
+.banner-modify::before { background: var(--warning); }
+.banner-delete { background: var(--danger-soft); border-bottom: 1px solid var(--border); }
+.banner-delete::before { background: var(--danger); }
+.banner-ico { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 6px; }
+.banner-modify .banner-ico { color: var(--warning); background: var(--warning-soft); }
+.banner-delete .banner-ico { color: var(--danger); background: var(--danger-soft); }
+.banner-ico svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.banner-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.banner-title { font-size: 12.5px; font-weight: 600; color: var(--tab-active-text); }
+.banner-modify .banner-title strong { color: var(--warning); }
+.banner-delete .banner-title strong { color: var(--danger); }
+.banner-sub { font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.banner-sub .file { font-family: var(--font-mono); font-size: 10.5px; color: var(--text); }
+.banner-sub .sep { margin: 0 6px; color: var(--text-dim); }
+.banner-acts { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.banner-btn {
+  height: 26px; padding: 0 12px;
+  background: var(--bg-overlay); border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text); font-size: 11.5px; font-family: var(--font-body); cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.banner-btn:hover { border-color: var(--mk-heading); color: var(--tab-active-text); }
+.banner-close {
+  width: 24px; height: 24px; padding: 0; display: flex; align-items: center; justify-content: center;
+  background: transparent; border: none; border-radius: 4px;
+  color: var(--text-dim); font-size: 15px; cursor: pointer;
+}
+.banner-close:hover { color: var(--text); background: var(--hover-strong); }
+
+/* 横幅出现时下方内容区：布局被下推，编辑器保持可用（非模态） */
+.content { height: 220px; background: var(--editor-bg); display: flex; overflow: hidden; }
+.gutter { padding: 12px 0; width: 44px; flex-shrink: 0; text-align: right; font-family: var(--font-mono); font-size: 12px; line-height: 20px; color: var(--text-dim); opacity: 0.7; }
+.gutter div { padding-right: 14px; }
+.ed-lines { padding: 12px 0; flex: 1; min-width: 0; }
+.ed-line { height: 20px; display: flex; align-items: center; }
+.ed-bar { height: 8px; border-radius: 3px; background: var(--bg-overlay); }
+.ed-bar.h1 { height: 12px; width: 220px; background: var(--heading-gradient); opacity: 0.85; }
+.ed-bar.w60 { width: 60%; } .ed-bar.w75 { width: 75%; } .ed-bar.w45 { width: 45%; } .ed-bar.w82 { width: 82%; } .ed-bar.w38 { width: 38%; }
+.ed-hint { position: absolute; right: 14px; bottom: 30px; font-size: 10px; font-style: italic; color: var(--text-dim); border: 1px dashed var(--border); border-radius: 999px; padding: 2px 10px; background: var(--bg-base); }
+
+/* ── 自动重载 toast（clean tab 场景，状态栏上方短暂提示）── */
+.sb-toast {
+  position: absolute; right: 10px; bottom: 30px; z-index: 20;
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 28px; padding: 0 12px;
+  background: var(--bg-overlay); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: var(--overlay-shadow);
+  font-size: 11px; color: var(--text);
+  animation: toast-in 0.18s ease;
+}
+.sb-toast svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; color: var(--mk-heading); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* ── 设计说明 ── */
+.notes { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; font-size: 12px; color: var(--text-secondary); line-height: 2; }
+.notes b { color: var(--text); }
+table.spec { width: 100%; border-collapse: collapse; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; font-size: 12px; margin-bottom: 14px; }
+table.spec th, table.spec td { padding: 7px 12px; text-align: left; border-bottom: 1px solid var(--border-subtle); }
+table.spec th { font-size: 11px; color: var(--text-dim); background: var(--bg-raised); }
+table.spec tr:last-child td { border-bottom: none; }
+.foot-nav { margin-top: 30px; display: flex; justify-content: space-between; font-size: 11px; }
+.foot-nav a { color: var(--text-secondary); text-decoration: none; border-bottom: 1px dotted var(--text-dim); }
+.foot-nav a:hover { color: var(--mk-link-hover); }
+</style>
+</head>
+<body>
+
+<div class="meta-bar">
+  <span class="id">设计稿 03 · 对应阶段 2（监听与冲突）· 状态=待确认</span>
+  <span>冲突横幅：外部修改 / 外部删除 / 自动重载提示</span>
+  <a href="index.html">← 返回索引</a>
+  <button class="theme-toggle" id="theme-toggle" type="button">
+    <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="3.2"></circle><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M12.6 3.4l-1.4 1.4M4.8 11.2l-1.4 1.4"></path></svg>
+    <span id="theme-label">暗色</span>
+  </button>
+</div>
+
+<main class="stage">
+
+  <div class="sec-title">变体 A · 外部修改（dirty tab）</div>
+  <p class="sec-note">横幅为<b>非模态</b>：置于 tab 栏与内容区之间，<b>下推</b>而非遮挡内容，编辑与预览保持可用；处理或 × 关闭前保持显示（× 关闭后编辑再次保存 / 磁盘再次变更时重现）。配色为<b>琥珀警示</b>（决策点 2，index）。</p>
+
+  <div class="frame">
+    <div class="titlebar">
+      <div class="tb-actions">
+        <button class="tb-btn" title="保存"><svg viewBox="0 0 16 16"><path d="M3 2.5h8l2.5 2.5v8.5H3z"></path><path d="M5.5 2.5V6h5V2.5M5.5 13.5V9.5h5v4"></path></svg></button>
+      </div>
+      <div class="tb-title">02-写作工作流.md — 我的笔记库 — GlanceMD Ultra</div>
+      <div class="tb-win"><span class="min"></span><span></span><span class="close"></span></div>
+    </div>
+    <div class="tabbar">
+      <div class="tab active"><span class="tab-dirty"></span>02-写作工作流.md</div>
+      <div class="tab"><span class="tab-dirty"></span>01-安装与启动.md</div>
+    </div>
+
+    <!-- 冲突横幅：外部修改 -->
+    <div class="banner banner-modify">
+      <span class="banner-ico"><svg viewBox="0 0 16 16"><path d="M8 2 14.5 13.5h-13z"></path><path d="M8 6.5v3.2M8 11.6v.9"></path></svg></span>
+      <span class="banner-copy">
+        <span class="banner-title"><strong>文件已在外部被修改</strong>——你的编辑尚未保存</span>
+        <span class="banner-sub">
+          <span class="file">chapters\02-写作工作流.md</span>
+          <span class="sep">·</span>磁盘版本 2026-09-04 14:32:05
+          <span class="sep">·</span>选择"保留编辑版本"后再次保存将要求二次确认覆盖
+        </span>
+      </span>
+      <span class="banner-acts">
+        <button class="banner-btn" type="button">重新加载</button>
+        <button class="banner-btn" type="button">保留编辑版本</button>
+        <button class="banner-btn" type="button">另存为…</button>
+        <button class="banner-close" type="button" title="暂时关闭（未处理前状态保持）">×</button>
+      </span>
+    </div>
+
+    <!-- 下方内容区：被横幅下推，仍可编辑 -->
+    <div class="content" style="position: relative;">
+      <div class="gutter"><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div></div>
+      <div class="ed-lines">
+        <div class="ed-line"><span class="ed-bar h1"></span></div>
+        <div class="ed-line"></div>
+        <div class="ed-line"><span class="ed-bar w60"></span></div>
+        <div class="ed-line"><span class="ed-bar w75"></span></div>
+        <div class="ed-line"></div>
+        <div class="ed-line"><span class="ed-bar w82"></span></div>
+        <div class="ed-line"><span class="ed-bar w45"></span></div>
+        <div class="ed-line"></div>
+        <div class="ed-line"><span class="ed-bar w38"></span></div>
+      </div>
+      <span class="ed-hint">非模态：内容区仅被下推，不遮挡、可继续编辑</span>
+    </div>
+
+    <div class="statusbar">
+      <span class="status-mode">GlanceMD Ultra</span>
+      <span>Markdown · UTF-8 · LF</span>
+      <span class="right" style="color: var(--warning);">有未处理的文件冲突（1）</span>
+    </div>
+  </div>
+
+  <div class="sec-title">变体 B · 外部删除</div>
+  <p class="sec-note">磁盘文件被删除时保留内存内容；配色切<b>危险红</b>（决策点 2），动作收敛为"另存为 / 关闭"两项。</p>
+
+  <div class="frame">
+    <div class="titlebar">
+      <div class="tb-actions">
+        <button class="tb-btn" title="保存"><svg viewBox="0 0 16 16"><path d="M3 2.5h8l2.5 2.5v8.5H3z"></path><path d="M5.5 2.5V6h5V2.5M5.5 13.5V9.5h5v4"></path></svg></button>
+      </div>
+      <div class="tb-title">03-发布与同步.md — 我的笔记库 — GlanceMD Ultra</div>
+      <div class="tb-win"><span class="min"></span><span></span><span class="close"></span></div>
+    </div>
+    <div class="tabbar">
+      <div class="tab active"><span class="tab-dirty"></span>03-发布与同步.md</div>
+      <div class="tab">README.md</div>
+    </div>
+
+    <!-- 冲突横幅：外部删除 -->
+    <div class="banner banner-delete">
+      <span class="banner-ico"><svg viewBox="0 0 16 16"><path d="M3 4.5h10M6 4.5V3h4v1.5M4.5 4.5l.8 9h5.4l.8-9"></path><path d="M6.8 7v4.5M9.2 7v4.5"></path></svg></span>
+      <span class="banner-copy">
+        <span class="banner-title"><strong>磁盘文件已被删除</strong>——内容仍保留在编辑器中，不会静默丢失</span>
+        <span class="banner-sub">
+          <span class="file">chapters\03-发布与同步.md</span>
+          <span class="sep">·</span>删除发生于 2026-09-04 14:36:12
+          <span class="sep">·</span>可"另存为"保留副本，或关闭该 tab
+        </span>
+      </span>
+      <span class="banner-acts">
+        <button class="banner-btn" type="button">另存为…</button>
+        <button class="banner-btn" type="button">关闭</button>
+        <button class="banner-close" type="button" title="暂时关闭">×</button>
+      </span>
+    </div>
+
+    <div class="content" style="position: relative;">
+      <div class="gutter"><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div></div>
+      <div class="ed-lines">
+        <div class="ed-line"><span class="ed-bar h1"></span></div>
+        <div class="ed-line"></div>
+        <div class="ed-line"><span class="ed-bar w75"></span></div>
+        <div class="ed-line"><span class="ed-bar w60"></span></div>
+        <div class="ed-line"></div>
+        <div class="ed-line"><span class="ed-bar w82"></span></div>
+        <div class="ed-line"><span class="ed-bar w38"></span></div>
+        <div class="ed-line"></div>
+        <div class="ed-line"><span class="ed-bar w45"></span></div>
+      </div>
+    </div>
+
+    <div class="statusbar">
+      <span class="status-mode">GlanceMD Ultra</span>
+      <span>Markdown · UTF-8 · LF</span>
+      <span class="right" style="color: var(--danger);">磁盘文件已删除（1）</span>
+    </div>
+  </div>
+
+  <div class="sec-title">补充 · Clean tab 外部修改 = 自动重载 + 状态栏短暂提示</div>
+  <p class="sec-note">无未保存修改的 tab 在外部被修改时<b>不弹横幅</b>：自动重载并保留光标 / 滚动位置，仅状态栏上方短暂浮出提示（约 3s 自动消失）。</p>
+
+  <div class="frame">
+    <div class="content" style="position: relative; height: 140px;">
+      <div class="gutter"><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div></div>
+      <div class="ed-lines">
+        <div class="ed-line"><span class="ed-bar h1"></span></div>
+        <div class="ed-line"></div>
+        <div class="ed-line"><span class="ed-bar w60"></span></div>
+        <div class="ed-line"><span class="ed-bar w75"></span></div>
+        <div class="ed-line"><span class="ed-bar w45"></span></div>
+      </div>
+      <div class="sb-toast">
+        <svg viewBox="0 0 16 16"><path d="M2.5 8.5 6 12l7.5-8"></path></svg>
+        已自动重载 01-安装与启动.md（外部修改）
+      </div>
+    </div>
+    <div class="statusbar">
+      <span class="status-mode">GlanceMD Ultra</span>
+      <span>Markdown · UTF-8 · LF</span>
+      <span class="right">第 3 行，第 12 列（重载后保留）</span>
+    </div>
+  </div>
+
+  <div class="sec-title">行为矩阵对照（主计划阶段 2 冲突矩阵的 UI 呈现）</div>
+  <table class="spec">
+    <tr><th>tab 状态 × 外部事件</th><th>UI 呈现</th></tr>
+    <tr><td>clean × 外部修改</td><td>自动重载（保留光标 / 滚动）+ 状态栏短暂提示，无横幅</td></tr>
+    <tr><td>dirty × 外部修改</td><td>琥珀横幅：重新加载 / 保留编辑版本 / 另存为；"保留编辑版本"后再保存需二次确认覆盖</td></tr>
+    <tr><td>clean / dirty × 外部删除</td><td>红色横幅：另存为 / 关闭；内容保留在内存，不静默丢失</td></tr>
+    <tr><td>× 外部移动</td><td>可唯一识别 → 静默更新路径（tab 标题 / 树同步）；否则按删除 + 新增处理</td></tr>
+    <tr><td>自身保存</td><td>无任何 UI（回环抑制）；监听错误以状态栏提示（watcher-error）</td></tr>
+  </table>
+
+  <div class="sec-title">设计说明与决策点</div>
+  <div class="notes">
+    <b>配色语义</b>（决策点 2，index）：外部修改 = 琥珀 <code>--warning / --warning-soft</code> + 左缘 3px 色条；外部删除 = <code>--danger-soft</code> 底 + <code>--danger</code> 标题与左条。备选方案为统一中性 <code>bg-raised</code> 卡（同既有导航回退卡样式）。<br>
+    <b>按钮层级</b>：横幅按钮全中性描边（<code>bg-overlay</code> + border，hover 紫描边，沿 navigation-fallback 惯例），不在警示语境里用渐变主按钮强化任何单项动作。<br>
+    <b>文案要素</b>：标题（结论）+ 副行（等宽字体文件路径 · 磁盘修改时间 · 后果提示）。时间格式随系统区域。<br>
+    <b>叠加规则</b>：多个 tab 同时冲突时横幅逐个展示当前激活 tab 的冲突，状态栏显示未处理计数；× 仅暂时关闭，事件源再次变更时重现。
+  </div>
+
+  <nav class="foot-nav">
+    <a href="02-welcome.html">← 上一稿：02 欢迎页</a>
+    <a href="04-search-panel.html">下一稿：04 全文搜索面板 →</a>
+  </nav>
+</main>
+
+<script>
+(function () {
+  var btn = document.getElementById('theme-toggle');
+  var label = document.getElementById('theme-label');
+  btn.addEventListener('click', function () {
+    var root = document.documentElement;
+    var wasLight = root.getAttribute('data-theme') === 'light';
+    if (wasLight) { root.removeAttribute('data-theme'); } else { root.setAttribute('data-theme', 'light'); }
+    label.textContent = wasLight ? '暗色' : '亮色';
+  });
+})();
+</script>
+</body>
+</html>
