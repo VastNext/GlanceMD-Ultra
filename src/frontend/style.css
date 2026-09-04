@@ -1378,3 +1378,180 @@ body.toc-resizing * { cursor: col-resize !important; }
 
 #editor-container.active { animation: fadeIn 0.12s ease; }
 #preview-container.active { animation: fadeIn 0.15s ease; }
+
+/* ============================================
+   WORKSPACE LAYOUT — 三栏骨架（阶段 1）
+   对照：docs/design/01-project-tree.html 与 docs/design/index.html 的
+   "新增 token 登记表"。本 section 仅追加，不修改上方既有规则；
+   面板折叠/拖宽/持久化行为由 src/frontend/layout.js（window.LayoutUI）驱动。
+   ============================================ */
+
+/* ── 设计稿新增 token（登记表摘录；--hover-* 两主题同值，树底色明暗各一套）── */
+:root {
+  --tree-row-height: 22px;   /* 树行高（VS Code 密度基准，project-tree.js 渲染用） */
+  --tree-indent: 14px;       /* 树每级缩进 */
+  --tree-selected-bg: rgba(168, 85, 247, 0.14); /* 多选行底色 */
+  --tree-active-bg: rgba(168, 85, 247, 0.28);   /* 激活行底色 */
+  --hover-bg: rgba(128, 128, 128, 0.08);        /* 行/按钮通用悬停底 */
+  --hover-strong: rgba(128, 128, 128, 0.1);     /* 按钮悬停底 */
+}
+
+[data-theme="light"] {
+  --tree-selected-bg: rgba(168, 85, 247, 0.12);
+  --tree-active-bg: rgba(168, 85, 247, 0.18);
+}
+
+/* ── 中央编辑列：既有 toolbar/tabs/editor/preview/split DOM 的包裹层。
+    不设 position —— #navigation-fallback 的 absolute 继续相对 #content 定位 ── */
+#editor-column {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+
+/* ── 侧面板（#panel-tree / #panel-outline）：默认 240px，可拖 200–400px ── */
+.workspace-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 240px;
+  background: var(--bg-surface);
+  overflow: hidden;
+  transition: width 0.15s ease;
+}
+
+#panel-tree { border-right: 1px solid var(--border); }
+#panel-outline { border-left: 1px solid var(--border); }
+
+/* 拖宽中禁用宽度过渡，保证跟手（惯例同 toc-resizing / split-resizing） */
+body.panel-resizing .workspace-panel { transition: none; }
+body.panel-resizing { cursor: col-resize !important; }
+body.panel-resizing * { cursor: col-resize !important; }
+
+/* ── 面板头部：标题 + 折叠按钮（样式对照设计稿 .panel-head / .p-btn）── */
+.panel-head {
+  display: flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 6px 0 12px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.panel-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.panel-btn {
+  width: 22px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.panel-btn:hover { color: var(--text); background: var(--hover-strong); }
+
+.panel-btn svg {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ── 面板主体与空态 ── */
+.panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.panel-empty {
+  padding: 12px;
+  color: var(--text-dim);
+  font-size: 11px;
+  font-style: italic;
+}
+
+/* ── 拖宽手柄：5px，默认透明，悬停/拖拽显示渐变（同 split/toc 手柄惯例）── */
+.panel-resizer {
+  width: 5px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 20;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.panel-resizer:hover,
+.panel-resizer.dragging {
+  background: var(--heading-gradient);
+  opacity: 0.4;
+}
+
+/* ── 折叠态：36px 窄条 + 竖排展开按钮（对照设计稿折叠形态）。
+    !important 覆盖 JS 写入的 inline width；展开时摘掉类即恢复原宽度 ── */
+.workspace-panel.collapsed { width: 36px !important; }
+
+.workspace-panel.collapsed .panel-head,
+.workspace-panel.collapsed .panel-body { display: none; }
+
+.panel-expand-btn {
+  display: none;
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  writing-mode: vertical-rl;
+  padding: 10px 2px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--heading-glow);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 10.5px;
+  letter-spacing: 0.2em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.panel-expand-btn:hover { color: var(--mk-heading); }
+
+.workspace-panel.collapsed .panel-expand-btn { display: inline-flex; }
+
+/* ── 窄视口（≤1024px）：Outline 自动折叠的视觉兜底 ——
+    状态级折叠由 layout.js 里同查询的 matchMedia 驱动（保证"点击窄条可展开"），
+    此处隐藏其手柄并强制窄条宽度，双保险覆盖持久化的 inline width ── */
+@media (max-width: 1024px) {
+  #panel-outline-resizer { display: none; }
+
+  #panel-outline:not(.collapsed) {
+    width: 36px !important;
+  }
+
+  #panel-outline:not(.collapsed) .panel-head,
+  #panel-outline:not(.collapsed) .panel-body { display: none; }
+
+  #panel-outline:not(.collapsed) .panel-expand-btn { display: inline-flex; }
+}

@@ -38,6 +38,8 @@ const HLJS: &str = include_str!("frontend/highlight.min.js");
 // 阶段 0 新增前端模块：排在既有脚本（app.js）之后加载
 const COMMANDS_JS: &str = include_str!("frontend/commands.js");
 const WORKSPACE_JS: &str = include_str!("frontend/workspace.js");
+// 阶段 1 前端骨架：三栏布局的面板折叠/拖宽/持久化，追加在 workspace.js 之后
+const LAYOUT_JS: &str = include_str!("frontend/layout.js");
 const ICON_PNG: &[u8] = include_bytes!("../assets/icon.png");
 
 pub(crate) const fn platform_base_url() -> &'static str {
@@ -536,6 +538,13 @@ fn build_html() -> String {
         scripts,
         escape_for_script_tag(COMMANDS_JS),
         escape_for_script_tag(WORKSPACE_JS),
+    );
+
+    // 阶段 1 追加：layout.js 排在 workspace.js 之后（新模块一律追加在末尾）
+    let scripts = format!(
+        "{}\n<script>{}</script>",
+        scripts,
+        escape_for_script_tag(LAYOUT_JS),
     );
 
     INDEX_HTML
