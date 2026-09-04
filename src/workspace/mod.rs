@@ -5,6 +5,7 @@
 //! - [`ensure_within_root`]：路径边界校验，后续所有文件操作强制经过；
 //! - [`open_and_scan`]：打开根目录并后台递归扫描（std::fs，零新依赖），每收集
 //!   [`SCAN_PROGRESS_BATCH`] 个文件经事件桥广播一次进度，扫描结果阶段 0 仅计数；
+#![allow(dead_code)]
 //! - 事件定义与 Rust → JS 广播见 [`events`]（契约唯一事实源 `docs/dev/interfaces.md`）。
 
 pub mod events;

@@ -16,6 +16,7 @@
 //! 编译，因此本文件必须自包含——只允许依赖 std 与 notify，禁止 `crate::`
 //! 路径引用。测试载体为 `tests/watcher_probe.rs`（`#[path]` 引入本文件）；
 //! 主 Agent 集成时在 `src/workspace/mod.rs` 声明 `pub mod watcher;` 后，
+#![allow(dead_code)]
 //! 本模块进入产品编译，探针测试继续作为对外行为契约存在，两者不冲突。
 
 use std::collections::{BTreeMap, HashMap, HashSet};

@@ -4,6 +4,7 @@
 //! 这些状态跨越多条命令与后台线程（watcher 线程、搜索线程、保存链路），
 //! 统一收敛在此，命令 handler（`fn` 指针，无捕获）经静态访问器使用。
 //! 线程安全：各状态独立置于 `OnceLock<Mutex<_>>` / 原子量之后。
+#![allow(dead_code)]
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

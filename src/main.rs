@@ -51,13 +51,6 @@ const SETTINGS_JS: &str = include_str!("frontend/settings.js");
 const KEYBINDINGS_JS: &str = include_str!("frontend/keybindings.js");
 const COMMAND_PALETTE_JS: &str = include_str!("frontend/command-palette.js");
 const RECOVERY_JS: &str = include_str!("frontend/recovery.js");
-const OUTLINE_CSS: &str = include_str!("frontend/outline.css");
-const PROJECT_TREE_CSS: &str = include_str!("frontend/project-tree.css");
-const SEARCH_PANEL_CSS: &str = include_str!("frontend/search-panel.css");
-const QUICK_OPEN_CSS: &str = include_str!("frontend/quick-open.css");
-const SETTINGS_CSS: &str = include_str!("frontend/settings.css");
-const COMMAND_PALETTE_CSS: &str = include_str!("frontend/command-palette.css");
-const RECOVERY_CSS: &str = include_str!("frontend/recovery.css");
 const ICON_PNG: &[u8] = include_bytes!("../assets/icon.png");
 
 pub(crate) const fn platform_base_url() -> &'static str {

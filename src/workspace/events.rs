@@ -3,6 +3,7 @@
 //! 广播路径：后台线程 / 命令处理 → [`emit`]（经 `main.rs` 安装的发送器进入
 //! `EventLoopProxy`）→ 主线程事件循环 → [`broadcast_event`] → `ipc::send_to_js`
 //! → 前端 `window.__fromRust(event, data)`（由 `workspace.js` 分发）。
+#![allow(dead_code)]
 
 use std::sync::OnceLock;
 

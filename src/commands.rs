@@ -1,4 +1,5 @@
 //! 命令注册表与 Workspace 子系统粘合层。
+#![allow(dead_code, unused_imports)]
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
