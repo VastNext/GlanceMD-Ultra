@@ -16,8 +16,8 @@
   align-items: baseline;
   gap: 5px;
   padding: 4px 12px;
-  font-size: 11.5px;
-  line-height: 1.4;
+  font-size: 13px;
+  line-height: 1.45;
   color: var(--text-secondary);
   cursor: pointer;
   white-space: nowrap;
@@ -31,18 +31,19 @@
   background: var(--hover-bg);
 }
 
-/* 缩进按标题级别递进（12px 基准 + 每级 12px，同设计稿 h1 12 / h2 24 / h3 36） */
+/* 缩进按标题级别递进（12px 基准 + 每级 12px，同设计稿 h1 12 / h2 24 / h3 36）；
+   层级用缩进与字重表达，h3 起不再逐级缩字号（对齐 awesome-design-md 字号阶梯） */
 .outline-h1 { padding-left: 12px; font-weight: 600; }
 .outline-h2 { padding-left: 24px; }
-.outline-h3 { padding-left: 36px; font-size: 11px; }
-.outline-h4 { padding-left: 48px; font-size: 11px; }
-.outline-h5 { padding-left: 60px; font-size: 10.5px; }
-.outline-h6 { padding-left: 72px; font-size: 10.5px; }
+.outline-h3 { padding-left: 36px; }
+.outline-h4 { padding-left: 48px; }
+.outline-h5 { padding-left: 60px; font-size: 12.5px; }
+.outline-h6 { padding-left: 72px; font-size: 12.5px; }
 
 /* 级别标记（H1–H6 小字 chip，同设计稿 .toc-lv） */
 .outline-lv {
   flex-shrink: 0;
-  font-size: 9px;
+  font-size: 10px;
   color: var(--text-dim);
 }
 
