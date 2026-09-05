@@ -1,0 +1,2315 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GlanceMD Ultra · 设置与侧栏密度交互原型 v2</title>
+<style>
+/* ════════════════════════════════════════════════════════════════
+   GlanceMD Ultra · Quiet Technical Layers Design Tokens
+   Linear / Raycast Dark Ladder + Cursor / Notion Warm-White Light
+   ════════════════════════════════════════════════════════════════ */
+:root {
+  /* ── 暗色模式阶梯（Dark Surface Ladder） ── */
+  --bg-base: #101012;
+  --bg-surface: #17171a;
+  --bg-raised: #1f1f24;
+  --bg-overlay: #28282e;
+  --bg-active: #2c2c34;
+  
+  --text: #c8c8d2;
+  --text-secondary: #868694;
+  --text-dim: #5c5c6b;
+  --text-inverse: #0d0d10;
+  
+  --editor-bg: #111113;
+  --editor-gutter: #161619;
+  --editor-gutter-text: #50505e;
+  
+  --border: #26262c;
+  --border-subtle: #1e1e24;
+  --hairline: rgba(255, 255, 255, 0.06);
+  --divider: #202026;
+  
+  --mk-heading: #a855f7;
+  --mk-heading-end: #ec4899;
+  --mk-link: #70b8ff;
+  --heading-gradient: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+  --heading-glow: linear-gradient(135deg, rgba(168, 85, 247, 0.16), rgba(236, 72, 153, 0.16));
+  --heading-soft: rgba(168, 85, 247, 0.15);
+  
+  --selection-bg: rgba(168, 85, 247, 0.32);
+  --focus-ring: 0 0 0 2px rgba(168, 85, 247, 0.4);
+  --focus-border: #a855f7;
+  
+  --success: #10b981;
+  --success-soft: rgba(16, 185, 129, 0.14);
+  --warning: #f59e0b;
+  --warning-soft: rgba(245, 158, 11, 0.14);
+  --danger: #ef4444;
+  --danger-soft: rgba(239, 68, 68, 0.14);
+  
+  --scrollbar: #2d2d36;
+  --scrollbar-hover: #40404c;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  
+  --modal-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), 0 8px 24px rgba(0, 0, 0, 0.4);
+  --popover-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  
+  --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+
+  /* ── 侧栏密度与字号动态 Token（由 Slider 联动控制） ── */
+  --tree-font-size: 14px;
+  --tree-icon-size: 16px;
+  --tree-caret-size: 12px;
+  --tree-row-height: 30px;
+  --tree-gap: 8px;
+  --tree-indent: 16px;
+  --tree-active-bg: rgba(168, 85, 247, 0.14);
+  --tree-active-border: #a855f7;
+  --tree-hover-bg: rgba(255, 255, 255, 0.04);
+}
+
+/* ── 暖白浅色阶梯（Cursor / Notion Warm-White Light Hairline） ── */
+[data-theme="light"] {
+  --bg-base: #f5f6f9;
+  --bg-surface: #ffffff;
+  --bg-raised: #f0f2f6;
+  --bg-overlay: #e5e8f0;
+  --bg-active: #dbe0ea;
+  
+  --text: #2c303b;
+  --text-secondary: #626877;
+  --text-dim: #9299a9;
+  --text-inverse: #ffffff;
+  
+  --editor-bg: #ffffff;
+  --editor-gutter: #fafbfc;
+  --editor-gutter-text: #9ca3af;
+  
+  --border: #d4d8e2;
+  --border-subtle: #e6e9f0;
+  --hairline: rgba(0, 0, 0, 0.06);
+  --divider: #ebeef5;
+  
+  --mk-heading: #9333ea;
+  --mk-heading-end: #db2777;
+  --mk-link: #2563eb;
+  --heading-gradient: linear-gradient(135deg, #9333ea 0%, #db2777 100%);
+  --heading-glow: linear-gradient(135deg, rgba(147, 51, 234, 0.1), rgba(219, 39, 119, 0.1));
+  --heading-soft: rgba(147, 51, 234, 0.12);
+  
+  --selection-bg: rgba(147, 51, 234, 0.22);
+  --focus-ring: 0 0 0 2px rgba(147, 51, 234, 0.3);
+  --focus-border: #9333ea;
+  
+  --success: #059669;
+  --success-soft: rgba(5, 150, 105, 0.12);
+  --warning: #d97706;
+  --warning-soft: rgba(217, 119, 6, 0.12);
+  --danger: #dc2626;
+  --danger-soft: rgba(220, 38, 38, 0.12);
+  
+  --scrollbar: #cbd2df;
+  --scrollbar-hover: #a6b0c2;
+  
+  --modal-shadow: 0 24px 54px rgba(22, 28, 45, 0.18), 0 8px 20px rgba(22, 28, 45, 0.1);
+  --popover-shadow: 0 12px 28px rgba(22, 28, 45, 0.14);
+  
+  --tree-active-bg: rgba(147, 51, 234, 0.1);
+  --tree-active-border: #9333ea;
+  --tree-hover-bg: rgba(0, 0, 0, 0.035);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   基础与排版 Reset
+   ════════════════════════════════════════════════════════════════ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: var(--bg-base);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+::selection { background: var(--selection-bg); color: inherit; }
+
+/* 统一 SVG 图标样式 */
+.svg-icon {
+  display: inline-block;
+  vertical-align: middle;
+  stroke-width: 1.5;
+  stroke: currentColor;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   顶层控制工具条 (Meta / Control Toolbar)
+   ════════════════════════════════════════════════════════════════ */
+#top-control-bar {
+  height: 42px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  gap: 12px;
+  z-index: 50;
+}
+
+.brand-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 13px;
+}
+.brand-logo-text {
+  background: var(--heading-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.01em;
+}
+.brand-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--heading-soft);
+  color: var(--mk-heading);
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.controls-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.control-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.slider-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+}
+.slider-label {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+.slider-input {
+  width: 90px;
+  accent-color: var(--mk-heading);
+  cursor: pointer;
+}
+.slider-value-pill {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text);
+  font-weight: 600;
+  min-width: 32px;
+  text-align: right;
+}
+
+/* 按钮风格 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-family: var(--font-body);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.14s ease;
+  white-space: nowrap;
+}
+.btn:hover {
+  background: var(--bg-overlay);
+  border-color: var(--text-dim);
+  color: var(--text);
+}
+.btn:active {
+  transform: translateY(1px);
+}
+.btn-primary {
+  background: var(--heading-gradient);
+  border: none;
+  color: #ffffff;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(168, 85, 247, 0.35);
+}
+.btn-primary:hover {
+  filter: brightness(1.08);
+  color: #ffffff;
+}
+
+.metrics-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-base);
+  border: 1px solid var(--border-subtle);
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.metrics-status-bar span b {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.prototype-tag {
+  font-size: 11px;
+  color: var(--text-dim);
+  border: 1px dashed var(--border);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   工作区主布局 (Workspace Layout)
+   ════════════════════════════════════════════════════════════════ */
+#workspace-container {
+  display: flex;
+  width: 100vw;
+  height: calc(100vh - 42px);
+  position: relative;
+  background: var(--bg-base);
+  overflow: hidden;
+}
+
+/* ── 左侧项目树面板 ── */
+#tree-panel {
+  width: 264px;
+  min-width: 180px;
+  max-width: 640px;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.panel-header {
+  height: 36px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.panel-header .title-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.panel-header .actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.icon-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.icon-btn:hover {
+  background: var(--bg-raised);
+  color: var(--text);
+}
+
+.tree-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
+}
+
+/* 树节点动态样式 */
+.tree-node {
+  display: flex;
+  align-items: center;
+  gap: var(--tree-gap);
+  height: var(--tree-row-height);
+  padding-right: 10px;
+  font-size: var(--tree-font-size);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+  position: relative;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tree-node:hover {
+  background: var(--tree-hover-bg);
+  color: var(--text);
+}
+.tree-node.active {
+  background: var(--tree-active-bg);
+  color: var(--text);
+  font-weight: 500;
+}
+.tree-node.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--heading-gradient);
+}
+.tree-caret {
+  width: var(--tree-caret-size);
+  height: var(--tree-caret-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.14s ease;
+  color: var(--text-dim);
+}
+.tree-caret.expanded {
+  transform: rotate(90deg);
+}
+.tree-icon {
+  width: var(--tree-icon-size);
+  height: var(--tree-icon-size);
+  flex-shrink: 0;
+}
+.tree-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tree-badge {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--bg-raised);
+}
+
+/* ── 分割线 Resizer ── */
+.resizer {
+  width: 5px;
+  background: transparent;
+  cursor: col-resize;
+  position: relative;
+  z-index: 20;
+  transition: background 0.15s;
+  flex-shrink: 0;
+  margin-left: -2px;
+  margin-right: -2px;
+}
+.resizer::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; left: 2px; width: 1px;
+  background: var(--border-subtle);
+  transition: background 0.15s, box-shadow 0.15s, width 0.15s;
+}
+.resizer:hover::after, .resizer.dragging::after {
+  background: var(--mk-heading);
+  box-shadow: 0 0 8px var(--mk-heading);
+  width: 2px;
+}
+
+/* ── 中央编辑器面板 ── */
+#editor-panel {
+  flex: 1;
+  min-width: 420px;
+  background: var(--editor-bg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tab-bar {
+  height: 36px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 2px;
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+.tab-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  background: transparent;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.12s;
+}
+.tab-item:hover {
+  background: var(--bg-raised);
+  color: var(--text);
+}
+.tab-item.active {
+  background: var(--editor-bg);
+  color: var(--text);
+  border-bottom: 2px solid var(--mk-heading);
+  font-weight: 500;
+}
+.tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  color: var(--text-dim);
+}
+.tab-close:hover {
+  background: var(--bg-overlay);
+  color: var(--text);
+}
+
+.editor-workspace {
+  flex: 1;
+  display: flex;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.editor-gutter {
+  width: 48px;
+  background: var(--editor-gutter);
+  border-right: 1px solid var(--border-subtle);
+  padding: 16px 8px 16px 0;
+  text-align: right;
+  color: var(--editor-gutter-text);
+  font-size: 11.5px;
+  user-select: none;
+  flex-shrink: 0;
+}
+.editor-canvas {
+  flex: 1;
+  padding: 16px 24px;
+  color: var(--text);
+  user-select: text;
+  max-width: 860px;
+}
+.md-h1 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 12px;
+  background: var(--heading-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.md-h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 18px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.md-h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 12px 0 6px;
+}
+.md-p {
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.md-code-block {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin: 10px 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #9cdcfe;
+  overflow-x: auto;
+}
+.md-quote {
+  border-left: 3px solid var(--mk-heading);
+  padding: 6px 12px;
+  background: var(--heading-soft);
+  color: var(--text-secondary);
+  font-style: italic;
+  margin: 10px 0;
+}
+
+/* ── 右侧大纲面板 ── */
+#outline-panel {
+  width: 230px;
+  min-width: 170px;
+  max-width: 480px;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.outline-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
+}
+.outline-item {
+  display: flex;
+  align-items: center;
+  gap: var(--tree-gap);
+  height: var(--tree-row-height);
+  padding-right: 12px;
+  font-size: var(--tree-font-size);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.outline-item:hover {
+  background: var(--tree-hover-bg);
+  color: var(--text);
+}
+.outline-item.active {
+  background: var(--tree-active-bg);
+  color: var(--text);
+  font-weight: 500;
+}
+.outline-pill {
+  font-family: var(--font-mono);
+  font-size: calc(var(--tree-font-size) * 0.75);
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--bg-raised);
+  color: var(--mk-heading);
+  font-weight: 600;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   设置 Modal (Quiet Technical Layers Settings Dialog)
+   ════════════════════════════════════════════════════════════════ */
+#settings-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(3px);
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+#settings-modal-overlay.open {
+  display: flex;
+  opacity: 1;
+}
+
+#settings-dialog {
+  width: 880px;
+  height: 640px;
+  min-width: 760px;
+  min-height: 520px;
+  max-width: min(1080px, 95vw);
+  max-height: min(800px, 92vh);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--modal-shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: absolute;
+  transform: scale(0.98);
+  transition: transform 0.15s ease;
+}
+#settings-modal-overlay.open #settings-dialog {
+  transform: scale(1);
+}
+
+/* ── Modal Header (52px 固定高) ── */
+.dialog-header {
+  height: 52px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px;
+  cursor: move;
+  user-select: none;
+  flex-shrink: 0;
+}
+.dialog-header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.dialog-header-title .title-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--mk-heading);
+}
+.dialog-header-title h2 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.dialog-header-title .badge {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-weight: normal;
+  border-left: 1px solid var(--border);
+  padding-left: 8px;
+}
+
+.dialog-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: default;
+}
+.search-input-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0 8px;
+  height: 28px;
+  width: 220px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.search-input-box:focus-within {
+  border-color: var(--focus-border);
+  box-shadow: var(--focus-ring);
+}
+.search-input-box input {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text);
+  width: 100%;
+}
+.search-input-box input::placeholder {
+  color: var(--text-dim);
+}
+
+.modal-close-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.modal-close-btn:hover {
+  background: var(--bg-raised);
+  color: var(--text);
+}
+
+/* ── Modal Body (Grid / Flex 固定高度，外框尺寸恒定) ── */
+.dialog-body {
+  flex: 1;
+  height: calc(100% - 104px);
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── 左侧 7 分类导航 (208px 固定宽) ── */
+.dialog-nav {
+  width: 208px;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  padding: 8px 6px;
+  gap: 2px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s;
+  border: 1px solid transparent;
+}
+.nav-item:hover {
+  background: var(--bg-raised);
+  color: var(--text);
+}
+.nav-item.active {
+  background: var(--heading-soft);
+  color: var(--text);
+  font-weight: 600;
+  border-color: rgba(168, 85, 247, 0.25);
+}
+.nav-item.active .nav-icon {
+  color: var(--mk-heading);
+}
+.nav-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--text-dim);
+  transition: color 0.12s;
+}
+
+/* ── 右侧设置内容区 (独立滚动，分类切换平滑淡入 140ms) ── */
+.dialog-content {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow-y: auto;
+  padding: 24px 32px;
+  background: var(--bg-surface);
+}
+
+.category-pane {
+  display: none;
+  opacity: 0;
+  transform: translateY(2px);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+.category-pane.active {
+  display: block;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .category-pane {
+    transition: none !important;
+  }
+}
+
+/* ── Quiet Technical Layers 设置行风格 (不做卡片，靠分层与 Hairline) ── */
+.settings-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin: 22px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.settings-section-title:first-child {
+  margin-top: 0;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  gap: 16px;
+  transition: background 0.1s;
+}
+.setting-row:last-child {
+  border-bottom: none;
+}
+.setting-info {
+  flex: 1;
+  min-width: 0;
+}
+.setting-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.setting-desc {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+.setting-ctrl {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── 控件样式 (Form Controls) ── */
+
+/* Switch 开关 */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.switch-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: var(--bg-overlay);
+  border: 1px solid var(--border);
+  transition: .18s ease;
+  border-radius: 999px;
+}
+.switch-slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 2px;
+  bottom: 2px;
+  background-color: #ffffff;
+  transition: .18s ease;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+.switch input:checked + .switch-slider {
+  background: var(--heading-gradient);
+  border-color: transparent;
+}
+.switch input:checked + .switch-slider:before {
+  transform: translateX(16px);
+}
+.switch input:focus-visible + .switch-slider {
+  box-shadow: var(--focus-ring);
+}
+
+/* Select 下拉选择器 */
+.select-input {
+  height: 28px;
+  padding: 0 28px 0 10px;
+  background-color: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23868694' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.select-input:focus {
+  border-color: var(--focus-border);
+  box-shadow: var(--focus-ring);
+}
+
+/* Text / Number Input */
+.text-input {
+  height: 28px;
+  padding: 0 8px;
+  background-color: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.text-input:focus {
+  border-color: var(--focus-border);
+  box-shadow: var(--focus-ring);
+}
+.text-input.mono {
+  font-family: var(--font-mono);
+}
+
+/* 快捷键 Kbd 徽标与录制器 (Raised Surface) */
+.kbd-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 7px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.recorder-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+}
+.recorder-box.recording {
+  background: var(--bg-overlay);
+  border-color: var(--mk-heading);
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.35);
+  animation: pulseRecording 1.8s infinite ease-in-out;
+}
+@keyframes pulseRecording {
+  0%, 100% { border-color: var(--mk-heading); }
+  50% { border-color: var(--mk-heading-end); }
+}
+
+/* ── Modal Footer (52px 固定高) ── */
+.dialog-footer {
+  height: 52px;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  flex-shrink: 0;
+}
+
+/* ── 右下角 Resize Grip ── */
+.dialog-resize-grip {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 2px;
+  color: var(--text-dim);
+  z-index: 10;
+}
+.dialog-resize-grip::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+}
+
+/* ── 隐藏辅助类 ── */
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════════
+     顶部控制工具条 (Meta Toolbar)
+     ════════════════════════════════════════════════════════════════ -->
+<header id="top-control-bar">
+  <div class="brand-section">
+    <span class="brand-logo-text">GlanceMD Ultra</span>
+    <span class="brand-badge">PROTOTYPE V2</span>
+    <span class="prototype-tag">原型 · 不修改产品代码</span>
+  </div>
+
+  <!-- 密度滑块与主控按钮 -->
+  <div class="controls-section">
+    <div class="slider-wrapper" title="调整侧栏与大纲的字体大小、行高、图标与缩进间距">
+      <span class="slider-label">侧栏字号:</span>
+      <input type="range" min="12" max="18" step="1" value="14" class="slider-input" id="density-slider">
+      <span class="slider-value-pill" id="density-indicator">14px</span>
+    </div>
+
+    <button class="btn" id="btn-open-settings" title="打开设置面板 (Ctrl+,)">
+      <svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      设置 (Ctrl+,)
+    </button>
+
+    <button class="btn" id="btn-reset-layout" title="恢复侧栏宽度 (264px/230px)、字号 (14px) 与弹窗初始位置">
+      <svg class="svg-icon" width="13" height="13" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+      重置布局
+    </button>
+
+    <button class="btn" id="btn-theme-toggle" title="切换暗色 / 浅色模式">
+      <svg class="svg-icon" id="theme-icon" width="13" height="13" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+      <span id="theme-text">深色</span>
+    </button>
+
+    <div class="metrics-status-bar" id="metrics-bar">
+      <span>树: <b id="stat-tree-w">264px</b></span>
+      <span>编辑器: <b id="stat-editor-w">--</b></span>
+      <span>大纲: <b id="stat-outline-w">230px</b></span>
+    </div>
+  </div>
+</header>
+
+<!-- ════════════════════════════════════════════════════════════════
+     工作区主视口 (Workspace)
+     ════════════════════════════════════════════════════════════════ -->
+<main id="workspace-container">
+
+  <!-- ── 1. 左侧项目树 ── -->
+  <aside id="tree-panel">
+    <div class="panel-header">
+      <div class="title-group">
+        <svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        <span>GLANCEMD-ULTRA</span>
+      </div>
+      <div class="actions">
+        <button class="icon-btn" title="新建文件"><svg class="svg-icon" width="13" height="13" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg></button>
+        <button class="icon-btn" title="折叠全部"><svg class="svg-icon" width="13" height="13" viewBox="0 0 24 24"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg></button>
+      </div>
+    </div>
+
+    <div class="tree-content" id="tree-content-list">
+      <!-- 根目录项目 -->
+      <div class="tree-node" style="padding-left: calc(var(--tree-indent) * 0 + 8px);">
+        <span class="tree-caret expanded"><svg class="svg-icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg></span>
+        <svg class="tree-icon svg-icon" viewBox="0 0 24 24" style="color: #60a5fa;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        <span class="tree-label">docs</span>
+      </div>
+
+      <div class="tree-node" style="padding-left: calc(var(--tree-indent) * 1 + 8px);">
+        <span class="tree-caret expanded"><svg class="svg-icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg></span>
+        <svg class="tree-icon svg-icon" viewBox="0 0 24 24" style="color: #60a5fa;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        <span class="tree-label">design</span>
+      </div>
+
+      <div class="tree-node active" style="padding-left: calc(var(--tree-indent) * 2 + 8px);">
+        <span class="tree-caret" style="visibility: hidden;"><svg class="svg-icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg></span>
+        <svg class="tree-icon svg-icon" viewBox="0 0 24 24" style="color: var(--mk-heading);"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        <span class="tree-label">settings-sidebar-v2.html</span>
+        <span class="tree-badge">M</span>
+      </div>
+
+      <div class="tree-node" style="padding-left: calc(var(--tree-indent) * 2 + 8px);">
+        <span class="tree-caret" style="visibility: hidden;"><svg class="svg-icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg></span>
+        <svg class="tree-icon svg-icon" viewBox="0 0 24 24" style="color: #38bdf8;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+        <span class="tree-label">01-project-tree.html</span>
+      </div>
+
+      <div class="tree-node" style="padding-left: calc(var(--tree-indent) * 2 + 8px);">
+        <span class="tree-caret" style="visibility: hidden;"><svg class="svg-icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg></span>
+        <svg class="tree-icon svg-icon" viewBox="0 0 24 24" style="color: #38bdf8;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+        <span class="tree-label">05-settings.html</span>
+      </div>
+
+      <div class="tree-node" style="padding-left: calc(var(--tree-indent) * 1 + 8px);">
+        <span class="tree-caret"><svg class="svg-icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg></span>
+        <svg class="tree-icon svg-icon" viewBox="0 0 24 24" style="color: #60a5fa;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        <span class="tree-label">plans</span>
+      </div>
+
+      <div class="tree-node" style="padding-left: calc(var(--tree-indent) * 0 + 8px);">
+        <span class="tree-caret expanded"><svg class="svg-icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg></span>
+        <svg class="tree-icon svg-icon" viewBox="0 0 24 24" style="color: #60a5fa;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        <span class="tree-label">src</span>
+      </div>
+
+      <div class="tree-node" style="padding-left: calc(var(--tree-indent) * 1 + 8px);">
+        <span class="tree-caret expanded"><svg class="svg-icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg></span>
+        <svg class="tree-icon svg-icon" viewBox="0 0 24 24" style="color: #60a5fa;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        <span class="tree-label">frontend</span>
+      </div>
+
+      <div class="tree-node" style="padding-left: calc(var(--tree-indent) * 2 + 8px);">
+        <span class="tree-caret" style="visibility: hidden;"><svg class="svg-icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg></span>
+        <svg class="tree-icon svg-icon" viewBox="0 0 24 24" style="color: #facc15;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+        <span class="tree-label">app.js</span>
+      </div>
+
+      <div class="tree-node" style="padding-left: calc(var(--tree-indent) * 2 + 8px);">
+        <span class="tree-caret" style="visibility: hidden;"><svg class="svg-icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg></span>
+        <svg class="tree-icon svg-icon" viewBox="0 0 24 24" style="color: #ec4899;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+        <span class="tree-label">style.css</span>
+      </div>
+
+      <div class="tree-node" style="padding-left: calc(var(--tree-indent) * 1 + 8px);">
+        <span class="tree-caret" style="visibility: hidden;"><svg class="svg-icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg></span>
+        <svg class="tree-icon svg-icon" viewBox="0 0 24 24" style="color: #fb923c;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+        <span class="tree-label">main.rs</span>
+      </div>
+
+      <div class="tree-node" style="padding-left: calc(var(--tree-indent) * 0 + 8px);">
+        <span class="tree-caret" style="visibility: hidden;"><svg class="svg-icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg></span>
+        <svg class="tree-icon svg-icon" viewBox="0 0 24 24" style="color: #f87171;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+        <span class="tree-label">Cargo.toml</span>
+      </div>
+
+      <div class="tree-node" style="padding-left: calc(var(--tree-indent) * 0 + 8px);">
+        <span class="tree-caret" style="visibility: hidden;"><svg class="svg-icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg></span>
+        <svg class="tree-icon svg-icon" viewBox="0 0 24 24" style="color: #38bdf8;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+        <span class="tree-label">README.md</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── 树与编辑器之间的 Resizer ── -->
+  <div class="resizer" id="tree-resizer" title="拖拽调整项目树宽度（双击重置为 264px）"></div>
+
+  <!-- ── 2. 中央编辑器 ── -->
+  <section id="editor-panel">
+    <div class="tab-bar">
+      <div class="tab-item active">
+        <svg class="svg-icon" width="13" height="13" viewBox="0 0 24 24" style="color: var(--mk-heading);"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+        <span>settings-sidebar-v2.html</span>
+        <span class="tab-close">×</span>
+      </div>
+      <div class="tab-item">
+        <svg class="svg-icon" width="13" height="13" viewBox="0 0 24 24" style="color: #ec4899;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+        <span>style.css</span>
+        <span class="tab-close">×</span>
+      </div>
+      <div class="tab-item">
+        <svg class="svg-icon" width="13" height="13" viewBox="0 0 24 24" style="color: #fb923c;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+        <span>main.rs</span>
+        <span class="tab-close">×</span>
+      </div>
+    </div>
+
+    <div class="editor-workspace">
+      <div class="editor-gutter">
+        1<br>2<br>3<br>4<br>5<br>6<br>7<br>8<br>9<br>10<br>11<br>12<br>13<br>14<br>15<br>16<br>17<br>18<br>19<br>20<br>21<br>22<br>23<br>24<br>25<br>26<br>27<br>28<br>29<br>30
+      </div>
+      <div class="editor-canvas">
+        <div class="md-h1"># GlanceMD Ultra · 轻量原生工作区</div>
+        <p class="md-p">GlanceMD Ultra 专注于为本地 Markdown 与结构化项目提供极速、无运行时负担的原生编辑体验。二进制仅 2–5MB，启动耗时低于 120ms，零 Electron 与 Monaco 依赖。</p>
+        
+        <div class="md-h2">## 视觉设计体系：Quiet Technical Layers</div>
+        <p class="md-p">暗色模式采用 Linear / Raycast 风格的 Surface Ladder 递进，浅色模式采用 Cursor / Notion 的暖白微边框（Hairline）。普通设置行不做厚重卡片，视觉层级完全由表面深度与分割线构筑。</p>
+        
+        <div class="md-quote">"纯粹的工具性美学：克制、精密、轻盈。"</div>
+        
+        <div class="md-h3">### 侧栏排版与树形密度联动</div>
+        <p class="md-p">通过单一滑动条（12–18px），可全局等比联动字号、图标尺寸、箭头角度、行高（26–38px）、层级缩进与 Outline 标记。</p>
+        
+        <div class="md-code-block">
+// Rust Workspace Event Bus
+pub fn update_density(size: u32) -> Result<()> {
+    apply_css_token("--tree-font-size", format!("{}px", size));
+    Ok(())
+}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 编辑器与大纲之间的 Resizer ── -->
+  <div class="resizer" id="outline-resizer" title="拖拽调整大纲宽度（双击重置为 230px）"></div>
+
+  <!-- ── 3. 右侧大纲面板 ── -->
+  <aside id="outline-panel">
+    <div class="panel-header">
+      <div class="title-group">
+        <svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+        <span>大纲 (OUTLINE)</span>
+      </div>
+      <span class="tree-badge">5 项</span>
+    </div>
+
+    <div class="outline-content" id="outline-content-list">
+      <div class="outline-item active" style="padding-left: calc(var(--tree-indent) * 0 + 10px);">
+        <span class="outline-pill">H1</span>
+        <span class="tree-label">GlanceMD Ultra · 轻量原生工作区</span>
+      </div>
+      <div class="outline-item" style="padding-left: calc(var(--tree-indent) * 1 + 10px);">
+        <span class="outline-pill">H2</span>
+        <span class="tree-label">视觉设计体系：Quiet Technical Layers</span>
+      </div>
+      <div class="outline-item" style="padding-left: calc(var(--tree-indent) * 2 + 10px);">
+        <span class="outline-pill">H3</span>
+        <span class="tree-label">侧栏排版与树形密度联动</span>
+      </div>
+      <div class="outline-item" style="padding-left: calc(var(--tree-indent) * 1 + 10px);">
+        <span class="outline-pill">H2</span>
+        <span class="tree-label">交互模型与设置面板设计</span>
+      </div>
+      <div class="outline-item" style="padding-left: calc(var(--tree-indent) * 2 + 10px);">
+        <span class="outline-pill">H3</span>
+        <span class="tree-label">快捷键录制与冲突检测</span>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<!-- ════════════════════════════════════════════════════════════════
+     设置对话框 (Settings Modal)
+     ════════════════════════════════════════════════════════════════ -->
+<div id="settings-modal-overlay">
+  <div id="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+    
+    <!-- Modal 顶部栏 (52px) -->
+    <div class="dialog-header" id="dialog-drag-handle">
+      <div class="dialog-header-title">
+        <svg class="svg-icon title-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        <h2 id="dialog-title">设置</h2>
+        <span class="badge" id="current-category-badge">外观</span>
+      </div>
+
+      <div class="dialog-header-actions" onmousedown="event.stopPropagation()">
+        <div class="search-input-box">
+          <svg class="svg-icon" width="13" height="13" viewBox="0 0 24 24" style="color: var(--text-dim);"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="settings-filter-input" placeholder="搜索设置项...">
+        </div>
+        <button class="modal-close-btn" id="btn-close-modal" title="关闭设置 (Esc)">
+          <svg class="svg-icon" width="16" height="16" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Modal 中间主体 (外框高度恒定，左右分栏) -->
+    <div class="dialog-body">
+      
+      <!-- 7 分类导航 (208px) -->
+      <nav class="dialog-nav" id="dialog-nav-list">
+        <div class="nav-item" data-target="pane-general">
+          <svg class="svg-icon nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+          <span>通用</span>
+        </div>
+        <div class="nav-item active" data-target="pane-appearance">
+          <svg class="svg-icon nav-icon" viewBox="0 0 24 24"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg>
+          <span>外观</span>
+        </div>
+        <div class="nav-item" data-target="pane-editor">
+          <svg class="svg-icon nav-icon" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+          <span>编辑器</span>
+        </div>
+        <div class="nav-item" data-target="pane-shortcuts">
+          <svg class="svg-icon nav-icon" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="6" y1="8" x2="6.01" y2="8"></line><line x1="10" y1="8" x2="10.01" y2="8"></line><line x1="14" y1="8" x2="14.01" y2="8"></line><line x1="18" y1="8" x2="18.01" y2="8"></line><line x1="8" y1="12" x2="16" y2="12"></line><line x1="6" y1="16" x2="18" y2="16"></line></svg>
+          <span>快捷键</span>
+        </div>
+        <div class="nav-item" data-target="pane-workspace">
+          <svg class="svg-icon nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          <span>工作区</span>
+        </div>
+        <div class="nav-item" data-target="pane-files">
+          <svg class="svg-icon nav-icon" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+          <span>文件与保存</span>
+        </div>
+        <div class="nav-item" data-target="pane-advanced">
+          <svg class="svg-icon nav-icon" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+          <span>高级与关于</span>
+        </div>
+      </nav>
+
+      <!-- 设置内容面板 (7 类面板，右侧独立滚动) -->
+      <div class="dialog-content" id="dialog-content-container">
+
+        <!-- ── 1. 通用 (General) ── -->
+        <div class="category-pane" id="pane-general">
+          <div class="settings-section-title">启动与行为</div>
+          
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">启动时恢复上次工作区</div>
+              <div class="setting-desc">打开应用程序时自动恢复上一次退出的项目文件夹与打开的标签页</div>
+            </div>
+            <div class="setting-ctrl">
+              <label class="switch"><input type="checkbox" checked><span class="switch-slider"></span></label>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">界面语言</div>
+              <div class="setting-desc">设置界面的显示语言（修改后即时生效）</div>
+            </div>
+            <div class="setting-ctrl">
+              <select class="select-input">
+                <option value="zh-CN" selected>简体中文 (Chinese)</option>
+                <option value="en-US">English (US)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">窗口尺寸与位置记忆</div>
+              <div class="setting-desc">在应用重启时记住主窗口与辅助面板的几何位置</div>
+            </div>
+            <div class="setting-ctrl">
+              <label class="switch"><input type="checkbox" checked><span class="switch-slider"></span></label>
+            </div>
+          </div>
+
+          <div class="settings-section-title">更新与同步</div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">自动检查更新</div>
+              <div class="setting-desc">在启动时静默检查是否有新的稳定版本发布</div>
+            </div>
+            <div class="setting-ctrl">
+              <label class="switch"><input type="checkbox" checked><span class="switch-slider"></span></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 2. 外观 (Appearance) - 完整 ── -->
+        <div class="category-pane active" id="pane-appearance">
+          <div class="settings-section-title">色彩与主题</div>
+          
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">色彩主题模式</div>
+              <div class="setting-desc">选择界面的明暗主题阶梯（Linear 暗色梯 / Cursor 暖白微光）</div>
+            </div>
+            <div class="setting-ctrl">
+              <select class="select-input" id="setting-theme-select">
+                <option value="dark">深色 (Quiet Technical Dark)</option>
+                <option value="light">浅色 (Warm-White Hairline Light)</option>
+                <option value="system">跟随系统设置 (Auto)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">高亮强调色系</div>
+              <div class="setting-desc">应用激活态、标题与渐变的光谱基调</div>
+            </div>
+            <div class="setting-ctrl">
+              <select class="select-input">
+                <option value="purple-pink" selected>GlanceMD 紫粉渐变 (Default)</option>
+                <option value="violet">单色紫 (Violet Tech)</option>
+                <option value="cyan">冷光青 (Cyan Neon)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="settings-section-title">排版与侧栏密度联动</div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">侧栏基础字号 (12–18px)</div>
+              <div class="setting-desc">等比联动项目树与大纲的字体、图标 (14–20px)、行高 (26–38px) 与缩进</div>
+            </div>
+            <div class="setting-ctrl">
+              <div class="slider-wrapper">
+                <input type="range" min="12" max="18" step="1" value="14" class="slider-input" id="modal-density-slider">
+                <span class="slider-value-pill" id="modal-density-indicator">14px</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">UI 缩放比例</div>
+              <div class="setting-desc">全局界面元素缩放等级</div>
+            </div>
+            <div class="setting-ctrl">
+              <select class="select-input">
+                <option value="100" selected>100% (标准)</option>
+                <option value="110">110%</option>
+                <option value="125">125%</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">弹窗毛玻璃背景模糊</div>
+              <div class="setting-desc">为对话框背景遮罩层启用 backdrop-filter 高斯模糊</div>
+            </div>
+            <div class="setting-ctrl">
+              <label class="switch"><input type="checkbox" checked><span class="switch-slider"></span></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 3. 编辑器 (Editor) - 完整 ── -->
+        <div class="category-pane" id="pane-editor">
+          <div class="settings-section-title">文本与字体</div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">编辑器字体字号</div>
+              <div class="setting-desc">主 Markdown 编辑区域的基础文本尺寸</div>
+            </div>
+            <div class="setting-ctrl">
+              <select class="select-input">
+                <option value="12">12px</option>
+                <option value="13">13px</option>
+                <option value="14" selected>14px (推荐)</option>
+                <option value="15">15px</option>
+                <option value="16">16px</option>
+                <option value="18">18px</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">等宽代码字体家族</div>
+              <div class="setting-desc">优先使用的等宽代码与 Markdown 编辑字体</div>
+            </div>
+            <div class="setting-ctrl">
+              <input type="text" class="text-input mono" style="width: 220px;" value="'Cascadia Code', 'Fira Code', monospace">
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">Tab 缩进空格数</div>
+              <div class="setting-desc">按下 Tab 键插入的空格数量</div>
+            </div>
+            <div class="setting-ctrl">
+              <select class="select-input">
+                <option value="2">2 个空格</option>
+                <option value="4" selected>4 个空格</option>
+                <option value="8">8 个空格</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="settings-section-title">编辑辅助与渲染</div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">自动软折行 (Soft Wrap)</div>
+              <div class="setting-desc">长行文本超出视口宽度时自动折行显示</div>
+            </div>
+            <div class="setting-ctrl">
+              <label class="switch"><input type="checkbox" checked><span class="switch-slider"></span></label>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">显示行号 (Line Numbers)</div>
+              <div class="setting-desc">在编辑器左侧边缘显示行号指示区</div>
+            </div>
+            <div class="setting-ctrl">
+              <label class="switch"><input type="checkbox" checked><span class="switch-slider"></span></label>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">平滑光标闪烁动画</div>
+              <div class="setting-desc">光标移动与跳动时使用平滑缓动过渡</div>
+            </div>
+            <div class="setting-ctrl">
+              <label class="switch"><input type="checkbox" checked><span class="switch-slider"></span></label>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">保存时修剪行尾多余空格</div>
+              <div class="setting-desc">写入文件前自动清理每行末尾多余的空白字符</div>
+            </div>
+            <div class="setting-ctrl">
+              <label class="switch"><input type="checkbox" checked><span class="switch-slider"></span></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 4. 快捷键 (Shortcuts) - 完整交互与录制 ── -->
+        <div class="category-pane" id="pane-shortcuts">
+          <div class="settings-section-title">核心操作快捷键</div>
+
+          <div class="setting-row" data-shortcut-id="open-settings">
+            <div class="setting-info">
+              <div class="setting-title">打开设置面板</div>
+              <div class="setting-desc">呼出首选项与快捷键设置窗口</div>
+            </div>
+            <div class="setting-ctrl">
+              <div class="recorder-box" id="recorder-open-settings">
+                <span class="kbd-badge">Ctrl</span> + <span class="kbd-badge">,</span>
+              </div>
+              <button class="btn btn-shortcut-record" data-target="recorder-open-settings">修改</button>
+            </div>
+          </div>
+
+          <div class="setting-row" data-shortcut-id="global-search">
+            <div class="setting-info">
+              <div class="setting-title">工作区全文搜索</div>
+              <div class="setting-desc">打开侧栏跨文件全文搜索面板</div>
+            </div>
+            <div class="setting-ctrl">
+              <div class="recorder-box" id="recorder-global-search">
+                <span class="kbd-badge">Ctrl</span> + <span class="kbd-badge">Shift</span> + <span class="kbd-badge">F</span>
+              </div>
+              <button class="btn btn-shortcut-record" data-target="recorder-global-search">修改</button>
+            </div>
+          </div>
+
+          <div class="setting-row" data-shortcut-id="save-file">
+            <div class="setting-info">
+              <div class="setting-title">保存当前文件</div>
+              <div class="setting-desc">将编辑器缓冲区内容写入磁盘</div>
+            </div>
+            <div class="setting-ctrl">
+              <div class="recorder-box" id="recorder-save-file">
+                <span class="kbd-badge">Ctrl</span> + <span class="kbd-badge">S</span>
+              </div>
+              <button class="btn btn-shortcut-record" data-target="recorder-save-file">修改</button>
+            </div>
+          </div>
+
+          <div class="setting-row" data-shortcut-id="toggle-sidebar">
+            <div class="setting-info">
+              <div class="setting-title">切换项目树显示/隐藏</div>
+              <div class="setting-desc">折叠或展开左侧文件树面板</div>
+            </div>
+            <div class="setting-ctrl">
+              <div class="recorder-box" id="recorder-toggle-sidebar">
+                <span class="kbd-badge">Ctrl</span> + <span class="kbd-badge">B</span>
+              </div>
+              <button class="btn btn-shortcut-record" data-target="recorder-toggle-sidebar">修改</button>
+            </div>
+          </div>
+
+          <div class="setting-row" data-shortcut-id="toggle-outline">
+            <div class="setting-info">
+              <div class="setting-title">切换大纲面板</div>
+              <div class="setting-desc">折叠或展开右侧文档结构大纲</div>
+            </div>
+            <div class="setting-ctrl">
+              <div class="recorder-box" id="recorder-toggle-outline">
+                <span class="kbd-badge">Ctrl</span> + <span class="kbd-badge">Shift</span> + <span class="kbd-badge">O</span>
+              </div>
+              <button class="btn btn-shortcut-record" data-target="recorder-toggle-outline">修改</button>
+            </div>
+          </div>
+
+          <div class="setting-row" data-shortcut-id="export-html">
+            <div class="setting-info">
+              <div class="setting-title">导出为独立 HTML</div>
+              <div class="setting-desc">将当前 Markdown 与内嵌样式编译导出单文件 HTML</div>
+            </div>
+            <div class="setting-ctrl">
+              <div class="recorder-box" id="recorder-export-html">
+                <span class="kbd-badge">Ctrl</span> + <span class="kbd-badge">E</span>
+              </div>
+              <button class="btn btn-shortcut-record" data-target="recorder-export-html">修改</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 5. 工作区 (Workspace) ── -->
+        <div class="category-pane" id="pane-workspace">
+          <div class="settings-section-title">文件树与监听</div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">忽略文件过滤规则 (Ignore Patterns)</div>
+              <div class="setting-desc">项目树中不显示匹配的文件或目录（半角逗号分隔）</div>
+            </div>
+            <div class="setting-ctrl">
+              <input type="text" class="text-input mono" style="width: 240px;" value="node_modules, .git, target, dist">
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">文件夹置顶排序</div>
+              <div class="setting-desc">在同级目录树中始终将文件夹排在文件前面</div>
+            </div>
+            <div class="setting-ctrl">
+              <label class="switch"><input type="checkbox" checked><span class="switch-slider"></span></label>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">自动跟随激活文件展开</div>
+              <div class="setting-desc">切换标签页时自动在项目树中高亮并展开所在文件夹</div>
+            </div>
+            <div class="setting-ctrl">
+              <label class="switch"><input type="checkbox" checked><span class="switch-slider"></span></label>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">单工作区最大监听文件上限</div>
+              <div class="setting-desc">跨平台 Notify 监听器防抖与句柄安全上限</div>
+            </div>
+            <div class="setting-ctrl">
+              <select class="select-input">
+                <option value="5000">5,000 个文件</option>
+                <option value="10000" selected>10,000 个文件 (推荐)</option>
+                <option value="20000">20,000 个文件</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 6. 文件与保存 (Files & Save) ── -->
+        <div class="category-pane" id="pane-files">
+          <div class="settings-section-title">保存策略</div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">自动保存触发方式 (Auto Save)</div>
+              <div class="setting-desc">设置文档何时自动刷盘保存</div>
+            </div>
+            <div class="setting-ctrl">
+              <select class="select-input">
+                <option value="off">手动保存 (Ctrl+S)</option>
+                <option value="onFocusChange" selected>编辑器失去焦点时 (推荐)</option>
+                <option value="afterDelay">延迟 1000ms 自动保存</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">默认换行符 (End of Line)</div>
+              <div class="setting-desc">新文件创建时采用的换行序列格式</div>
+            </div>
+            <div class="setting-ctrl">
+              <select class="select-input">
+                <option value="LF" selected>LF (\n) - Unix / macOS</option>
+                <option value="CRLF">CRLF (\r\n) - Windows</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">外部修改冲突检测与保护</div>
+              <div class="setting-desc">当文件在外部被修改且本地有未保存脏数据时显示冲突横幅</div>
+            </div>
+            <div class="setting-ctrl">
+              <label class="switch"><input type="checkbox" checked><span class="switch-slider"></span></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 7. 高级与关于 (Advanced & About) ── -->
+        <div class="category-pane" id="pane-advanced">
+          <div class="settings-section-title">运行时与诊断</div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">WebView2 硬件加速</div>
+              <div class="setting-desc">启用 GPU 渲染以获得更丝滑的滚动与排版帧率</div>
+            </div>
+            <div class="setting-ctrl">
+              <label class="switch"><input type="checkbox" checked><span class="switch-slider"></span></label>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">IPC 消息调试日志</div>
+              <div class="setting-desc">在控制台中打印 JS 与 Rust 后端之间的 IPC 消息体</div>
+            </div>
+            <div class="setting-ctrl">
+              <label class="switch"><input type="checkbox"><span class="switch-slider"></span></label>
+            </div>
+          </div>
+
+          <div class="settings-section-title">关于 GlanceMD Ultra</div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">GlanceMD Ultra</div>
+              <div class="setting-desc">原生轻量 Markdown 项目工作区 · 内存占用 22MB · 二进制 3.4MB</div>
+            </div>
+            <div class="setting-ctrl">
+              <span class="kbd-badge">v0.6.0-prototype</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Modal 底部栏 (52px) -->
+    <div class="dialog-footer">
+      <button class="btn" id="btn-open-json" title="在内置编辑器中直接查看与编辑 JSON 配置文件">
+        <svg class="svg-icon" width="13" height="13" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><polyline points="10 13 8 15 10 17"></polyline><polyline points="14 13 16 15 14 17"></polyline></svg>
+        打开 settings.json
+      </button>
+
+      <div style="display: flex; gap: 8px;">
+        <button class="btn" id="btn-reset-category">重置当前分类为默认</button>
+        <button class="btn btn-primary" id="btn-done-modal">完成</button>
+      </div>
+    </div>
+
+    <!-- 底部 Resize 拖拽把手 -->
+    <div class="dialog-resize-grip" id="dialog-resize-grip" title="拖动调整弹窗大小"></div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     交互逻辑脚本 (JavaScript)
+     ════════════════════════════════════════════════════════════════ -->
+<script>
+(function() {
+  'use strict';
+
+  // ── 1. DOM 引用 ──
+  const root = document.documentElement;
+  const themeToggleBtn = document.getElementById('btn-theme-toggle');
+  const themeIcon = document.getElementById('theme-icon');
+  const themeText = document.getElementById('theme-text');
+  const settingThemeSelect = document.getElementById('setting-theme-select');
+  
+  const densitySlider = document.getElementById('density-slider');
+  const densityIndicator = document.getElementById('density-indicator');
+  const modalDensitySlider = document.getElementById('modal-density-slider');
+  const modalDensityIndicator = document.getElementById('modal-density-indicator');
+
+  const treePanel = document.getElementById('tree-panel');
+  const editorPanel = document.getElementById('editor-panel');
+  const outlinePanel = document.getElementById('outline-panel');
+  const treeResizer = document.getElementById('tree-resizer');
+  const outlineResizer = document.getElementById('outline-resizer');
+
+  const statTreeW = document.getElementById('stat-tree-w');
+  const statEditorW = document.getElementById('stat-editor-w');
+  const statOutlineW = document.getElementById('stat-outline-w');
+
+  const btnOpenSettings = document.getElementById('btn-open-settings');
+  const btnCloseModal = document.getElementById('btn-close-modal');
+  const btnDoneModal = document.getElementById('btn-done-modal');
+  const btnResetLayout = document.getElementById('btn-reset-layout');
+  const settingsOverlay = document.getElementById('settings-modal-overlay');
+  const settingsDialog = document.getElementById('settings-dialog');
+  const dialogDragHandle = document.getElementById('dialog-drag-handle');
+  const dialogResizeGrip = document.getElementById('dialog-resize-grip');
+  const currentCategoryBadge = document.getElementById('current-category-badge');
+  const settingsFilterInput = document.getElementById('settings-filter-input');
+
+  const navItems = document.querySelectorAll('.dialog-nav .nav-item');
+  const categoryPanes = document.querySelectorAll('.dialog-content .category-pane');
+
+  // 默认几何配置
+  const DEFAULT_TREE_WIDTH = 264;
+  const DEFAULT_OUTLINE_WIDTH = 230;
+  const DEFAULT_DENSITY = 14;
+
+  // ── 2. 主题管理 ──
+  function setTheme(theme) {
+    if (theme === 'system') {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      theme = prefersDark ? 'dark' : 'light';
+    }
+    root.setAttribute('data-theme', theme);
+    localStorage.setItem('glancemd-ultra-theme', theme);
+    
+    if (theme === 'dark') {
+      themeIcon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
+      themeText.textContent = '深色';
+      if (settingThemeSelect) settingThemeSelect.value = 'dark';
+    } else {
+      themeIcon.innerHTML = '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>';
+      themeText.textContent = '浅色';
+      if (settingThemeSelect) settingThemeSelect.value = 'light';
+    }
+  }
+
+  themeToggleBtn.addEventListener('click', () => {
+    const current = root.getAttribute('data-theme') || 'dark';
+    setTheme(current === 'dark' ? 'light' : 'dark');
+  });
+
+  if (settingThemeSelect) {
+    settingThemeSelect.addEventListener('change', (e) => {
+      setTheme(e.target.value);
+    });
+  }
+
+  // ── 3. 侧栏密度与字号联动 (12–18px Slider) ──
+  function applyDensity(val) {
+    val = Math.max(12, Math.min(18, parseInt(val, 10) || 14));
+    
+    // 等比计算派生尺寸
+    // 默认 14px -> 图标 16px, 箭头 12px, 行高 30px, gap 8px, 缩进 16px
+    const iconSize = Math.round(val * 1.14);
+    const caretSize = Math.round(val * 0.85);
+    const rowHeight = Math.round(val * 2.14);
+    const gap = Math.round(val * 0.57);
+    const indent = Math.round(val * 1.14);
+
+    root.style.setProperty('--tree-font-size', val + 'px');
+    root.style.setProperty('--tree-icon-size', iconSize + 'px');
+    root.style.setProperty('--tree-caret-size', caretSize + 'px');
+    root.style.setProperty('--tree-row-height', rowHeight + 'px');
+    root.style.setProperty('--tree-gap', gap + 'px');
+    root.style.setProperty('--tree-indent', indent + 'px');
+
+    densitySlider.value = val;
+    densityIndicator.textContent = val + 'px';
+    modalDensitySlider.value = val;
+    modalDensityIndicator.textContent = val + 'px';
+
+    localStorage.setItem('glancemd-ultra-sidebar-density', val);
+  }
+
+  densitySlider.addEventListener('input', (e) => applyDensity(e.target.value));
+  modalDensitySlider.addEventListener('input', (e) => applyDensity(e.target.value));
+
+  // ── 4. 实时宽度状态更新 ──
+  function updateMetricsDisplay() {
+    const treeW = Math.round(treePanel.getBoundingClientRect().width);
+    const outlineW = Math.round(outlinePanel.getBoundingClientRect().width);
+    const editorW = Math.round(editorPanel.getBoundingClientRect().width);
+
+    statTreeW.textContent = treeW + 'px';
+    statOutlineW.textContent = outlineW + 'px';
+    statEditorW.textContent = editorW + 'px';
+  }
+
+  window.addEventListener('resize', updateMetricsDisplay);
+
+  // ── 5. 项目树与大纲 Resizers 拖拽逻辑 ──
+  // 树默认 264px, min 180, max = min(640, 40% workspace, available preserving editor >= 420 and other panel)
+  // 可拖过 400px，双击恢复默认
+  function initResizers() {
+    let isDraggingTree = false;
+    let isDraggingOutline = false;
+    let startX = 0;
+    let startWidth = 0;
+
+    // Tree Resizer
+    treeResizer.addEventListener('mousedown', (e) => {
+      isDraggingTree = true;
+      startX = e.clientX;
+      startWidth = treePanel.offsetWidth;
+      treeResizer.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      e.preventDefault();
+    });
+
+    treeResizer.addEventListener('dblclick', () => {
+      treePanel.style.width = DEFAULT_TREE_WIDTH + 'px';
+      updateMetricsDisplay();
+      localStorage.setItem('glancemd-ultra-tree-width', DEFAULT_TREE_WIDTH);
+    });
+
+    // Outline Resizer
+    outlineResizer.addEventListener('mousedown', (e) => {
+      isDraggingOutline = true;
+      startX = e.clientX;
+      startWidth = outlinePanel.offsetWidth;
+      outlineResizer.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      e.preventDefault();
+    });
+
+    outlineResizer.addEventListener('dblclick', () => {
+      outlinePanel.style.width = DEFAULT_OUTLINE_WIDTH + 'px';
+      updateMetricsDisplay();
+      localStorage.setItem('glancemd-ultra-outline-width', DEFAULT_OUTLINE_WIDTH);
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDraggingTree && !isDraggingOutline) return;
+
+      const workspaceW = document.getElementById('workspace-container').offsetWidth;
+      const currentOutlineW = outlinePanel.offsetWidth;
+      const currentTreeW = treePanel.offsetWidth;
+      const minEditorW = 420;
+
+      if (isDraggingTree) {
+        const delta = e.clientX - startX;
+        let newTreeW = startWidth + delta;
+        // 计算最大可允许宽度
+        const maxTreeW = Math.min(640, Math.floor(workspaceW * 0.40), workspaceW - currentOutlineW - minEditorW - 10);
+        newTreeW = Math.max(180, Math.min(maxTreeW, newTreeW));
+        treePanel.style.width = newTreeW + 'px';
+        updateMetricsDisplay();
+      } else if (isDraggingOutline) {
+        const delta = startX - e.clientX;
+        let newOutlineW = startWidth + delta;
+        const maxOutlineW = Math.min(480, Math.floor(workspaceW * 0.30), workspaceW - currentTreeW - minEditorW - 10);
+        newOutlineW = Math.max(170, Math.min(maxOutlineW, newOutlineW));
+        outlinePanel.style.width = newOutlineW + 'px';
+        updateMetricsDisplay();
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isDraggingTree) {
+        isDraggingTree = false;
+        treeResizer.classList.remove('dragging');
+        document.body.style.cursor = '';
+        localStorage.setItem('glancemd-ultra-tree-width', treePanel.offsetWidth);
+      }
+      if (isDraggingOutline) {
+        isDraggingOutline = false;
+        outlineResizer.classList.remove('dragging');
+        document.body.style.cursor = '';
+        localStorage.setItem('glancemd-ultra-outline-width', outlinePanel.offsetWidth);
+      }
+    });
+  }
+
+  // ── 6. 设置 Modal 控制、分类切换与拖拽调整 ──
+  function openSettingsModal() {
+    settingsOverlay.classList.add('open');
+    loadModalGeometry();
+  }
+
+  function closeSettingsModal() {
+    settingsOverlay.classList.remove('open');
+  }
+
+  btnOpenSettings.addEventListener('click', openSettingsModal);
+  btnCloseModal.addEventListener('click', closeSettingsModal);
+  btnDoneModal.addEventListener('click', closeSettingsModal);
+
+  settingsOverlay.addEventListener('click', (e) => {
+    if (e.target === settingsOverlay) closeSettingsModal();
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === ',') {
+      e.preventDefault();
+      if (settingsOverlay.classList.contains('open')) {
+        closeSettingsModal();
+      } else {
+        openSettingsModal();
+      }
+    } else if (e.key === 'Escape' && settingsOverlay.classList.contains('open')) {
+      closeSettingsModal();
+    }
+  });
+
+  // 分类切换逻辑（保证弹窗外框高度恒定，右侧独立滚动）
+  navItems.forEach(item => {
+    item.addEventListener('click', () => {
+      const targetId = item.getAttribute('data-target');
+      
+      navItems.forEach(n => n.classList.remove('active'));
+      item.classList.add('active');
+
+      currentCategoryBadge.textContent = item.querySelector('span').textContent;
+
+      categoryPanes.forEach(pane => {
+        if (pane.id === targetId) {
+          pane.classList.add('active');
+        } else {
+          pane.classList.remove('active');
+        }
+      });
+
+      // 滚动重置到顶部
+      document.getElementById('dialog-content-container').scrollTop = 0;
+    });
+  });
+
+  // 设置项搜索过滤
+  settingsFilterInput.addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    const activePane = document.querySelector('.category-pane.active');
+    if (!activePane) return;
+
+    const rows = activePane.querySelectorAll('.setting-row');
+    rows.forEach(row => {
+      const title = row.querySelector('.setting-title')?.textContent.toLowerCase() || '';
+      const desc = row.querySelector('.setting-desc')?.textContent.toLowerCase() || '';
+      if (!q || title.includes(q) || desc.includes(q)) {
+        row.classList.remove('hidden');
+      } else {
+        row.classList.add('hidden');
+      }
+    });
+  });
+
+  // Modal 拖拽与尺寸调整
+  function initModalDragAndResize() {
+    let isDraggingModal = false;
+    let isResizingModal = false;
+    let dragStartX = 0, dragStartY = 0;
+    let dialogStartX = 0, dialogStartY = 0;
+    let dialogStartW = 0, dialogStartH = 0;
+
+    // Header 拖动
+    dialogDragHandle.addEventListener('mousedown', (e) => {
+      if (e.target.closest('input') || e.target.closest('button')) return;
+      isDraggingModal = true;
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      const rect = settingsDialog.getBoundingClientRect();
+      dialogStartX = rect.left;
+      dialogStartY = rect.top;
+      e.preventDefault();
+    });
+
+    // Grip Resize
+    dialogResizeGrip.addEventListener('mousedown', (e) => {
+      isResizingModal = true;
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      dialogStartW = settingsDialog.offsetWidth;
+      dialogStartH = settingsDialog.offsetHeight;
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (isDraggingModal) {
+        const dx = e.clientX - dragStartX;
+        const dy = e.clientY - dragStartY;
+        let newX = dialogStartX + dx;
+        let newY = dialogStartY + dy;
+
+        // 限制在视口内部
+        const maxW = window.innerWidth - settingsDialog.offsetWidth;
+        const maxH = window.innerHeight - settingsDialog.offsetHeight;
+        newX = Math.max(10, Math.min(maxW - 10, newX));
+        newY = Math.max(10, Math.min(maxH - 10, newY));
+
+        settingsDialog.style.left = newX + 'px';
+        settingsDialog.style.top = newY + 'px';
+        settingsDialog.style.margin = '0';
+      } else if (isResizingModal) {
+        const dx = e.clientX - dragStartX;
+        const dy = e.clientY - dragStartY;
+        
+        const minW = Math.min(760, window.innerWidth - 32);
+        const minH = Math.min(520, window.innerHeight - 48);
+        const maxW = Math.min(1080, window.innerWidth * 0.95);
+        const maxH = Math.min(800, window.innerHeight * 0.92);
+
+        let newW = Math.max(minW, Math.min(maxW, dialogStartW + dx));
+        let newH = Math.max(minH, Math.min(maxH, dialogStartH + dy));
+
+        settingsDialog.style.width = newW + 'px';
+        settingsDialog.style.height = newH + 'px';
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isDraggingModal || isResizingModal) {
+        isDraggingModal = false;
+        isResizingModal = false;
+        saveModalGeometry();
+      }
+    });
+  }
+
+  function saveModalGeometry() {
+    const rect = settingsDialog.getBoundingClientRect();
+    const geo = {
+      w: rect.width,
+      h: rect.height,
+      x: rect.left,
+      y: rect.top
+    };
+    localStorage.setItem('glancemd-ultra-settings-geometry', JSON.stringify(geo));
+  }
+
+  function loadModalGeometry() {
+    try {
+      const saved = localStorage.getItem('glancemd-ultra-settings-geometry');
+      if (saved) {
+        const geo = JSON.parse(saved);
+        if (geo.w && geo.h) {
+          const maxW = Math.min(1080, window.innerWidth * 0.95);
+          const maxH = Math.min(800, window.innerHeight * 0.92);
+          settingsDialog.style.width = Math.min(maxW, Math.max(760, geo.w)) + 'px';
+          settingsDialog.style.height = Math.min(maxH, Math.max(520, geo.h)) + 'px';
+        }
+        if (geo.x !== undefined && geo.y !== undefined) {
+          const maxLeft = window.innerWidth - settingsDialog.offsetWidth - 10;
+          const maxTop = window.innerHeight - settingsDialog.offsetHeight - 10;
+          const left = Math.max(10, Math.min(maxLeft, geo.x));
+          const top = Math.max(10, Math.min(maxTop, geo.y));
+          settingsDialog.style.left = left + 'px';
+          settingsDialog.style.top = top + 'px';
+          settingsDialog.style.margin = '0';
+        }
+      }
+    } catch (e) {}
+  }
+
+  // ── 7. 快捷键录制交互 (Raised Surface) ──
+  let activeRecorderBox = null;
+
+  document.querySelectorAll('.btn-shortcut-record').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const targetId = btn.getAttribute('data-target');
+      const box = document.getElementById(targetId);
+      if (!box) return;
+
+      if (activeRecorderBox === box) {
+        exitRecording();
+        return;
+      }
+
+      if (activeRecorderBox) exitRecording();
+
+      activeRecorderBox = box;
+      box.classList.add('recording');
+      box.dataset.prevHtml = box.innerHTML;
+      box.innerHTML = '<span style="color: var(--mk-heading); font-size: 11.5px; font-weight: 600;">按下按键组合... (Esc 取消)</span>';
+      btn.textContent = '取消';
+      btn.classList.add('btn-primary');
+    });
+  });
+
+  function exitRecording() {
+    if (!activeRecorderBox) return;
+    const btn = document.querySelector(`.btn-shortcut-record[data-target="${activeRecorderBox.id}"]`);
+    if (btn) {
+      btn.textContent = '修改';
+      btn.classList.remove('btn-primary');
+    }
+    activeRecorderBox.classList.remove('recording');
+    activeRecorderBox = null;
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (!activeRecorderBox) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (e.key === 'Escape') {
+      activeRecorderBox.innerHTML = activeRecorderBox.dataset.prevHtml || '<span class="kbd-badge">Ctrl</span> + <span class="kbd-badge">K</span>';
+      exitRecording();
+      return;
+    }
+
+    // 忽略单独的控制键按压
+    if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
+
+    const parts = [];
+    if (e.ctrlKey) parts.push('<span class="kbd-badge">Ctrl</span>');
+    if (e.metaKey) parts.push('<span class="kbd-badge">Cmd</span>');
+    if (e.altKey) parts.push('<span class="kbd-badge">Alt</span>');
+    if (e.shiftKey) parts.push('<span class="kbd-badge">Shift</span>');
+
+    let keyName = e.key.toUpperCase();
+    if (keyName === ' ') keyName = 'Space';
+    parts.push(`<span class="kbd-badge">${keyName}</span>`);
+
+    activeRecorderBox.innerHTML = parts.join(' + ');
+    exitRecording();
+  }, true);
+
+  // ── 8. 重置布局按钮 ──
+  btnResetLayout.addEventListener('click', () => {
+    applyDensity(DEFAULT_DENSITY);
+    treePanel.style.width = DEFAULT_TREE_WIDTH + 'px';
+    outlinePanel.style.width = DEFAULT_OUTLINE_WIDTH + 'px';
+    
+    settingsDialog.style.width = '880px';
+    settingsDialog.style.height = '640px';
+    settingsDialog.style.left = '';
+    settingsDialog.style.top = '';
+    settingsDialog.style.margin = '';
+
+    localStorage.removeItem('glancemd-ultra-tree-width');
+    localStorage.removeItem('glancemd-ultra-outline-width');
+    localStorage.removeItem('glancemd-ultra-settings-geometry');
+    localStorage.removeItem('glancemd-ultra-sidebar-density');
+
+    updateMetricsDisplay();
+  });
+
+  // ── 9. 初始化载入 ──
+  function init() {
+    const savedTheme = localStorage.getItem('glancemd-ultra-theme') || 'dark';
+    setTheme(savedTheme);
+
+    const savedDensity = localStorage.getItem('glancemd-ultra-sidebar-density') || DEFAULT_DENSITY;
+    applyDensity(savedDensity);
+
+    const savedTreeW = localStorage.getItem('glancemd-ultra-tree-width');
+    if (savedTreeW) treePanel.style.width = savedTreeW + 'px';
+
+    const savedOutlineW = localStorage.getItem('glancemd-ultra-outline-width');
+    if (savedOutlineW) outlinePanel.style.width = savedOutlineW + 'px';
+
+    initResizers();
+    initModalDragAndResize();
+    updateMetricsDisplay();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
