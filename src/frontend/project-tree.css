@@ -157,17 +157,32 @@
   height: var(--tree-row-height);
 }
 
-/* ── 上下文菜单（设计稿 01：bg-overlay + 8px 圆角 + menu-shadow，kbd 右对齐，
-      危险项红色，禁用项 pointer-events none）── */
+/* ── 上下文菜单：Linear/Raycast/Cursor 风格，保持 212px / 26px 密度 ── */
+:root {
+  --tree-menu-bg: var(--bg-overlay, rgba(28, 25, 42, 0.96));
+  --tree-menu-border: var(--border, rgba(255, 255, 255, 0.12));
+  --tree-menu-shadow: 0 10px 26px rgba(0, 0, 0, 0.24), 0 2px 8px rgba(0, 0, 0, 0.14);
+  --tree-menu-hover: var(--hover-strong, rgba(168, 85, 247, 0.18));
+  --tree-menu-danger-hover: rgba(220, 80, 90, 0.16);
+}
+
+[data-theme="light"] {
+  --tree-menu-bg: rgba(255, 255, 255, 0.98);
+  --tree-menu-border: rgba(30, 24, 48, 0.14);
+  --tree-menu-shadow: 0 10px 26px rgba(35, 25, 55, 0.14), 0 2px 8px rgba(35, 25, 55, 0.08);
+  --tree-menu-hover: rgba(126, 72, 190, 0.13);
+  --tree-menu-danger-hover: rgba(190, 52, 65, 0.12);
+}
+
 .ctx-menu {
   position: fixed;
   z-index: 1000;
   min-width: 212px;
   padding: 4px;
-  background: var(--bg-overlay);
-  border: 1px solid var(--border);
+  background: var(--tree-menu-bg);
+  border: 1px solid var(--tree-menu-border);
   border-radius: 8px;
-  box-shadow: var(--menu-shadow, 0 12px 34px rgba(0, 0, 0, 0.28));
+  box-shadow: var(--tree-menu-shadow);
 }
 
 .ctx-item {
@@ -182,7 +197,14 @@
   white-space: nowrap;
 }
 
-.ctx-item:hover { background: var(--hover-strong); }
+.ctx-item:hover,
+.ctx-item.is-active,
+.ctx-item:focus-visible { background: var(--tree-menu-hover); }
+
+.ctx-item:focus-visible {
+  outline: 1px solid var(--mk-heading);
+  outline-offset: -1px;
+}
 
 .ctx-item .kbd {
   margin-left: auto;
@@ -195,7 +217,7 @@
 .ctx-item.danger { color: var(--danger); }
 
 .ctx-item.danger:hover {
-  background: var(--danger-soft, rgba(193, 80, 80, 0.14));
+  background: var(--tree-menu-danger-hover);
 }
 
 .ctx-item.disabled {
@@ -203,6 +225,9 @@
   cursor: default;
   pointer-events: none;
 }
+
+.ctx-item.disabled:hover,
+.ctx-item.disabled:focus-visible { background: transparent; }
 
 .ctx-sep {
   height: 1px;

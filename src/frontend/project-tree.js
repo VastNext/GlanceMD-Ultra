@@ -206,6 +206,11 @@
     row.className = 'tree-row';
     row.dataset.rel = entry.rel;
     row.dataset.kind = entry.kind;
+    row.id = 'project-tree-row-' + (entry.rel === '' ? 'root' : entry.rel.replace(/[^A-Za-z0-9_-]/g, '-'));
+    row.setAttribute('role', 'treeitem');
+    row.setAttribute('aria-level', String(depth + 1));
+    row.setAttribute('aria-selected', 'false');
+    if (entry.kind === 'dir') row.setAttribute('aria-expanded', setHas(expanded, entry.rel) ? 'true' : 'false');
     // 缩进走 --tree-indent token（style.css 阶段 1 登记值）
     row.style.paddingLeft = 'calc(8px + var(--tree-indent) * ' + depth + ')';
 
@@ -291,10 +296,15 @@
       var row = rowByRel[rel];
       if (!row) return;
       var cls = row.classList;
-      cls.toggle('st-selected', selectedRels.indexOf(rel) !== -1);
+      var selected = selectedRels.indexOf(rel) !== -1;
+      cls.toggle('st-selected', selected);
       cls.toggle('st-active', !multi && rel === activeRel);
       cls.toggle('st-reveal', activeFileRel !== null && rel === activeFileRel);
       cls.toggle('st-cut', clipboard.mode === 'cut' && clipboard.rels.indexOf(rel) !== -1);
+      row.setAttribute('aria-selected', selected ? 'true' : 'false');
+      if (String(row.dataset.kind) === 'dir') {
+        row.setAttribute('aria-expanded', setHas(expanded, rel) ? 'true' : 'false');
+      }
     });
     // 面板头"定位当前文件"按钮：无活动文件时置灰
     if (els.headBtn) {
@@ -744,15 +754,63 @@
     { id: 'copy-rel', label: '复制相对路径' }
   ];
 
+  var menuActiveIndex = -1;
+
+  function menuItems() {
+    if (!menuEl) return [];
+    return Array.prototype.filter.call(menuEl.children || [], function(el) {
+      return el.dataset && el.dataset.action;
+    });
+  }
+
+  function focusMenuItem(index) {
+    var items = menuItems();
+    if (!items.length) return;
+    var next = index;
+    if (next < 0) next = items.length - 1;
+    if (next >= items.length) next = 0;
+    for (var n = 0; n < items.length; n++) {
+      var candidate = items[(next + n) % items.length];
+      if (!candidate.classList.contains('disabled')) {
+        menuActiveIndex = (next + n) % items.length;
+        items.forEach(function(item) { item.classList.toggle('is-active', item === candidate); });
+        if (candidate.focus) candidate.focus();
+        return;
+      }
+    }
+  }
+
+  function onMenuKeyDown(e) {
+    var items = menuItems();
+    if (!items.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      if (e.preventDefault) e.preventDefault();
+      focusMenuItem(menuActiveIndex + (e.key === 'ArrowDown' ? 1 : -1));
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      if (e.preventDefault) e.preventDefault();
+      var item = items[menuActiveIndex];
+      if (item && !item.classList.contains('disabled')) {
+        runMenuAction(item.dataset.action);
+        closeMenu();
+      }
+    } else if (e.key === 'Escape') {
+      if (e.preventDefault) e.preventDefault();
+      closeMenu();
+    }
+  }
+
   function buildMenu() {
     if (menuEl) return menuEl;
     menuEl = makeEl('div');
     menuEl.className = 'ctx-menu';
     menuEl.setAttribute('role', 'menu');
+    menuEl.setAttribute('aria-label', '项目树操作');
+    menuEl.addEventListener('keydown', onMenuKeyDown);
     MENU_ITEMS.forEach(function(def) {
       if (def.sep) {
         var sep = makeEl('div');
         sep.className = 'ctx-sep';
+        sep.setAttribute('role', 'separator');
         menuEl.appendChild(sep);
         return;
       }
@@ -760,6 +818,7 @@
       item.className = 'ctx-item' + (def.danger ? ' danger' : '');
       item.dataset.action = def.id;
       item.setAttribute('role', 'menuitem');
+      item.setAttribute('tabindex', '-1');
       item.textContent = def.label;
       if (def.kbd) {
         var kbd = makeEl('span');
@@ -811,7 +870,11 @@
           if (kids[i].dataset && kids[i].dataset.action === def.id) { item = kids[i]; break; }
         }
       }
-      if (item) item.classList.toggle('disabled', !state[def.id]);
+      if (item) {
+        var disabled = !state[def.id];
+        item.classList.toggle('disabled', disabled);
+        item.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+      }
     });
   }
 
@@ -822,10 +885,24 @@
     }
     var menu = buildMenu();
     refreshMenuState();
-    menu.style.left = (typeof x === 'number' ? x : 0) + 'px';
-    menu.style.top = (typeof y === 'number' ? y : 0) + 'px';
     if (!menu.parentNode && document.body) document.body.appendChild(menu);
+    // 先挂载测量，再夹紧并在空间不足时翻转，确保菜单不越出 viewport。
+    var px = typeof x === 'number' ? x : 0;
+    var py = typeof y === 'number' ? y : 0;
+    var rect = menu.getBoundingClientRect ? menu.getBoundingClientRect() : { width: 212, height: 26 * 12 + 8 };
+    var vw = typeof window.innerWidth === 'number' && window.innerWidth > 0 ? window.innerWidth : 1024;
+    var vh = typeof window.innerHeight === 'number' && window.innerHeight > 0 ? window.innerHeight : 768;
+    var width = rect.width || 212;
+    var height = rect.height || (26 * 12 + 8);
+    if (px + width > vw) px = Math.max(0, px - width);
+    if (py + height > vh) py = Math.max(0, py - height);
+    px = Math.max(0, Math.min(px, Math.max(0, vw - width)));
+    py = Math.max(0, Math.min(py, Math.max(0, vh - height)));
+    menu.style.left = px + 'px';
+    menu.style.top = py + 'px';
     menuOpen = true;
+    menuActiveIndex = -1;
+    focusMenuItem(0);
   }
 
   function openMenuAtRow(rel) {
@@ -837,7 +914,12 @@
 
   function closeMenu() {
     menuOpen = false;
-    if (menuEl && menuEl.parentNode) menuEl.parentNode.removeChild(menuEl);
+    menuActiveIndex = -1;
+    if (menuEl) {
+      menuItems().forEach(function(item) { item.classList.remove('is-active'); });
+      if (menuEl.parentNode) menuEl.parentNode.removeChild(menuEl);
+    }
+    if (els.tree && els.tree.focus) els.tree.focus();
   }
 
   function runMenuAction(action) {
@@ -1205,8 +1287,11 @@
       closeMenu();
     });
     document.addEventListener('keydown', function(e) {
-      if (menuOpen && e.key === 'Escape') {
-        closeMenu();
+      if (menuOpen) {
+        if (e.key === 'Escape') {
+          if (e.preventDefault) e.preventDefault();
+          closeMenu();
+        }
       }
     });
     document.addEventListener('contextmenu', function(e) {
