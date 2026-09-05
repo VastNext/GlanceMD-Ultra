@@ -19,6 +19,6 @@
   function close(){state.open=false;var p=document.getElementById('settings-panel');if(p)p.hidden=true;}
   function receive(e,d){if(e==='workspace:settings-effective'){state.effective=d.settings||{};render();}if(e==='workspace:settings-global'){state.global=d.settings||{};if(!Object.keys(state.effective).length)state.effective=state.global;render();}if(e==='workspace:settings-project'){state.project=d.patch||{};render();}}
   if(window.Workspace&&Workspace.on){Workspace.on('workspace:settings-effective',function(d){receive('workspace:settings-effective',d);});Workspace.on('workspace:settings-global',function(d){receive('workspace:settings-global',d);});Workspace.on('workspace:settings-project',function(d){receive('workspace:settings-project',d);});}
-  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&state.open)close();if(e.ctrlKey&&e.key==='`'){e.preventDefault();state.open?close():open();}});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&state.open)close();});
   window.SettingsUI={open:open,close:close,toggle:function(){state.open?close():open();},receive:receive,getState:function(){return state;}};
 })();

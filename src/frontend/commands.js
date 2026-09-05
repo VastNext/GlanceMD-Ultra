@@ -82,26 +82,34 @@
     }
   });
 
-  // ---- 接管既有"打开文件"按钮 ----
-  // app.js 启动时已给 #btn-open 绑定过 click（匿名监听器无法摘除），这里用克隆
-  // 节点替换原节点：addEventListener 监听器不随克隆复制，旧绑定随之失效，
-  // 再由命令注册表重新绑定。不改 app.js / index.html。
-  function takeoverOpenButton() {
-    var btn = document.getElementById('btn-open');
-    if (!btn || !btn.parentNode) {
-      return;
+  // ---- 绑定入口按钮 ----
+  // #btn-open 在 app.js 中已有旧监听器，克隆替换以避免重复打开对话框。
+  function bindButton(id, command, replaceExisting) {
+    var btn = document.getElementById(id);
+    if (!btn) return;
+    if (replaceExisting && btn.parentNode && typeof btn.cloneNode === 'function') {
+      var clone = btn.cloneNode(true);
+      btn.parentNode.replaceChild(clone, btn);
+      btn = clone;
     }
-    var clone = btn.cloneNode(true);
-    btn.parentNode.replaceChild(clone, btn);
-    clone.title = 'Open Folder';
-    clone.setAttribute && clone.setAttribute('aria-label', 'Open Folder');
-    clone.addEventListener('click', function(event) {
+    btn.addEventListener('click', function(event) {
       event.preventDefault();
-      run('workspace.open');
+      run(command);
     });
   }
 
-  takeoverOpenButton();
+  register('settings.toggle', {
+    label: '设置',
+    run: function() {
+      if (window.SettingsUI && typeof window.SettingsUI.toggle === 'function') {
+        return window.SettingsUI.toggle();
+      }
+    }
+  });
+
+  bindButton('btn-open', 'workspace.open', true);
+  bindButton('btn-open-file', 'file.open', false);
+  bindButton('btn-settings', 'settings.toggle', false);
 
   window.Commands = {
     register: register,
