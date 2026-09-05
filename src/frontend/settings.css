@@ -357,3 +357,80 @@
   background: var(--hover-bg);
   color: var(--text);
 }
+
+/* ── 快捷键专用列表（keybindings 分类）── */
+.settings-kb-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 0 10px;
+}
+
+.settings-kb-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--border-subtle);
+  min-height: 36px;
+}
+
+.settings-kb-row.settings-kb-unbound { opacity: 0.6; }
+
+.settings-kb-info { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+.settings-kb-label { font-size: 13px; color: var(--text); }
+
+.settings-kb-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.settings-kb-key {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-overlay);
+  color: var(--text-secondary);
+}
+
+.settings-kb-btn {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-overlay);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.settings-kb-btn:hover { background: var(--hover-bg); color: var(--text); }
+
+.settings-kb-recording {
+  font-size: 13px;
+  color: var(--mk-heading);
+  font-weight: 600;
+}
+
+.settings-kb-hint { font-size: 11px; color: var(--text-dim); }
+
+.settings-kb-error { font-size: 12px; color: var(--danger); }
+
+.settings-kb-badge {
+  font-size: 11px;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.settings-kb-row[data-kb-recording] {
+  background: var(--heading-soft);
+  border-radius: 6px;
+}

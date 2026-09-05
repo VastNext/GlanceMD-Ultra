@@ -285,7 +285,7 @@ test('分类导航中文化：七个中文分类、每类一句描述、点击�
 });
 
 test('控件按值类型渲染：theme→select、bool→switch、number→number、array→逗号文本', () => {
-  const h = load();
+  const h = loadKb();
   const panel = openWith(h, GLOBAL_SETTINGS);
   const nav = panel.querySelector('#settings-categories');
   // 枚举 → select，选项含当前值
@@ -316,10 +316,12 @@ test('控件按值类型渲染：theme→select、bool→switch、number→numbe
   assert.equal(exts.tagName, 'input');
   assert.equal(exts.type, 'text');
   assert.equal(exts.value, 'md, markdown');
-  // 对象（overrides）→ JSON 文本
+  // 快捷键分类 → 专用列表：默认 5 行，行含命令名与当前组合键（不再是 JSON 文本框）
   nav.children[5].onclick(); // 快捷键
-  const overrides = findBySetting(panel, 'overrides');
-  assert.equal(overrides.value, JSON.stringify(GLOBAL_SETTINGS.keybindings.overrides));
+  const kbRows = panel.querySelectorAll('.settings-kb-row');
+  assert.equal(kbRows.length, 6, "默认快捷键 5 行 + 1 行未设快捷键的对照（workspace.open）");
+  assert.match(kbRows[0].textContent, /打开文件/);
+  assert.match(kbRows[0].textContent, /Ctrl\+O/);
 });
 
 test('设置行结构：左标签+说明、右控件，项目覆盖键带徽标', () => {
@@ -526,4 +528,101 @@ test('close 隐藏面板，Escape 键同样可关闭', () => {
   assert.ok(h.docHandlers.keydown && h.docHandlers.keydown.length >= 1, '已监听 keydown');
   h.docHandlers.keydown.forEach((fn) => fn({ key: 'Escape' }));
   assert.equal(h.els['settings-panel'].hidden, true);
+});
+
+/* ── 快捷键专用设置 UI ── */
+
+const KEYBINDINGS_JS = path.join(__dirname, 'keybindings.js');
+
+// 同一 vm 内先装载 keybindings.js（命令实际生效的一方）与 commands.js（命令
+// 中文标签的数据源，kbLabel 用），再装载 settings.js。
+function loadKb() {
+  const h = load();
+  vm.runInNewContext(fs.readFileSync(KEYBINDINGS_JS, 'utf8'), h.ctx, { filename: 'keybindings.js' });
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, 'commands.js'), 'utf8'), h.ctx, { filename: 'commands.js' });
+  return h;
+}
+
+function openKb(h) {
+  h.ctx.SettingsUI.open();
+  const panel = h.els['settings-panel'];
+  panel.querySelector('#settings-categories').children[5].onclick(); // 快捷键
+  return panel;
+}
+
+function savedKb(h) {
+  return JSON.parse(h.storage.get('glancemd-ultra-keybindings') || '{}');
+}
+
+function fireRecordKey(h, key, mods) {
+  // startKbRecording 注册 capture keydown；harness 的 removeEventListener 是
+  // no-op，监听会累积，但 state.kbRecording 门控保证只有活动录制生效——
+  // 取最后注册的处理器触发即可。
+  const hs = h.docHandlers.keydown;
+  hs[hs.length - 1](Object.assign({ key, preventDefault() {}, stopPropagation() {} }, mods || {}));
+}
+
+test('快捷键列表：默认 5 行 + 未设快捷键对照、含命令名与组合键、有“全部恢复默认”', () => {
+  const h = loadKb();
+  const panel = openKb(h);
+  const rows = panel.querySelectorAll('.settings-kb-row');
+  assert.equal(rows.length, 6, '默认快捷键 5 行 + 1 行未设快捷键对照（workspace.open）');
+  assert.match(rows[0].textContent, /打开文件…/);
+  assert.match(rows[0].textContent, /Ctrl\+O/);
+  assert.ok(panel.querySelector('[data-kb-reset-all]'), '有“全部恢复默认”');
+});
+
+test('修改录制：新组合键写入覆盖表（localStorage）', () => {
+  const h = loadKb();
+  const panel = openKb(h);
+  panel.querySelector('[data-kb-edit="file.open"]').onclick();
+  fireRecordKey(h, 'k', { ctrlKey: true, altKey: true });
+  assert.equal(savedKb(h)['file.open'], 'Ctrl+Alt+K', '覆盖表已落盘');
+  assert.match(panel.textContent, /Ctrl\+Alt\+K/);
+});
+
+test('录制冲突：行内红字提示且不落盘', () => {
+  const h = loadKb();
+  const panel = openKb(h);
+  panel.querySelector('[data-kb-edit="file.open"]').onclick();
+  fireRecordKey(h, 'p', { ctrlKey: true }); // Ctrl+P 已被 quickopen.toggle 占用
+  assert.match(panel.textContent, /快捷键冲突：Ctrl\+P/);
+  assert.equal(savedKb(h)['file.open'], undefined, '冲突不落盘');
+});
+
+test('录制取消：Esc 退出录制且不改任何绑定', () => {
+  const h = loadKb();
+  const panel = openKb(h);
+  panel.querySelector('[data-kb-edit="file.open"]').onclick();
+  fireRecordKey(h, 'Escape');
+  assert.equal(panel.textContent.indexOf('按下组合键'), -1, '已退出录制态');
+  assert.equal(savedKb(h)['file.open'], undefined);
+});
+
+test('单行恢复默认与全部恢复默认', () => {
+  const h = loadKb();
+  const panel = openKb(h);
+  h.ctx.Keybindings.save({ 'file.open': 'Alt+O', 'settings.toggle': 'Ctrl+Shift+S' });
+  panel.querySelector('#settings-categories').children[5].onclick();
+  const resetOne = panel.querySelector('[data-kb-reset="file.open"]');
+  assert.ok(resetOne, '有覆盖的行显示恢复默认');
+  resetOne.onclick();
+  assert.equal(h.ctx.Keybindings.effective()['file.open'], 'Ctrl+O', '单行恢复默认');
+  panel.querySelector('[data-kb-reset-all]').onclick();
+  assert.equal(
+    Object.keys(h.ctx.Keybindings.overrides()).length,
+    0,
+    '全部恢复默认后覆盖表为空',
+  );
+  assert.equal(panel.querySelectorAll('[data-kb-reset]').length, 0, '无覆盖后不再显示单行恢复');
+});
+
+test('录制 Backspace 直接恢复默认', () => {
+  const h = loadKb();
+  const panel = openKb(h);
+  h.ctx.Keybindings.save({ 'file.open': 'Alt+O' });
+  panel.querySelector('#settings-categories').children[5].onclick();
+  panel.querySelector('[data-kb-edit="file.open"]').onclick();
+  fireRecordKey(h, 'Backspace');
+  assert.equal(h.ctx.Keybindings.effective()['file.open'], 'Ctrl+O', 'Backspace 恢复默认');
 });

@@ -14,10 +14,15 @@
 // 标签/说明集中在下方 CATEGORIES / META / ENUMS 表；控件按当前值类型选择
 // （bool→switch、number→数字输入、枚举→下拉、数组→逗号分隔文本、
 // 对象→JSON 文本、其余→文本输入）。
+//
+// 例外：keybindings 分类不走通用行渲染，而是专用快捷键列表（见 renderKbList）
+// ——数据源是 window.Keybindings（localStorage 覆盖表，命令实际生效的一方）与
+// window.Commands（命令中文标签），支持逐项录制修改、恢复默认与冲突提示；
+// 全局搜索聚合同样跳过该分类。
 (function () {
   'use strict';
 
-  var state = { open: false, category: 'appearance', global: {}, effective: {}, project: {} };
+  var state = { open: false, category: 'appearance', global: {}, effective: {}, project: {}, kbRecording: null, kbError: null };
 
   // 七类分类（与 Rust settings schema 一一对应）：中文标签 + 每类一句描述。
   var CATEGORIES = [
@@ -26,7 +31,7 @@
     { key: 'watching', label: '监听', desc: '文件监听与自动保存行为' },
     { key: 'search', label: '搜索', desc: '搜索范围与结果数量上限' },
     { key: 'editor', label: '编辑器', desc: '字号、缩进、换行与大文件阈值' },
-    { key: 'keybindings', label: '快捷键', desc: '命令快捷键的覆盖表' },
+    { key: 'keybindings', label: '快捷键', desc: '查看并修改命令快捷键' },
     { key: 'recovery', label: '恢复', desc: '未保存确认与崩溃恢复' }
   ];
 
@@ -49,7 +54,6 @@
     'editor.wordWrap': { label: '自动换行', desc: '超出编辑区宽度时自动折行' },
     'editor.lineNumbers': { label: '显示行号', desc: '编辑区左侧显示行号' },
     'editor.largeFileMB': { label: '大文件阈值（MB）', desc: '超过该大小进入大文件模式' },
-    'keybindings.overrides': { label: '快捷键覆盖', desc: '命令 ID 到组合键的映射（JSON 对象）' },
     'recovery.confirmCloseDirty': { label: '关闭未保存确认', desc: '关闭有未保存修改的标签时弹出确认' },
     'recovery.crashRecovery': { label: '崩溃恢复', desc: '定期把编辑内容写入恢复区' },
     'recovery.createProjectSettings': { label: '自动创建项目设置', desc: '打开工作区时自动创建 .glancemd/settings.json' }
@@ -252,6 +256,7 @@
     var html = '<h2>搜索：“' + esc(q) + '”</h2>';
     var total = 0;
     CATEGORIES.forEach(function (c) {
+      if (c.key === 'keybindings') return; // 快捷键是专用编辑器（非键值行），不进全局聚合
       var obj = state.effective[c.key] || {};
       var hits = Object.keys(obj).filter(function (k) {
         var m = metaOf(c.key, k);
@@ -281,28 +286,172 @@
   }
 
   // ── 分类视图：分类标题 + 描述 + 过滤后的设置行 ──
+  // keybindings 分类特判：不走通用行渲染，改用专用快捷键列表（renderKbList）。
   function renderCategory(catKey) {
     var p = ensure();
     var filter = p.querySelector('#settings-filter');
     var q = ((filter && filter.value) || '').trim().toLowerCase();
     var cat = categoryOf(catKey);
+    var html = '<h2>' + esc(cat.label) + '</h2>'
+      + '<p class="settings-category-desc">' + esc(cat.desc) + '</p>';
+    var body = p.querySelector('#settings-body');
+    if (!body) return;
+    if (catKey === 'keybindings') { renderKbList(body, html, q); return; }
     var obj = state.effective[catKey] || {};
     var keys = Object.keys(obj).filter(function (k) {
       if (!q) return true;
       var m = metaOf(catKey, k);
       return (k + ' ' + m.label + ' ' + m.desc).toLowerCase().indexOf(q) >= 0;
     });
-    var html = '<h2>' + esc(cat.label) + '</h2>'
-      + '<p class="settings-category-desc">' + esc(cat.desc) + '</p>';
     if (!keys.length) {
       html += '<p class="settings-empty">' + (q ? '没有匹配的设置' : '该分类暂无可配置项') + '</p>';
     } else {
       keys.forEach(function (k) { html += rowHTML(catKey, k, obj[k]); });
     }
-    var body = p.querySelector('#settings-body');
-    if (!body) return;
     body.innerHTML = html;
     Array.prototype.forEach.call(p.querySelectorAll('[data-setting]'), wire);
+  }
+
+  // ── 快捷键专用列表（用户反馈 #7）──
+  // 数据源：window.Keybindings（defaults / effective / save / clear / overrides，
+  // 覆盖表落在 localStorage，是命令实际生效的一方）与 window.Commands（中文标签）。
+  // 结构：顶部“全部恢复默认”；每个默认绑定一行 = 命令中文名 + 当前组合键 +
+  // [修改]（点击进入录制）+ [恢复默认]（有覆盖时）；Commands 注册了但未设快捷键
+  // 组合键的命令以“未设快捷键”徽标附在末尾（只读对照，无编辑入口）。
+  function kbLabel(id) {
+    var c = window.Commands && typeof window.Commands.get === 'function' ? window.Commands.get(id) : null;
+    return (c && c.label) || id;
+  }
+
+  function kbOverrides() {
+    var kb = window.Keybindings;
+    if (kb && typeof kb.overrides === 'function') {
+      var m = kb.overrides();
+      return m && typeof m === 'object' ? m : {};
+    }
+    return {};
+  }
+
+  function renderKbList(body, headerHTML, q) {
+    var kb = window.Keybindings;
+    if (!kb || !kb.defaults || typeof kb.effective !== 'function') {
+      body.innerHTML = headerHTML + '<p class="settings-empty">快捷键模块未加载</p>';
+      return;
+    }
+    var match = function (s) { return !q || String(s).toLowerCase().indexOf(q) >= 0; };
+    var eff = kb.effective();
+    var ovr = kbOverrides();
+    var rows = '';
+    Object.keys(kb.defaults).forEach(function (id) {
+      var label = kbLabel(id);
+      if (!match(label) && !match(id) && !match(eff[id] || '')) return;
+      var recording = state.kbRecording === id;
+      rows += '<div class="settings-kb-row"' + (recording ? ' data-kb-recording="1"' : '') + '>'
+        + '<div class="settings-kb-info"><span class="settings-kb-label">' + esc(label) + '</span></div>'
+        + '<div class="settings-kb-control">';
+      if (recording) {
+        rows += '<span class="settings-kb-recording">按下组合键…</span>'
+          + '<span class="settings-kb-hint">Esc 取消 · Backspace 恢复默认</span>';
+      } else {
+        rows += '<kbd class="settings-kb-key">' + esc(eff[id] || '') + '</kbd>'
+          + '<button type="button" class="settings-kb-btn" data-kb-edit="' + esc(id) + '">修改</button>'
+          + (Object.prototype.hasOwnProperty.call(ovr, id)
+            ? '<button type="button" class="settings-kb-btn" data-kb-reset="' + esc(id) + '">恢复默认</button>'
+            : '');
+      }
+      if (state.kbError && state.kbError.id === id) {
+        rows += '<span class="settings-kb-error">' + esc(state.kbError.message) + '</span>';
+      }
+      rows += '</div></div>';
+    });
+    // 未设快捷键命令对照：Commands 注册表中不在 effective 映射内的命令
+    if (window.Commands && typeof window.Commands.ids === 'function') {
+      window.Commands.ids().forEach(function (cid) {
+        if (Object.prototype.hasOwnProperty.call(eff, cid)) return;
+        var label = kbLabel(cid);
+        if (!match(label) && !match(cid)) return;
+        rows += '<div class="settings-kb-row settings-kb-unbound">'
+          + '<div class="settings-kb-info"><span class="settings-kb-label">' + esc(label) + '</span></div>'
+          + '<div class="settings-kb-control"><span class="settings-kb-badge">未设快捷键</span></div>'
+          + '</div>';
+      });
+    }
+    var html = headerHTML
+      + '<div class="settings-kb-toolbar"><button type="button" class="settings-kb-btn" data-kb-reset-all="1">全部恢复默认</button></div>'
+      + rows;
+    if (!rows) html += '<p class="settings-empty">' + (q ? '没有匹配的设置' : '该分类暂无可配置项') + '</p>';
+    body.innerHTML = html;
+    Array.prototype.forEach.call(body.querySelectorAll('[data-kb-edit]'), function (b) {
+      b.onclick = function () { startKbRecording(b.dataset.kbEdit); };
+    });
+    Array.prototype.forEach.call(body.querySelectorAll('[data-kb-reset]'), function (b) {
+      b.onclick = function () { kbResetOne(b.dataset.kbReset); };
+    });
+    var resetAll = body.querySelector('[data-kb-reset-all]');
+    if (resetAll) resetAll.onclick = kbResetAll;
+  }
+
+  // 录制：document 级一次性 keydown（capture 阶段拦截，避免组合键同时触发
+  // Keybindings.dispatch 与面板 Esc 关闭）。handler 常驻引用、以 state 守卫，
+  // 便于测试 harness（不移除监听）与真实 DOM 两相兼容。
+  function startKbRecording(id) {
+    cancelKbRecording();
+    state.kbError = null;
+    state.kbRecording = id;
+    document.addEventListener('keydown', onKbRecordKeydown, true);
+    render();
+  }
+
+  function cancelKbRecording() {
+    if (state.kbRecording == null) return;
+    state.kbRecording = null;
+    document.removeEventListener('keydown', onKbRecordKeydown);
+  }
+
+  function onKbRecordKeydown(e) {
+    var id = state.kbRecording;
+    if (id == null || !e) return; // 已取消的残留监听
+    var swallow = function () {
+      if (e.preventDefault) e.preventDefault();
+      if (e.stopPropagation) e.stopPropagation();
+    };
+    if (e.key === 'Escape') { swallow(); cancelKbRecording(); render(); return; }
+    if (e.key === 'Backspace') { swallow(); cancelKbRecording(); kbResetOne(id); return; }
+    if (/^(Control|Shift|Alt|Meta)$/.test(e.key)) return; // 修饰键单独按下：继续等待组合
+    var kb = window.Keybindings;
+    if (!kb || typeof kb.normalize !== 'function' || typeof kb.save !== 'function') { cancelKbRecording(); return; }
+    swallow();
+    var map = kbOverrides();
+    map[id] = kb.normalize(e);
+    try {
+      kb.save(map);
+      state.kbError = null;
+    } catch (err) {
+      // 冲突：Keybindings.save 抛“快捷键冲突：key”，行内红字提示且不落盘
+      state.kbError = { id: id, message: err && err.message ? err.message : String(err) };
+    }
+    cancelKbRecording();
+    render();
+  }
+
+  // 单行恢复默认：从覆盖表删除该命令再保存（删除不会引入冲突）。
+  function kbResetOne(id) {
+    var kb = window.Keybindings;
+    if (!kb || typeof kb.save !== 'function') return;
+    var map = kbOverrides();
+    delete map[id];
+    try { kb.save(map); } catch (err) { return; }
+    if (state.kbError && state.kbError.id === id) state.kbError = null;
+    render();
+  }
+
+  function kbResetAll() {
+    var kb = window.Keybindings;
+    if (!kb || typeof kb.clear !== 'function') return;
+    kb.clear();
+    state.kbError = null;
+    cancelKbRecording();
+    render();
   }
 
   // 从控件读回值：按渲染时的原始值类型转换；非法输入返回 undefined（不提交）。
@@ -365,7 +514,11 @@
     sendReads();
   }
 
-  function close() { state.open = false; var p = document.getElementById('settings-panel'); if (p) p.hidden = true; }
+  function close() {
+    state.open = false;
+    cancelKbRecording(); // 录制中途关闭面板：静默取消，不渲染隐藏面板
+    var p = document.getElementById('settings-panel'); if (p) p.hidden = true;
+  }
 
   // settings-changed 回执：面板开着就重新拉取（自己改的会收到回执；其他来源
   // ——另一窗口、手动编辑 settings.json——造成的改动同样刷新）。
