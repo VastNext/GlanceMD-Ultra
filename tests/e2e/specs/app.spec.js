@@ -44,7 +44,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('页面加载：标题栏、平台标记与编辑器就绪', async ({ page }) => {
-  await expect(page.locator('#titlebar-title')).toHaveText('Untitled');
+  await expect(page.locator('#titlebar-title')).toHaveText('未命名');
   await expect(page.locator('body[data-platform="windows"]')).toHaveCount(1);
   await expect(page.locator('#editor')).toBeVisible();
   // 产品脚本就绪：初始化会向 Rust 发送 ready
@@ -63,7 +63,7 @@ test('单 tab 也显示 tab 栏，新建 tab 后可切换', async ({ page }) => 
   const tabs = page.locator('#tab-bar .tab');
   await expect(tabs).toHaveCount(2);
   const activeText = await page.locator('#tab-bar .tab.active .tab-label').textContent();
-  expect(activeText).toBe('Untitled');
+  expect(activeText).toBe('未命名');
 
   // 点击第一个 tab 切换回去
   await tabs.first().click();
