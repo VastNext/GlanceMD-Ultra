@@ -1,1 +1,297 @@
-.settings-panel{left:50%;top:8vh;transform:translateX(-50%);width:min(860px,calc(100vw - 32px));max-height:84vh;overflow:auto}.settings-layout{display:flex;min-height:420px}.settings-layout nav{width:180px;border-right:1px solid var(--border-color,#444);padding-right:8px}.settings-layout nav button{display:block;width:100%;text-align:left;background:transparent;border:0;color:inherit;padding:8px;border-radius:6px;cursor:pointer}.settings-layout nav button.active{background:var(--heading-soft,#552477);border-left:2px solid var(--mk-heading,#c084fc)}#settings-body{flex:1;padding:0 18px}.setting-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 4px;border-bottom:1px solid var(--border-color,#333)}.setting-row em{font-size:11px;color:var(--mk-heading,#c084fc);margin-left:8px;font-style:normal}.settings-panel footer{padding-top:12px}
+/* 设置面板（settings.js 渲染的 #settings-panel）—— 全量重写。
+ *
+ * 设计语言对齐 awesome-design-md 参考（linear.app / raycast / cursor DESIGN.md）：
+ * - 表面阶梯：面板落在 --bg-raised，输入件上探一层 --bg-overlay；
+ * - 1px hairline：面板外框 --border，分区内部分隔用更浅的 --border-subtle；
+ * - 克制的 8px 圆角（面板 8px，行内控件 6px）；零/极轻阴影（暗色明显、亮色更轻）；
+ * - 字阶：caption 12px（说明/徽标/footer）、正文 13px（标签/导航）、标题 15px。
+ *
+ * 全部使用 style.css 的既有 token（明暗两套已在 :root / [data-theme="light"] 定义），
+ * 明暗主题自动跟随。本文件在 search-panel.css 之后拼接，同特异性下此处的覆盖生效
+ * （覆盖共享浮层基座的 padding / border-radius / overflow / 阴影）。
+ */
+
+.settings-panel {
+  left: 50%;
+  top: 8vh;
+  transform: translateX(-50%);
+  width: min(860px, calc(100vw - 32px));
+  max-height: 84vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;                          /* 覆盖共享基座 padding，改由 header/分区/footer 承担 */
+  overflow: hidden;                    /* 滚动交给 nav / main，头尾固定 */
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="light"] .settings-panel { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16); }
+
+/* ── 头部：标题 + 过滤 + 关闭 ── */
+.settings-panel header {
+  flex: none;
+  margin-bottom: 0;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.settings-panel header strong {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.settings-panel header #settings-filter {
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.settings-panel header button {
+  flex: none;
+  margin-left: 0;                      /* 过滤框 flex:1 已把关闭按钮推到最右 */
+  padding: 4px 9px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.settings-panel header button:hover {
+  background: var(--hover-bg);
+  color: var(--text);
+}
+
+/* ── 左右布局：180px 分类导航 + 主体 ── */
+.settings-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.settings-layout nav {
+  flex: none;
+  width: 180px;
+  padding: 10px 8px;
+  border-right: 1px solid var(--border-subtle);
+  overflow: auto;
+}
+
+.settings-layout nav button {
+  position: relative;
+  display: block;
+  width: 100%;
+  margin-bottom: 2px;
+  padding: 7px 10px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.settings-layout nav button:hover {
+  background: var(--hover-bg);
+  color: var(--text);
+}
+
+.settings-layout nav button.active {
+  background: var(--heading-soft);
+  color: var(--text);
+}
+
+/* active 项紫左条：渐变不能做 border 颜色，用 2px 伪元素画 --heading-gradient */
+.settings-layout nav button.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--heading-gradient);
+}
+
+.settings-layout main {
+  flex: 1;
+  min-width: 0;
+  min-height: 240px;
+  padding: 14px 20px 16px;
+  overflow: auto;
+}
+
+#settings-body h2 {
+  margin: 0 0 2px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.settings-category-desc {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.settings-empty {
+  margin: 24px 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* ── 设置行：左（标签 13px + 说明 12px + 徽标）/ 右（控件），hairline 行分隔 ── */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.setting-row:last-child { border-bottom: 0; }
+
+.setting-info { min-width: 0; }
+
+.setting-label {
+  display: block;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.setting-desc {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.setting-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--heading-soft);
+  color: var(--mk-heading);
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.6;
+  vertical-align: 1px;
+}
+
+.setting-control { flex: none; }
+
+.setting-control input[type="text"],
+.setting-control input[type="number"],
+.setting-control select {
+  flex: none;
+  min-width: 0;
+  width: 240px;
+  padding: 6px 9px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.setting-control select {
+  width: 150px;
+  cursor: pointer;
+}
+
+.setting-control input[type="number"] { width: 110px; }
+
+.setting-control input:focus,
+.setting-control select:focus {
+  outline: 1px solid var(--mk-heading);
+  border-color: var(--mk-heading);
+}
+
+/* ── switch 控件：36x20 圆角轨道，checked 填 --mk-heading ── */
+.settings-switch {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.settings-switch input {
+  /* 覆盖共享浮层基座的 input 规则：checkbox 本体不可见，只留轨道视觉 */
+  position: absolute;
+  width: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  opacity: 0;
+  flex: none;
+}
+
+.settings-switch-track {
+  position: relative;
+  display: block;
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.settings-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.settings-switch input:checked + .settings-switch-track {
+  background: var(--mk-heading);
+  border-color: var(--mk-heading);
+}
+
+/* 轨道两主题同为紫色，白滑块恒定可读（不随主题 token 翻转） */
+.settings-switch input:checked + .settings-switch-track .settings-switch-thumb {
+  transform: translateX(16px);
+  background: #ffffff;
+}
+
+.settings-switch input:focus-visible + .settings-switch-track {
+  outline: 1px solid var(--mk-heading);
+  outline-offset: 2px;
+}
+
+/* ── footer：右侧次级按钮“打开设置 JSON” ── */
+.settings-panel footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 18px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.settings-panel footer button {
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.settings-panel footer button:hover {
+  background: var(--hover-bg);
+  color: var(--text);
+}
