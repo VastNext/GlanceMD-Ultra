@@ -367,6 +367,49 @@ test('#settings-filter 过滤：命中英文 key 与中文标签', () => {
   assert.match(panel.querySelector('#settings-body').textContent, /没有匹配的设置/);
 });
 
+test('搜索改全局：跨分类聚合、分组可点击跳转且保留过滤', () => {
+  const h = load();
+  const panel = openWith(h, GLOBAL_SETTINGS);
+  const filter = panel.querySelector('#settings-filter');
+  filter.value = '排除'; // 命中 文件.exclude / 文件.watcherExclude / 搜索.exclude
+  filter.oninput();
+
+  const groups = [...panel.querySelectorAll('[data-goto]')].map(
+    (b) => ({ label: b.textContent.replace(/\d+$/, ''), goto: b.dataset.goto }),
+  );
+  assert.deepEqual(
+    groups.map((g) => g.goto),
+    ['files', 'search'],
+    '按分类分组：文件与搜索',
+  );
+  const names = panel.querySelectorAll('[data-setting]').map((el) => el.dataset.setting);
+  assert.deepEqual(names.sort(), ['exclude', 'exclude', 'watcherExclude']);
+
+  // 点击分组标题跳转该分类，且保留过滤词（仅显示该类命中项）
+  panel
+    .querySelectorAll('[data-goto]')
+    .find((b) => b.dataset.goto === 'search')
+    .onclick();
+  assert.equal(h.ctx.SettingsUI.getState().category, 'search');
+  assert.deepEqual(
+    panel.querySelectorAll('[data-setting]').map((el) => el.dataset.setting),
+    ['exclude'],
+  );
+
+  // 清空查询恢复当前分类完整视图
+  filter.value = '';
+  filter.oninput();
+  assert.equal(panel.querySelectorAll('[data-setting]').length, 3, '搜索类共 3 项');
+});
+
+test('settings.css 显式声明 [hidden] 关闭（防止 display:flex 覆盖）', () => {
+  const css = fs.readFileSync(
+    path.join(__dirname, 'settings.css'),
+    'utf8',
+  );
+  assert.match(css, /\.settings-panel\[hidden\]\s*{\s*display:\s*none\s*!important/);
+});
+
 test('onchange 发送 set-global：data 为合并后的完整 global JSON 字符串', () => {
   const h = load();
   const msgs = [];

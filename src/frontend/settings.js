@@ -95,14 +95,94 @@
   function ensure() {
     var p = document.getElementById('settings-panel'); if (p) return p;
     p = document.createElement('section'); p.id = 'settings-panel'; p.className = 'settings-panel'; p.hidden = true;
-    p.innerHTML = '<header><strong>设置</strong><input id="settings-filter" placeholder="搜索设置（支持中文标签或键名）"><button id="settings-close" title="关闭（Esc）">×</button></header>'
+    p.innerHTML = '<header id="settings-header"><strong>设置</strong><input id="settings-filter" placeholder="搜索设置（支持中文标签或键名）"><button id="settings-close" title="关闭（Esc）">×</button></header>'
       + '<div class="settings-layout"><nav id="settings-categories"></nav><main id="settings-body"></main></div>'
-      + '<footer><button id="settings-json">打开设置 JSON</button></footer>';
+      + '<footer><button id="settings-json">打开设置 JSON</button></footer>'
+      + '<div id="settings-resize-handle" class="settings-resize-handle" title="调整大小"></div>';
     document.body.appendChild(p);
     p.querySelector('#settings-close').onclick = close;
     p.querySelector('#settings-json').onclick = function () { send({ command: 'workspace.settings.open-settings-json' }); };
     p.querySelector('#settings-filter').oninput = render;
+    wireDrag(p);
+    wireResize(p);
     renderCategories(); render(); return p;
+  }
+
+  // ── 拖动 / 缩放 / 位置记忆 ──
+  // 首次拖动把 CSS 的 left:50%+transform 居中换成绝对 left/top；
+  // 位置与尺寸分别持久化，open() 时恢复（clamp 在 viewport 内）。
+  var POS_KEY = 'glancemd-ultra-settings-pos';
+  var SIZE_KEY = 'glancemd-ultra-settings-size';
+
+  function lsGet(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* 无存储环境忽略 */ } }
+
+  function viewport() {
+    return { w: window.innerWidth || 1024, h: window.innerHeight || 768 };
+  }
+
+  function applyGeometry(p, left, top, width, height) {
+    var vp = viewport();
+    p.style.transform = 'none';
+    p.style.left = Math.max(0, Math.min(left, vp.w - 120)) + 'px';
+    p.style.top = Math.max(0, Math.min(top, vp.h - 60)) + 'px';
+    if (width) p.style.width = Math.max(640, Math.min(width, Math.floor(vp.w * 0.95))) + 'px';
+    if (height) p.style.height = Math.max(420, Math.min(height, Math.floor(vp.h * 0.92))) + 'px';
+  }
+
+  function restoreGeometry(p) {
+    var pos = lsGet(POS_KEY), size = lsGet(SIZE_KEY);
+    if (pos && typeof pos.left === 'number') {
+      applyGeometry(p, pos.left, pos.top || 0, size && size.width, size && size.height);
+    }
+  }
+
+  function wireDrag(p) {
+    var header = p.querySelector('#settings-header');
+    header.addEventListener('pointerdown', function (e) {
+      if (e.target.closest('button, input')) return; // 按钮/输入框不触发拖动
+      var rect = p.getBoundingClientRect();
+      var offX = e.clientX - rect.left, offY = e.clientY - rect.top;
+      p.classList.add('dragging');
+      function onMove(ev) {
+        applyGeometry(p, ev.clientX - offX, ev.clientY - offY, null, null);
+      }
+      function onUp() {
+        p.classList.remove('dragging');
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        var r = p.getBoundingClientRect();
+        lsSet(POS_KEY, { left: Math.round(r.left), top: Math.round(r.top) });
+      }
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
+      e.preventDefault();
+    });
+  }
+
+  function wireResize(p) {
+    var handle = p.querySelector('#settings-resize-handle');
+    if (!handle) return;
+    handle.addEventListener('pointerdown', function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      var rect = p.getBoundingClientRect();
+      var startX = e.clientX, startY = e.clientY;
+      var startW = rect.width, startH = rect.height;
+      p.classList.add('resizing');
+      function onMove(ev) {
+        applyGeometry(p, rect.left, rect.top, startW + (ev.clientX - startX), startH + (ev.clientY - startY));
+      }
+      function onUp() {
+        p.classList.remove('resizing');
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        var r = p.getBoundingClientRect();
+        lsSet(SIZE_KEY, { width: Math.round(r.width), height: Math.round(r.height) });
+      }
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
+    });
   }
 
   // ── 左侧分类导航（中文标签；active 项样式见 settings.css）──
@@ -159,16 +239,55 @@
       + '</div>';
   }
 
-  // ── 主体渲染：分类标题 + 描述 + 过滤后的设置行 ──
+  // ── 主体渲染：无查询 = 当前分类视图；有查询 = 跨七类全局聚合（按分类分组，
+  //    分类标题可点击跳转），命中项进入该分类并保留过滤词高亮语境 ──
   function render() {
     var p = ensure();
     var filter = p.querySelector('#settings-filter');
     var q = ((filter && filter.value) || '').trim().toLowerCase();
-    var cat = categoryOf(state.category);
-    var obj = state.effective[state.category] || {};
+    if (!q) return renderCategory(state.category);
+
+    var html = '<h2>搜索：“' + esc(q) + '”</h2>';
+    var total = 0;
+    CATEGORIES.forEach(function (c) {
+      var obj = state.effective[c.key] || {};
+      var hits = Object.keys(obj).filter(function (k) {
+        var m = metaOf(c.key, k);
+        return (k + ' ' + m.label + ' ' + m.desc).toLowerCase().indexOf(q) >= 0;
+      });
+      if (!hits.length) return;
+      total += hits.length;
+      html += '<div class="settings-search-group">'
+        + '<button type="button" class="settings-search-cat" data-goto="' + esc(c.key) + '">'
+        + esc(c.label) + '<span>' + hits.length + '</span></button>';
+      hits.forEach(function (k) { html += rowHTML(c.key, k, obj[k]); });
+      html += '</div>';
+    });
+    if (!total) html += '<p class="settings-empty">没有匹配的设置</p>';
+
+    var body = p.querySelector('#settings-body');
+    if (!body) return;
+    body.innerHTML = html;
+    Array.prototype.forEach.call(p.querySelectorAll('[data-setting]'), wire);
+    Array.prototype.forEach.call(p.querySelectorAll('[data-goto]'), function (b) {
+      b.onclick = function () {
+        state.category = b.dataset.goto;
+        renderCategories();
+        renderCategory(state.category); // 跳转到该分类并保留过滤词，仅显示本类命中项
+      };
+    });
+  }
+
+  // ── 分类视图：分类标题 + 描述 + 过滤后的设置行 ──
+  function renderCategory(catKey) {
+    var p = ensure();
+    var filter = p.querySelector('#settings-filter');
+    var q = ((filter && filter.value) || '').trim().toLowerCase();
+    var cat = categoryOf(catKey);
+    var obj = state.effective[catKey] || {};
     var keys = Object.keys(obj).filter(function (k) {
       if (!q) return true;
-      var m = metaOf(state.category, k);
+      var m = metaOf(catKey, k);
       return (k + ' ' + m.label + ' ' + m.desc).toLowerCase().indexOf(q) >= 0;
     });
     var html = '<h2>' + esc(cat.label) + '</h2>'
@@ -176,7 +295,7 @@
     if (!keys.length) {
       html += '<p class="settings-empty">' + (q ? '没有匹配的设置' : '该分类暂无可配置项') + '</p>';
     } else {
-      keys.forEach(function (k) { html += rowHTML(state.category, k, obj[k]); });
+      keys.forEach(function (k) { html += rowHTML(catKey, k, obj[k]); });
     }
     var body = p.querySelector('#settings-body');
     if (!body) return;
@@ -236,7 +355,13 @@
     send({ command: 'workspace.settings.load-project' });
   }
 
-  function open() { state.open = true; ensure().hidden = false; sendReads(); }
+  function open() {
+    state.open = true;
+    var p = ensure();
+    p.hidden = false;
+    restoreGeometry(p);
+    sendReads();
+  }
 
   function close() { state.open = false; var p = document.getElementById('settings-panel'); if (p) p.hidden = true; }
 

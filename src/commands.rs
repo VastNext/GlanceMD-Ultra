@@ -516,9 +516,27 @@ fn settings_project(_: &CommandContext, _: &CommandPayload) {
         }
     }
 }
+/// 确保全局 settings.json 存在（不存在则写入默认设置），返回其路径。
+///
+/// `explorer /select,<path>` 对不存在的路径只会打开资源管理器窗口而不选中
+/// 任何东西（用户感知为"打开了我的电脑"），因此 reveal 前必须先落盘。
+fn ensure_global_settings_file(base: &Path) -> std::path::PathBuf {
+    let path = workspace::settings::global_settings_path(base);
+    if !path.exists() {
+        let default_settings = workspace::settings::load_global(base);
+        if let Err(e) = workspace::settings::save(base, &default_settings) {
+            error(format!("创建设置文件失败：{e}"));
+            return path;
+        }
+    }
+    path
+}
+
 fn settings_open(_: &CommandContext, _: &CommandPayload) {
-    let _ =
-        platform::revealer().reveal(&workspace::settings::global_settings_path(&settings_base()));
+    let path = ensure_global_settings_file(&settings_base());
+    if let Err(e) = platform::revealer().reveal(&path) {
+        error(format!("无法打开设置文件：{e}"));
+    }
 }
 fn recovery_store() -> RecoveryStore {
     RecoveryStore::open(&settings_base())
@@ -600,6 +618,43 @@ mod tests {
         assert!(apply_settings_at(&base, raw).is_err());
         let saved = workspace::settings::load_global(&base);
         assert_eq!(saved.appearance.theme, workspace::settings::Theme::Light);
+
+        std::fs::remove_dir_all(&base).unwrap();
+    }
+
+    #[test]
+    fn ensure_global_settings_file_缺失时写入默认() {
+        let base = std::env::temp_dir().join(format!(
+            "glancemd-ultra-opensettings-test-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&base);
+
+        let path = ensure_global_settings_file(&base);
+        assert!(
+            path.exists(),
+            "调用后 settings.json 应已落盘：{}",
+            path.display()
+        );
+        let saved = workspace::settings::load_global(&base);
+        assert_eq!(saved.version, workspace::settings::SCHEMA_VERSION);
+
+        // 已存在时不覆盖用户内容
+        workspace::settings::save(
+            &base,
+            &workspace::settings::Settings {
+                appearance: workspace::settings::Appearance {
+                    theme: workspace::settings::Theme::Dark,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let path2 = ensure_global_settings_file(&base);
+        assert_eq!(path, path2);
+        let saved = workspace::settings::load_global(&base);
+        assert_eq!(saved.appearance.theme, workspace::settings::Theme::Dark);
 
         std::fs::remove_dir_all(&base).unwrap();
     }
