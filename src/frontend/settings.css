@@ -29,6 +29,40 @@
 
 [data-theme="light"] .settings-panel { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16); }
 
+/* 关闭 = hidden 属性；display:flex 会覆盖 UA 的 [hidden]{display:none}，
+   必须显式夺回，否则"关不掉"（关闭按钮只置 hidden） */
+.settings-panel[hidden] { display: none !important; }
+
+/* ── 拖动 / 缩放：header 拖移（首次拖动改绝对定位），右下角角柄缩放 ── */
+.settings-panel.dragging,
+.settings-panel.resizing { user-select: none; }
+
+.settings-panel header { cursor: default; }
+
+.settings-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  z-index: 3;
+}
+
+.settings-resize-handle::after {
+  content: '';
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--text-dim);
+  border-bottom: 2px solid var(--text-dim);
+  opacity: 0.5;
+}
+
+.settings-resize-handle:hover::after { opacity: 1; }
+
 /* ── 头部：标题 + 过滤 + 关闭 ── */
 .settings-panel header {
   flex: none;
@@ -143,6 +177,34 @@
 .settings-empty {
   margin: 24px 0;
   font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* ── 全局搜索：跨分类聚合结果（分组标题可点击跳转分类）── */
+.settings-search-group { margin-bottom: 10px; }
+
+.settings-search-cat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--mk-heading);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.settings-search-cat:hover { background: var(--hover-bg); }
+
+.settings-search-cat span {
+  margin-left: auto;
+  font-weight: 400;
   color: var(--text-dim);
 }
 
