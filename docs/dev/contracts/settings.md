@@ -25,6 +25,7 @@
 | JSON 键 | 类型 | 默认 | 语义 |
 |---|---|---|---|
 | `theme` | `"light"` \| `"dark"` \| `"system"` | `"light"` | 主题。默认与基线一致（`setTheme(saved \|\| 'light')`）；`system` 随阶段 5 前端落地生效 |
+| `sidebarFontSize` | u32 | `14` | 侧栏（资源管理器 / Outline）基准字号（px）。由前端生效层（`settings-apply.js`）写入 CSS 变量 `--panel-font-size`，各面板字号按 calc 比例换算（树行 ×0.93、面板标题 ×0.79、空态 ×0.86），默认 14px 时视觉 ≈ 基线 13px / 11px / 12px |
 
 ### 2.2 files（文件类型、隐藏文件和排除规则）
 
@@ -39,6 +40,7 @@
 
 | JSON 键 | 类型 | 默认 | 语义 |
 |---|---|---|---|
+| `enableWatcher` | bool | `true` | 是否启用文件监听。关闭后：打开项目不启动监听服务；运行中修改该设置自动 pause/resume 当前服务（接线见 `commands.rs::apply_settings_at` / `workspace_open`）。**阶段边界**：启停判断只读全局设置，项目级覆盖不参与启停（项目设置是补丁语义，独立项目级启停留待后续阶段） |
 | `autoSave` | `"off"` \| `"afterDelay"` \| `"onFocusLost"` | `"off"` | 自动保存模式（阶段 6 生效） |
 | `autoSaveDelayMs` | u64 | `1000` | `afterDelay` 延时（毫秒） |
 
@@ -54,10 +56,10 @@
 
 | JSON 键 | 类型 | 默认 | 语义 |
 |---|---|---|---|
-| `fontSize` | u32 | `14` | 编辑区字号（px，与基线一致） |
-| `tabSize` | u32 | `4` | Tab 宽度（与基线 `tab-size: 4` 一致） |
-| `wordWrap` | bool | `true` | 自动换行（与基线 `pre-wrap` 一致） |
-| `lineNumbers` | bool | `true` | 行号显示（随阶段 5+ 编辑器增强生效） |
+| `fontSize` | u32 | `14` | 编辑区字号（px）。由前端生效层写入 CSS 变量 `--editor-font-size`（style.css 消费，随 `--zoom` 缩放） |
+| `tabSize` | u32 | `4` | Tab 宽度。写入 CSS 变量 `--editor-tab-size`，editor.js 的 Tab 键插入空格数同步读取 |
+| `wordWrap` | bool | `true` | 自动换行。切换 `#editor` 的 `wrap` 属性（soft/off，改属性前保存 value 再恢复）与 `.wrap-off` 类（white-space） |
+| `lineNumbers` | bool | `true` | 行号显示。`#editor-gutter` 行号槽显隐（阶段 5 落地）：行数 = max(逻辑行数, 视口可容纳行数)，scrollTop 随编辑器同步。**软换行视觉偏差**：`wordWrap=true` 时行号按逻辑行编号，长行软换行折出的视觉行不单独编号，折行处行号出现视觉跳变（已知偏差，接受） |
 | `largeFileMB` | u64 | `5` | 大文件模式阈值（阶段 6：禁用实时预览等高耗时功能） |
 
 ### 2.6 keybindings（快捷键）
@@ -136,3 +138,7 @@
 ## 8. 变更记录
 
 - 2026-09-04（阶段 5 / Wave 2a 设置流 R4）：初版。schema v1 七类字段表、加载/保存与告警通道、字段级合并与 is_overridden、迁移框架（v0→v1 演练步）、命令/事件/路径契约。
+- 2026-09-04（编辑器设置接线 + 行号 + 监听开关 + 侧栏字号）：
+  - schema 新增 `watching.enableWatcher`（默认 true）与 `appearance.sidebarFontSize`（默认 14），补丁镜像 / 合并 / is_overridden / 已知键表同步；
+  - 监听开关接线：`workspace.settings.set-global` 落盘成功后对比保存前后 `enableWatcher`，关→`watcher_pause`、开→`watcher_resume`；`workspace.open` 启动监听前按全局 effective 开关决定是否启动（项目覆盖不参与，见 §2.3 阶段边界）；
+  - 前端生效层 `settings-apply.js`（window.SettingsApply，装载于 recovery.js 之后）：订阅 `workspace:settings-effective`，把 editor.fontSize/tabSize/wordWrap/lineNumbers 与 appearance.sidebarFontSize 落到 CSS 变量 / textarea / `#editor-gutter` 行号槽；`get()` 供其他模块同步读取（editor.js Tab 空格数）；`get-effective` 命令在装载时自动发一次，开机即生效。

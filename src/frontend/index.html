@@ -116,6 +116,9 @@
       </div>
       <div id="editor-container" class="active">
         <div id="recent-panel"></div>
+        <!-- 行号槽：绝对定位覆盖 #editor 左侧 padding 区，显隐/内容由
+             settings-apply.js（window.SettingsApply）按 editor.lineNumbers 驱动 -->
+        <div id="editor-gutter" aria-hidden="true"></div>
         <textarea id="editor" placeholder="Start writing markdown..." spellcheck="false"></textarea>
         <div id="split-resize-handle" title="Drag to resize panes" aria-label="Drag to resize panes"></div>
       </div>

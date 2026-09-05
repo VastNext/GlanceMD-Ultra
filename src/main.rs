@@ -51,6 +51,7 @@ const SETTINGS_JS: &str = include_str!("frontend/settings.js");
 const KEYBINDINGS_JS: &str = include_str!("frontend/keybindings.js");
 const COMMAND_PALETTE_JS: &str = include_str!("frontend/command-palette.js");
 const RECOVERY_JS: &str = include_str!("frontend/recovery.js");
+const SETTINGS_APPLY_JS: &str = include_str!("frontend/settings-apply.js");
 const ICON_PNG: &[u8] = include_bytes!("../assets/icon.png");
 
 pub(crate) const fn platform_base_url() -> &'static str {
@@ -610,6 +611,15 @@ fn build_html() -> String {
         escape_for_script_tag(KEYBINDINGS_JS),
         escape_for_script_tag(COMMAND_PALETTE_JS),
         escape_for_script_tag(RECOVERY_JS),
+    );
+
+    // 阶段 5 追加：settings-apply.js 排在 recovery.js 之后（设置生效层：把
+    // workspace:settings-effective 落到 CSS 变量与编辑器 DOM，开机即拉取一次；
+    // 只依赖 workspace.js 的事件分发器与 ipc，晚于全部面板脚本无装载顺序问题）
+    let scripts = format!(
+        "{}\n<script>{}</script>",
+        scripts,
+        escape_for_script_tag(SETTINGS_APPLY_JS),
     );
 
     // 面板样式拼在 style.css 之后（同特异性下后写的规则生效；各面板 css 内

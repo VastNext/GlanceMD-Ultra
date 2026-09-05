@@ -33,10 +33,12 @@
   // 设置键元数据：key_path（类名.JSON 字段名，与序列化键一致）→ 中文标签 + 说明。
   var META = {
     'appearance.theme': { label: '主题', desc: '界面配色：深色、浅色或跟随系统' },
+    'appearance.sidebarFontSize': { label: '侧栏字体大小（px）', desc: '资源管理器与大纲面板的基准字号（12–18）' },
     'files.visibleExts': { label: '可见扩展名', desc: '项目树中显示的文件类型，逗号分隔' },
     'files.showHidden': { label: '显示隐藏文件', desc: '在项目树中显示点开头的隐藏文件' },
     'files.exclude': { label: '浏览排除', desc: '项目树不展示的目录或路径段，逗号分隔' },
     'files.watcherExclude': { label: '监听排除', desc: '文件监听忽略的目录或路径段，逗号分隔' },
+    'watching.enableWatcher': { label: '启用文件监听', desc: '监听文件变更；修改此设置后自动暂停或恢复监听' },
     'watching.autoSave': { label: '自动保存', desc: '关闭、延时后自动保存，或失去焦点时保存' },
     'watching.autoSaveDelayMs': { label: '自动保存延时（毫秒）', desc: '“延时后自动保存”模式的触发延时' },
     'search.exclude': { label: '搜索排除', desc: '全文搜索跳过的目录或 glob，逗号分隔' },
