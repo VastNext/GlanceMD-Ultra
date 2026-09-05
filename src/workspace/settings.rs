@@ -92,8 +92,8 @@ impl Default for Settings {
     }
 }
 
-/// 外观与布局（方案 §7.1 类 1）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// 外观与布局（方案 §7.1 类 1）。含 String 字段（language），不再 Copy。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Appearance {
     /// 主题：`light` | `dark` | `system`。默认 `light`，与基线行为一致
@@ -102,6 +102,9 @@ pub struct Appearance {
     /// 侧栏（资源管理器 / Outline）基准字号（px）。默认 14，各面板字号按
     /// calc 比例换算后视觉 ≈ 基线（树行 13px / 面板标题 11px / 空态 12px）。
     pub sidebar_font_size: u32,
+    /// 界面语言（i18n）。默认 `zh-CN`（简体中文），当前可选 `en`（English）；
+    /// 字符串类型便于未来新增语言，无需 schema 升版。
+    pub language: String,
 }
 
 impl Default for Appearance {
@@ -109,6 +112,7 @@ impl Default for Appearance {
         Appearance {
             theme: Theme::Light,
             sidebar_font_size: 14,
+            language: "zh-CN".to_string(),
         }
     }
 }
@@ -336,14 +340,16 @@ pub struct SettingsPatch {
     pub recovery: Option<RecoveryPatch>,
 }
 
-/// [`Appearance`] 的补丁镜像。
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+/// [`Appearance`] 的补丁镜像。含 String 字段（language），不再 Copy。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct AppearancePatch {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub theme: Option<Theme>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sidebar_font_size: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
 }
 
 /// [`Files`] 的补丁镜像。
@@ -443,6 +449,11 @@ pub fn effective(global: &Settings, project: &SettingsPatch) -> Settings {
                     .and_then(|a| a.sidebar_font_size),
                 global.appearance.sidebar_font_size,
             ),
+            language: project
+                .appearance
+                .as_ref()
+                .and_then(|a| a.language.clone())
+                .unwrap_or_else(|| global.appearance.language.clone()),
         },
         files: Files {
             visible_exts: opt_or(
@@ -582,6 +593,10 @@ pub fn is_overridden(project: &SettingsPatch, key_path: &str) -> bool {
             .appearance
             .as_ref()
             .is_some_and(|a| a.sidebar_font_size.is_some()),
+        ("appearance", "language") => project
+            .appearance
+            .as_ref()
+            .is_some_and(|a| a.language.is_some()),
         ("files", "visibleExts") => project
             .files
             .as_ref()
@@ -951,7 +966,7 @@ const KNOWN_TOP_LEVEL: &[&str] = &[
 /// 已知类内字段（JSON 键名）。`keybindings` 不在表中：其内层键是命令 ID
 /// （开放集合），不做未知键检查。
 const KNOWN_CATEGORY_FIELDS: &[(&str, &[&str])] = &[
-    ("appearance", &["theme", "sidebarFontSize"]),
+    ("appearance", &["theme", "sidebarFontSize", "language"]),
     (
         "files",
         &["visibleExts", "showHidden", "exclude", "watcherExclude"],

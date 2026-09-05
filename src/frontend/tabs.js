@@ -2,6 +2,8 @@ var TabManager = (function() {
   var tabs = [];
   var activeTabId = null;
   var tabIdCounter = 0;
+  // i18n：I18n 未装载时回退 key（实际装载顺序 i18n.js 最前，不会发生）
+  function t(key, params) { return window.I18n ? window.I18n.t(key, params) : key; }
 
   /* ── 拖拽重排状态 ──
      activeDrag 持有当前拖拽上下文；dragJustEnded 用于抑制拖拽结束后的 click 误触发 */
@@ -39,7 +41,7 @@ var TabManager = (function() {
     var tab = {
       id: id,
       path: path ? normalizePath(path) : null,
-      filename: forceFilename || (path ? path.split(/[/\\]/).pop() : 'Untitled'),
+      filename: forceFilename || (path ? path.split(/[/\\]/).pop() : t('tabs.untitled')),
       content: content != null ? content : '',
       dirty: false,
       mode: forceMode || (path ? 'preview' : 'edit'),
@@ -58,7 +60,7 @@ var TabManager = (function() {
     if (idx === -1) return;
     var tab = tabs[idx];
     if (tab.dirty) {
-      if (!confirm('Unsaved changes in "' + tab.filename + '". Close anyway?')) return;
+      if (!confirm(t('tabs.closeConfirm', { name: tab.filename }))) return;
     }
     tabs.splice(idx, 1);
     syncDirtyState();
@@ -85,7 +87,7 @@ var TabManager = (function() {
     if (targets.length === 0) return;
     var dirtyCount = targets.filter(function(t) { return t.dirty; }).length;
     if (dirtyCount > 0) {
-      if (!confirm('有 ' + dirtyCount + ' 个未保存的标签页，确定全部关闭？')) return;
+      if (!confirm(t('tabs.closeBatchConfirm', { n: dirtyCount }))) return;
     }
     var anchorIdx = tabs.indexOf(targets[0]);
     tabs = tabs.filter(function(t) { return !idSet[t.id]; });
@@ -387,10 +389,10 @@ var TabManager = (function() {
   var tabMenuOpen = false;
   var tabMenuTargetId = null;
   var TAB_MENU_DEFS = [
-    { action: 'close', label: '关闭' },
-    { action: 'left', label: '关闭左侧标签' },
-    { action: 'right', label: '关闭右侧标签' },
-    { action: 'all', label: '关闭所有标签' }
+    { action: 'close', label: t('tabs.menuClose') },
+    { action: 'left', label: t('tabs.menuCloseLeft') },
+    { action: 'right', label: t('tabs.menuCloseRight') },
+    { action: 'all', label: t('tabs.menuCloseAll') }
   ];
 
   function tabMenuItems() {
@@ -405,7 +407,7 @@ var TabManager = (function() {
     tabMenuEl = document.createElement('div');
     tabMenuEl.className = 'ctx-menu';
     tabMenuEl.setAttribute('role', 'menu');
-    tabMenuEl.setAttribute('aria-label', '标签页操作');
+    tabMenuEl.setAttribute('aria-label', t('tabs.menuAria'));
     TAB_MENU_DEFS.forEach(function(def) {
       var item = document.createElement('div');
       item.className = 'ctx-item';
@@ -580,7 +582,7 @@ var TabManager = (function() {
     var tab = tabs.find(function(t) { return t.id === (id || activeTabId); });
     if (tab) {
       tab.path = path ? normalizePath(path) : null;
-      tab.filename = path ? path.split(/[/\\]/).pop() : 'Untitled';
+      tab.filename = path ? path.split(/[/\\]/).pop() : t('tabs.untitled');
       renderTabBar();
       updateWindowTitle();
       document.getElementById('status-file').textContent = tab.filename;

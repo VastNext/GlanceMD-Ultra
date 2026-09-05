@@ -36,8 +36,9 @@ FRONTEND_DIR = REPO_ROOT / "src" / "frontend"
 DEFAULT_MOCK = REPO_ROOT / "tests" / "mock-bootstrap.js"
 DEFAULT_OUT = REPO_ROOT / "tests" / ".tmp" / "index.html"
 
-# 与 main.rs::build_html 的脚本顺序严格一致
+# 与 main.rs::build_html 的脚本顺序严格一致（i18n.js 必须最前）
 SCRIPT_ORDER = (
+    "i18n.js",
     "highlight.min.js",
     "marked.min.js",
     "preview.js",

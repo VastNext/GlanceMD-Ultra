@@ -21,6 +21,7 @@
 // 全局搜索聚合同样跳过该分类。
 (function () {
   'use strict';
+  function t(key, params) { return window.I18n ? window.I18n.t(key, params) : key; }
 
   var state = { open: false, category: 'appearance', global: {}, effective: {}, project: {}, kbRecording: null, kbError: null };
 
@@ -38,6 +39,7 @@
   // 设置键元数据：key_path（类名.JSON 字段名，与序列化键一致）→ 中文标签 + 说明。
   var META = {
     'appearance.theme': { label: '主题', desc: '界面配色：深色、浅色或跟随系统' },
+    'appearance.language': { label: '界面语言', desc: '界面文案语言；切换后立即生效（个别面板重新打开后刷新）' },
     'appearance.sidebarFontSize': { label: '侧栏字体大小（px）', desc: '资源管理器与大纲面板的基准字号（12–18）' },
     'files.visibleExts': { label: '可见扩展名', desc: '项目树中显示的文件类型，逗号分隔' },
     'files.showHidden': { label: '显示隐藏文件', desc: '在项目树中显示点开头的隐藏文件' },
@@ -65,6 +67,10 @@
       { value: 'dark', label: '深色' },
       { value: 'light', label: '浅色' },
       { value: 'system', label: '跟随系统' }
+    ],
+    'appearance.language': [
+      { value: 'zh-CN', label: '简体中文' },
+      { value: 'en', label: 'English' }
     ],
     'watching.autoSave': [
       { value: 'off', label: '关闭' },
@@ -101,9 +107,9 @@
   function ensure() {
     var p = document.getElementById('settings-panel'); if (p) return p;
     p = document.createElement('section'); p.id = 'settings-panel'; p.className = 'settings-panel'; p.hidden = true;
-    p.innerHTML = '<header id="settings-header"><strong>设置</strong><input id="settings-filter" placeholder="搜索设置（支持中文标签或键名）"><button id="settings-close" title="关闭（Esc）">×</button></header>'
+    p.innerHTML = '<header id="settings-header"><strong>' + t('settings.title') + '</strong><input id="settings-filter" placeholder="' + t('settings.searchPlaceholder') + '（支持中文标签或键名）"><button id="settings-close" title="' + t('settings.close') + '（Esc）">×</button></header>'
       + '<div class="settings-layout"><nav id="settings-categories"></nav><main id="settings-body"></main></div>'
-      + '<footer><button id="settings-json">打开设置 JSON</button></footer>'
+      + '<footer><button id="settings-json">' + t('settings.openJson') + '</button></footer>'
       + '<div id="settings-resize-handle" class="settings-resize-handle" title="调整大小"></div>';
     document.body.appendChild(p);
     p.querySelector('#settings-close').onclick = close;
@@ -238,7 +244,7 @@
     var overridden = !!(state.project[cat] && Object.prototype.hasOwnProperty.call(state.project[cat], key));
     return '<div class="setting-row">'
       + '<div class="setting-info">'
-      + '<span class="setting-label">' + esc(m.label) + (overridden ? '<em class="setting-badge">项目已覆盖</em>' : '') + '</span>'
+      + '<span class="setting-label">' + esc(m.label) + (overridden ? '<em class="setting-badge">' + t('settings.projectOverridden') + '</em>' : '') + '</span>'
       + '<span class="setting-desc">' + esc(m.desc) + '</span>'
       + '</div>'
       + '<div class="setting-control">' + controlHTML(cat, key, v) + '</div>'
@@ -304,7 +310,7 @@
       return (k + ' ' + m.label + ' ' + m.desc).toLowerCase().indexOf(q) >= 0;
     });
     if (!keys.length) {
-      html += '<p class="settings-empty">' + (q ? '没有匹配的设置' : '该分类暂无可配置项') + '</p>';
+      html += '<p class="settings-empty">' + (q ? t('settings.noMatch') : t('settings.categoryEmpty')) + '</p>';
     } else {
       keys.forEach(function (k) { html += rowHTML(catKey, k, obj[k]); });
     }
@@ -496,6 +502,7 @@
       if (v === undefined) return;
       commit(cat, key, v);
       if (cat === 'appearance' && key === 'theme') applyTheme(v);
+      if (cat === 'appearance' && key === 'language' && window.I18n) window.I18n.setLanguage(v);
     };
   }
 

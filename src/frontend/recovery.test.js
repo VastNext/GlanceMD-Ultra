@@ -8,6 +8,7 @@ const vm = require('node:vm');
 // 与页面装载顺序一致：commands.js → workspace.js → recovery.js 同一 vm 上下文依序执行，
 // 下行事件经真实 window.Workspace.dispatch 注入，上行消息经 window.ipc mock 捕获。
 const FRONTEND = __dirname;
+const I18N_SOURCE = fs.readFileSync(path.join(FRONTEND, 'i18n.js'), 'utf8');
 const COMMANDS_SOURCE = fs.readFileSync(path.join(FRONTEND, 'commands.js'), 'utf8');
 const WORKSPACE_SOURCE = fs.readFileSync(path.join(FRONTEND, 'workspace.js'), 'utf8');
 const SOURCE = fs.readFileSync(path.join(FRONTEND, 'recovery.js'), 'utf8');
@@ -206,6 +207,7 @@ function loadHarness(opts = {}) {
   }
 
   vm.createContext(context);
+  vm.runInContext(I18N_SOURCE, context, { filename: 'i18n.js' }); // recovery.js 的 t() 依赖
   vm.runInContext(COMMANDS_SOURCE, context, { filename: 'commands.js' });
   vm.runInContext(WORKSPACE_SOURCE, context, { filename: 'workspace.js' });
   vm.runInContext(SOURCE, context, { filename: 'recovery.js' });

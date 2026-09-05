@@ -202,6 +202,8 @@ function load() {
       (subs[event] = subs[event] || []).push(handler);
     },
   };
+  // settings.js 的 chrome 文案走 I18n.t：先装载 i18n.js（默认 zh-CN，与旧文案一致）
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, 'i18n.js'), 'utf8'), ctx, { filename: 'i18n.js' });
   vm.runInNewContext(fs.readFileSync(SETTINGS_JS, 'utf8'), ctx, { filename: 'settings.js' });
   return { ctx, els, storage, subs, docHandlers, docElement };
 }

@@ -170,6 +170,11 @@
     applyWordWrap(boolOr(ed.wordWrap, DEFAULTS.editor.wordWrap));
     applyLineNumbers(boolOr(ed.lineNumbers, DEFAULTS.editor.lineNumbers));
 
+    // 界面语言：设置里的选择同步到 I18n（I18n.setLanguage 内部做同值去重）
+    if (ap.language && window.I18n && typeof window.I18n.setLanguage === 'function') {
+      window.I18n.setLanguage(ap.language);
+    }
+
     latest = s;
     bindEditor();
     syncGutter();

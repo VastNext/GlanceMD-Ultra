@@ -188,6 +188,7 @@ function createHarness() {
   context.window.window = context.window;
 
   // 与组装页一致的加载顺序（略过 highlight/marked/preview：marked 以 stub 代替）
+  vm.runInNewContext(fs.readFileSync(path.join(FRONTEND, 'i18n.js'), 'utf8'), context, { filename: 'i18n.js' });
   vm.runInNewContext(fs.readFileSync(path.join(FRONTEND, 'tabs.js'), 'utf8'), context, { filename: 'tabs.js' });
   vm.runInNewContext(fs.readFileSync(path.join(FRONTEND, 'app.js'), 'utf8'), context, { filename: 'app.js' });
 
@@ -236,12 +237,14 @@ function loadAssembledPage() {
 
 const assembledPage = loadAssembledPage();
 
-test('组装页包含全部 18 个产品脚本且顺序与 build_html 一致', (t) => {
+test('组装页包含全部 19 个产品脚本且顺序与 build_html 一致', (t) => {
   if (!assembledPage) return t.skip('tests/.tmp/index.html 不存在且无法生成（需 Python）');
-  const names = ['highlight.min.js', 'marked.min.js', 'preview.js', 'tabs.js', 'editor.js', 'app.js', 'commands.js', 'workspace.js', 'layout.js', 'outline.js', 'project-tree.js', 'search-panel.js', 'quick-open.js', 'settings.js', 'keybindings.js', 'command-palette.js', 'recovery.js', 'settings-apply.js'];
+  const names = ['i18n.js', 'highlight.min.js', 'marked.min.js', 'preview.js', 'tabs.js', 'editor.js', 'app.js', 'commands.js', 'workspace.js', 'layout.js', 'outline.js', 'project-tree.js', 'search-panel.js', 'quick-open.js', 'settings.js', 'keybindings.js', 'command-palette.js', 'recovery.js', 'settings-apply.js'];
+  // 用完整 <script> 块定位：避免不同脚本出现相同前缀片段时 indexOf 撞车
+  // （如 tabs.js 与 app.js 都以同样的 t() 辅助行开头）
   const positions = names.map((name) => {
-    const source = fs.readFileSync(path.join(FRONTEND, name), 'utf8');
-    const pos = assembledPage.indexOf(escapeForScriptTag(source));
+    const block = '<script>' + escapeForScriptTag(fs.readFileSync(path.join(FRONTEND, name), 'utf8')) + '</script>';
+    const pos = assembledPage.indexOf(block);
     assert.ok(pos !== -1, '组装页缺少脚本：' + name);
     return pos;
   });
@@ -280,7 +283,7 @@ test('初始化：创建 Untitled tab 并向 Rust 发送 ready', () => {
   h.fireDOMContentLoaded();
   const active = h.context.TabManager.getActiveTab();
   assert.ok(active, '初始化后应有活动 tab');
-  assert.equal(active.filename, 'Untitled');
+  assert.equal(active.filename, '未命名');
   assert.equal(active.mode, 'edit');
   assert.equal(active.dirty, false);
   const commands = h.parseIpc().map((m) => m.command);
@@ -293,7 +296,7 @@ test('创建路径 tab：空 Untitled 被复用、路径归一、进入预览模
   h.fireDOMContentLoaded();
   const initial = h.context.TabManager.getActiveTab();
   const tab = h.context.TabManager.createTab('D:\\docs\\readme.md', '# Hello');
-  assert.equal(tab, initial, '打开文件应复用空 Untitled tab');
+  assert.equal(tab, initial, '打开文件应复用空未命名 tab');
   assert.equal(tab.path, 'D:/docs/readme.md', '路径反斜杠应归一为斜杠');
   assert.equal(tab.filename, 'readme.md');
   assert.equal(tab.mode, 'preview');
@@ -385,7 +388,7 @@ test('关闭当前 tab 自动切换相邻 tab；关闭未保存 tab 需确认', 
   h.context.confirm = () => true;
   h.context.TabManager.closeTab(a.id);
   const active = h.context.TabManager.getActiveTab();
-  assert.equal(active.filename, 'Untitled', '最后一个 tab 关闭后回到 Untitled');
+  assert.equal(active.filename, '未命名', '最后一个 tab 关闭后回到未命名');
   assert.equal(active.mode, 'edit');
 });
 
@@ -525,7 +528,7 @@ test('右键菜单关闭所有：dirty 单次 confirm 且文案含数量，关�
   assert.equal(confirmCalls.length, 1, '整批关闭只做一次确认');
   assert.match(confirmCalls[0], /有 2 个未保存的标签页，确定全部关闭？/);
   const active = h.context.TabManager.getActiveTab();
-  assert.equal(active.filename, 'Untitled', '全部关完后自动回到 Untitled');
+  assert.equal(active.filename, '未命名', '全部关完后自动回到未命名');
   assert.equal(active.mode, 'edit');
   assert.equal(tabIds(h).length, 1, 'tab 栏仅剩新建的 Untitled');
   assert.equal(findTabMenu(h), null);
@@ -556,7 +559,7 @@ test('右键菜单取消确认整批保留；"关闭"项保留单 tab dirty 确�
   openTabContextMenu(h, tabElementOf(h, a.id));
   clickMenuItem(findTabMenu(h), 'close');
   assert.equal(closeCalls.length, 1, '关闭 dirty tab 应确认一次');
-  assert.match(closeCalls[0], /Unsaved changes in "A\.md"/);
+  assert.match(closeCalls[0], /“A\.md” 有未保存的修改，确定关闭？/);
   assert.deepEqual(tabIds(h), [u.id, b.id]);
   assert.equal(h.context.TabManager.getActiveTab().id, b.id, '关闭非活动 tab 不改变活动 tab');
 });
@@ -627,5 +630,5 @@ test('IPC 事件桥：file_opened 建 tab 并记录最近文件，error 显示�
   assert.equal(recent[0].path, 'D:/docs/guide.md');
 
   h.context.window.__fromRust('error', { message: '磁盘已满' });
-  assert.equal(h.byId('status-info').textContent, 'Error: 磁盘已满');
+  assert.equal(h.byId('status-info').textContent, '错误：磁盘已满');
 });

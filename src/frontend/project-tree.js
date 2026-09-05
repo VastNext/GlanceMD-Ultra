@@ -9,6 +9,7 @@
 //   window.ipc（上行信封）、#tab-bar DOM + TabManager（活动文件来源）。
 (function() {
   'use strict';
+  function t(key, params) { return window.I18n ? window.I18n.t(key, params) : key; }
 
   /* ══════════ 常量与状态 ══════════ */
 
@@ -673,7 +674,7 @@
     var rels = selectedRels.filter(function(rel) { return rel !== ''; });
     if (!rels.length || root === null) return;
     if (permanent && typeof window.confirm === 'function') {
-      if (!window.confirm('永久删除选中的 ' + rels.length + ' 项？此操作不可撤销。')) return;
+      if (!window.confirm(t('tree.deletePermanentConfirm', { n: rels.length }))) return;
     }
     runCommand('project.delete', { paths: rels, permanent: !!permanent });
   }
@@ -737,21 +738,21 @@
   /* ══════════ 上下文菜单（对照设计稿 01 菜单样式） ══════════ */
 
   var MENU_ITEMS = [
-    { id: 'create-file', label: '新建文件' },
-    { id: 'create-dir', label: '新建文件夹' },
+    { id: 'create-file', label: t('tree.createFile') },
+    { id: 'create-dir', label: t('tree.createDir') },
     { sep: true },
-    { id: 'cut', label: '剪切', kbd: 'Ctrl+X' },
-    { id: 'copy', label: '复制', kbd: 'Ctrl+C' },
-    { id: 'paste', label: '粘贴', kbd: 'Ctrl+V' },
+    { id: 'cut', label: t('tree.cut'), kbd: 'Ctrl+X' },
+    { id: 'copy', label: t('tree.copy'), kbd: 'Ctrl+C' },
+    { id: 'paste', label: t('tree.paste'), kbd: 'Ctrl+V' },
     { sep: true },
-    { id: 'rename', label: '重命名', kbd: 'F2' },
-    { id: 'delete', label: '删除', kbd: 'Del', danger: true },
-    { id: 'delete-permanent', label: '永久删除', kbd: 'Shift+Del', danger: true },
+    { id: 'rename', label: t('tree.rename'), kbd: 'F2' },
+    { id: 'delete', label: t('tree.delete'), kbd: 'Del', danger: true },
+    { id: 'delete-permanent', label: t('tree.deletePermanent'), kbd: 'Shift+Del', danger: true },
     { sep: true },
-    { id: 'terminal', label: '在终端中打开', kbd: 'Ctrl+`' },
-    { id: 'reveal', label: '在文件管理器中显示' },
-    { id: 'copy-abs', label: '复制绝对路径' },
-    { id: 'copy-rel', label: '复制相对路径' }
+    { id: 'terminal', label: t('tree.openInTerminal'), kbd: 'Ctrl+`' },
+    { id: 'reveal', label: t('tree.revealInFileManager') },
+    { id: 'copy-abs', label: t('tree.copyAbsolutePath') },
+    { id: 'copy-rel', label: t('tree.copyRelativePath') }
   ];
 
   var menuActiveIndex = -1;

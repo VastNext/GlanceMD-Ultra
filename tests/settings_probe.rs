@@ -332,6 +332,7 @@ fn 全字段v1文档_迁移无告警且逐字段相等_守护已知键表不失�
             appearance: Appearance {
                 theme: Theme::Dark,
                 sidebar_font_size: 16,
+                language: "zh-CN".to_string(),
             },
             files: Files {
                 visible_exts: vec!["md".to_string()],
@@ -378,6 +379,7 @@ fn 项目部分覆盖全局_未覆盖字段保留全局值() {
         appearance: Appearance {
             theme: Theme::Dark,
             sidebar_font_size: 18,
+            language: "zh-CN".to_string(),
         },
         editor: Editor {
             font_size: 20,
@@ -389,6 +391,7 @@ fn 项目部分覆盖全局_未覆盖字段保留全局值() {
         appearance: Some(AppearancePatch {
             theme: Some(Theme::Light),
             sidebar_font_size: Some(12),
+            language: Some("en".to_string()),
         }),
         watching: Some(WatchingPatch {
             enable_watcher: Some(false),
@@ -502,6 +505,7 @@ fn v1_roundtrip_自定义设置_保存加载零漂移() {
         appearance: Appearance {
             theme: Theme::System,
             sidebar_font_size: 16,
+            language: "en".to_string(),
         },
         files: Files {
             visible_exts: vec!["md".to_string(), "txt".to_string()],

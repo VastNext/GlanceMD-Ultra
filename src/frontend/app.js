@@ -1,3 +1,4 @@
+function t(key, params) { return window.I18n ? window.I18n.t(key, params) : key; }
 // IPC Bridge
 function sendToRust(command, data) {
   var msg = JSON.stringify(Object.assign({ command: command }, data || {}));
@@ -196,13 +197,13 @@ function setTitle(title) {
 
 function onFileSaved() {
   var info = document.getElementById('status-info');
-  info.textContent = 'Saved';
+  info.textContent = t('app.saved');
   setTimeout(function() { info.textContent = ''; }, 2000);
 }
 
 function showError(message) {
   var info = document.getElementById('status-info');
-  info.textContent = 'Error: ' + message;
+  info.textContent = t('app.error', { message: message });
   info.style.color = '#c15050';
   setTimeout(function() { info.textContent = ''; info.style.color = ''; }, 5000);
 }
@@ -301,7 +302,7 @@ function showRecentPanel() {
   panel.innerHTML = '';
   var title = document.createElement('div');
   title.className = 'recent-title';
-  title.textContent = 'Recent Files';
+  title.textContent = t('app.recentFiles');
   panel.appendChild(title);
   recent.forEach(function(r) {
     var item = document.createElement('div');
@@ -700,7 +701,7 @@ function findPrev() {
 function updateFindCount() {
   var el = document.getElementById('find-count');
   if (findState.matches.length === 0) {
-    el.textContent = document.getElementById('find-input').value ? 'No results' : '';
+    el.textContent = document.getElementById('find-input').value ? t('app.noResults') : '';
   } else {
     el.textContent = (findState.current + 1) + ' of ' + findState.matches.length;
   }
@@ -776,7 +777,7 @@ document.getElementById('btn-minimize').addEventListener('click', function() { s
 document.getElementById('btn-maximize').addEventListener('click', function() { sendToRust('window_maximize'); });
 document.getElementById('btn-close').addEventListener('click', function() {
   if (TabManager.hasAnyDirty()) {
-    if (!confirm('You have unsaved changes. Close anyway?')) return;
+    if (!confirm(t('app.unsavedClose'))) return;
   }
   sendToRust('window_close');
 });

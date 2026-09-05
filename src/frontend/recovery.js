@@ -8,6 +8,7 @@
 // 活动 tab 的完整路径经 window.TabManager.getActiveTab() 读取（DOM 中只有文件名）。
 (function() {
   'use strict';
+  function t(key, params) { return window.I18n ? window.I18n.t(key, params) : key; }
 
   if (window.RecoveryUI) {
     return;
@@ -274,15 +275,15 @@
       var sep1 = createElement('span', 'recovery-sep');
       sep1.textContent = '·';
       sub.appendChild(sep1);
-      sub.appendChild(document.createTextNode((isRemoved ? '删除发生于 ' : '磁盘版本 ') + formatTime(entry.ts)));
+      sub.appendChild(document.createTextNode((isRemoved ? t('recovery.removedAt', { time: formatTime(entry.ts) }) : t('recovery.diskVersion', { time: formatTime(entry.ts) }))));
     }
     if (!isRemoved) {
       var sep2 = createElement('span', 'recovery-sep');
       sep2.textContent = '·';
       sub.appendChild(sep2);
       sub.appendChild(document.createTextNode(keep
-        ? '已选择保留编辑版本'
-        : '选择"保留编辑版本"后再次保存将要求二次确认覆盖'));
+        ? t('recovery.keepChosen')
+        : t('recovery.keepHint')));
     }
     copy.appendChild(sub);
 
@@ -290,7 +291,7 @@
       // 降级方案的常驻警示条：无法拦截保存动作（拦截点在 app.js，见契约 §5 限制清单），
       // 在该文件保存/关闭前持续显示"保存将被覆盖"警示。
       var keepNote = createElement('div', 'recovery-keep-note');
-      keepNote.textContent = '保存将被覆盖：该文件再次保存前需二次确认（保存成功或关闭后自动解除）';
+      keepNote.textContent = t('recovery.keepNote');
       copy.appendChild(keepNote);
     }
 
@@ -298,19 +299,19 @@
 
     var acts = createElement('div', 'recovery-acts');
     if (isRemoved) {
-      acts.appendChild(bannerButton('另存为…', 'recovery.save-as', { path: entry.path }));
+      acts.appendChild(bannerButton(t('recovery.saveAs'), 'recovery.save-as', { path: entry.path }));
       acts.appendChild(bannerButton('关闭', 'recovery.close-tab', { path: entry.path }));
     } else {
-      acts.appendChild(bannerButton('重新加载', 'recovery.reload', { path: entry.path }));
+      acts.appendChild(bannerButton(t('recovery.reload'), 'recovery.reload', { path: entry.path }));
       if (!keep) {
-        acts.appendChild(bannerButton('保留编辑版本', 'recovery.keep-edited', { path: entry.path }));
+        acts.appendChild(bannerButton(t('recovery.keepEdited'), 'recovery.keep-edited', { path: entry.path }));
       }
-      acts.appendChild(bannerButton('另存为…', 'recovery.save-as', { path: entry.path }));
+      acts.appendChild(bannerButton(t('recovery.saveAs'), 'recovery.save-as', { path: entry.path }));
     }
     var closeBtn = createElement('button', 'recovery-close');
     closeBtn.type = 'button';
     closeBtn.title = '暂时关闭（该文件再次变更时会重现）';
-    closeBtn.setAttribute('aria-label', '关闭横幅');
+    closeBtn.setAttribute('aria-label', t('recovery.dismissAria'));
     closeBtn.textContent = '×';
     closeBtn.addEventListener('click', function() {
       runCommand('recovery.dismiss-banner', { path: entry.path });
@@ -335,7 +336,7 @@
     var overflow = entries.length - visible.length;
     if (overflow > 0) {
       var more = createElement('div', 'recovery-banner-more');
-      more.textContent = '…还有 ' + overflow + ' 个文件冲突';
+      more.textContent = t('recovery.moreConflicts', { n: overflow });
       stack.appendChild(more);
     }
     applyPushdown();
@@ -419,7 +420,7 @@
 
     var head = createElement('div', 'recovery-panel-head');
     var title = createElement('span', 'recovery-panel-title');
-    title.textContent = '检测到 ' + pendingEntries.length + ' 条未保存的编辑内容（上次异常退出前自动保存）';
+    title.textContent = t('recovery.panelTitle', { n: pendingEntries.length });
     head.appendChild(title);
     var close = createElement('button', 'recovery-close');
     close.type = 'button';
@@ -449,13 +450,13 @@
       var tabId = entry.tabId != null ? entry.tabId : entry.tab_id;
       var restoreBtn = createElement('button', 'recovery-btn');
       restoreBtn.type = 'button';
-      restoreBtn.textContent = '恢复';
+      restoreBtn.textContent = t('recovery.restore');
       restoreBtn.addEventListener('click', function() {
         runCommand('recovery.restore-entry', { tabId: tabId });
       });
       var discardBtn = createElement('button', 'recovery-btn');
       discardBtn.type = 'button';
-      discardBtn.textContent = '丢弃';
+      discardBtn.textContent = t('recovery.discard');
       discardBtn.addEventListener('click', function() {
         runCommand('recovery.discard-entry', { tabId: tabId });
       });
@@ -474,7 +475,7 @@
     var foot = createElement('div', 'recovery-panel-foot');
     var discardAll = createElement('button', 'recovery-btn');
     discardAll.type = 'button';
-    discardAll.textContent = '全部丢弃';
+    discardAll.textContent = t('recovery.discardAll');
     discardAll.addEventListener('click', function() {
       runCommand('recovery.discard-all', {});
     });
@@ -542,7 +543,7 @@
 
     var head = createElement('div', 'recovery-restored-head');
     var title = createElement('span', 'recovery-restored-title');
-    title.textContent = '已恢复的编辑内容（只读副本）';
+    title.textContent = t('recovery.restoredTitle');
     head.appendChild(title);
     var close = createElement('button', 'recovery-close');
     close.type = 'button';
@@ -566,10 +567,10 @@
     var acts = createElement('div', 'recovery-restored-acts');
     var copyBtn = createElement('button', 'recovery-btn');
     copyBtn.type = 'button';
-    copyBtn.textContent = '复制全部';
+    copyBtn.textContent = t('recovery.copyAll');
     copyBtn.addEventListener('click', function() {
       var ok = copyText(String(lastRestored ? lastRestored.content : ''));
-      copyBtn.textContent = ok ? '已复制' : '复制失败';
+      copyBtn.textContent = ok ? t('recovery.copied') : t('recovery.copyFailed');
     });
     acts.appendChild(copyBtn);
     var hint = createElement('span', 'recovery-restored-hint');
@@ -640,7 +641,7 @@
     var register = window.Commands.register;
 
     register('recovery.reload', {
-      label: '冲突：重新加载磁盘版本',
+      label: t('recovery.reload'),
       run: function(arg) {
         var path = argPath(arg);
         if (!path) {
@@ -653,7 +654,7 @@
     });
 
     register('recovery.keep-edited', {
-      label: '冲突：保留编辑版本',
+      label: t('recovery.keepEdited'),
       run: function(arg) {
         var path = argPath(arg);
         if (!path) {
@@ -679,7 +680,7 @@
     });
 
     register('recovery.save-as', {
-      label: '冲突：编辑内容另存为…',
+      label: t('recovery.saveAs'),
       run: function(arg) {
         var path = argPath(arg);
         if (path) {
