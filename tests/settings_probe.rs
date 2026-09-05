@@ -20,7 +20,7 @@ use settings::{
     load_project_checked, migrate, migrate_checked, project_settings_path, save, save_project,
     Appearance, AppearancePatch, AutoSave, Editor, EditorPatch, Files, FilesPatch, Keybindings,
     KeybindingsPatch, LoadedSettings, MigrateError, Recovery, RecoveryPatch, Search, SearchPatch,
-    Settings, SettingsPatch, Theme, Watching, PROJECT_SETTINGS_DIR, SCHEMA_VERSION,
+    Settings, SettingsPatch, Theme, Watching, WatchingPatch, PROJECT_SETTINGS_DIR, SCHEMA_VERSION,
     SETTINGS_FILE_NAME,
 };
 
@@ -92,6 +92,10 @@ fn 默认值与主计划及基线一致() {
     // 自动保存默认关闭（阶段 6）
     assert_eq!(s.watching.auto_save, AutoSave::Off);
     assert_eq!(s.watching.auto_save_delay_ms, 1000);
+    // 监听开关默认开启（阶段 5+ 接线）
+    assert!(s.watching.enable_watcher);
+    // 侧栏基准字号默认 14（换算比例后视觉 ≈ 基线树行 13px）
+    assert_eq!(s.appearance.sidebar_font_size, 14);
     assert!(s.keybindings.overrides.is_empty());
     assert!(s.recovery.confirm_close_dirty);
     assert!(s.recovery.crash_recovery);
@@ -296,14 +300,14 @@ fn 非对象文档_迁移报错() {
 fn 全字段v1文档_迁移无告警且逐字段相等_守护已知键表不失同步() {
     let raw = serde_json::json!({
         "version": 1,
-        "appearance": { "theme": "dark" },
+        "appearance": { "theme": "dark", "sidebarFontSize": 16 },
         "files": {
             "visibleExts": ["md"],
             "showHidden": true,
             "exclude": ["x"],
             "watcherExclude": ["y"]
         },
-        "watching": { "autoSave": "afterDelay", "autoSaveDelayMs": 2500 },
+        "watching": { "enableWatcher": false, "autoSave": "afterDelay", "autoSaveDelayMs": 2500 },
         "search": { "exclude": ["s"], "maxFileSizeMB": 10, "maxResults": 100 },
         "editor": {
             "fontSize": 16,
@@ -325,7 +329,10 @@ fn 全字段v1文档_迁移无告警且逐字段相等_守护已知键表不失�
         migrated.settings,
         Settings {
             version: SCHEMA_VERSION,
-            appearance: Appearance { theme: Theme::Dark },
+            appearance: Appearance {
+                theme: Theme::Dark,
+                sidebar_font_size: 16,
+            },
             files: Files {
                 visible_exts: vec!["md".to_string()],
                 show_hidden: true,
@@ -333,6 +340,7 @@ fn 全字段v1文档_迁移无告警且逐字段相等_守护已知键表不失�
                 watcher_exclude: vec!["y".to_string()],
             },
             watching: Watching {
+                enable_watcher: false,
                 auto_save: AutoSave::AfterDelay,
                 auto_save_delay_ms: 2500
             },
@@ -367,7 +375,10 @@ fn 全字段v1文档_迁移无告警且逐字段相等_守护已知键表不失�
 #[test]
 fn 项目部分覆盖全局_未覆盖字段保留全局值() {
     let global = Settings {
-        appearance: Appearance { theme: Theme::Dark },
+        appearance: Appearance {
+            theme: Theme::Dark,
+            sidebar_font_size: 18,
+        },
         editor: Editor {
             font_size: 20,
             ..Editor::default()
@@ -377,6 +388,11 @@ fn 项目部分覆盖全局_未覆盖字段保留全局值() {
     let project = SettingsPatch {
         appearance: Some(AppearancePatch {
             theme: Some(Theme::Light),
+            sidebar_font_size: Some(12),
+        }),
+        watching: Some(WatchingPatch {
+            enable_watcher: Some(false),
+            ..WatchingPatch::default()
         }),
         editor: Some(EditorPatch {
             tab_size: Some(2),
@@ -387,10 +403,13 @@ fn 项目部分覆盖全局_未覆盖字段保留全局值() {
     let merged = effective(&global, &project);
     // 覆盖项
     assert_eq!(merged.appearance.theme, Theme::Light);
+    assert_eq!(merged.appearance.sidebar_font_size, 12);
     assert_eq!(merged.editor.tab_size, 2);
+    assert!(!merged.watching.enable_watcher);
     // 未覆盖项保留全局（含全局里显式改过的与未改过的）
     assert_eq!(merged.editor.font_size, 20);
     assert_eq!(merged.editor.word_wrap, true);
+    assert_eq!(merged.watching.auto_save, AutoSave::Off);
     assert_eq!(merged.files, Files::default());
     assert_eq!(merged.version, SCHEMA_VERSION);
 }
@@ -446,6 +465,7 @@ fn is_overridden_字段级_类级_未知路径() {
     let project = SettingsPatch {
         appearance: Some(AppearancePatch {
             theme: Some(Theme::Dark),
+            ..AppearancePatch::default()
         }),
         files: Some(FilesPatch {
             show_hidden: Some(true),
@@ -455,7 +475,9 @@ fn is_overridden_字段级_类级_未知路径() {
     };
     // 字段级：覆盖过的为 true
     assert!(is_overridden(&project, "appearance.theme"));
+    assert!(!is_overridden(&project, "appearance.sidebarFontSize"));
     assert!(is_overridden(&project, "files.showHidden"));
+    assert!(!is_overridden(&project, "watching.enableWatcher"));
     // 字段级：补丁里该类存在但字段为 None → false
     assert!(!is_overridden(&project, "files.watcherExclude"));
     // 类级：该类任一字段被覆盖 → true；补丁未出现该类 → false
@@ -479,6 +501,7 @@ fn v1_roundtrip_自定义设置_保存加载零漂移() {
         version: SCHEMA_VERSION,
         appearance: Appearance {
             theme: Theme::System,
+            sidebar_font_size: 16,
         },
         files: Files {
             visible_exts: vec!["md".to_string(), "txt".to_string()],
@@ -487,6 +510,7 @@ fn v1_roundtrip_自定义设置_保存加载零漂移() {
             watcher_exclude: vec!["logs".to_string(), "tmp".to_string()],
         },
         watching: Watching {
+            enable_watcher: false,
             auto_save: AutoSave::OnFocusLost,
             auto_save_delay_ms: 800,
         },

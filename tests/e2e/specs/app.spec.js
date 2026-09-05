@@ -78,7 +78,8 @@ test('双入口与设置：文件、项目、设置按钮分别触发对应命�
   const messages = await page.evaluate(() => (window.__ipcLog || []).map((msg) => JSON.parse(msg)));
   expect(messages.filter((message) => message.command === 'open_file')).toHaveLength(1);
   expect(messages.filter((message) => message.command === 'workspace.open')).toHaveLength(1);
-  expect(messages.filter((message) => message.command === 'workspace.settings.get-effective')).toHaveLength(1);
+  // settings-apply.js 开机会自动请求一次 get-effective；打开面板再发一次，共 2 次
+  expect(messages.filter((message) => message.command === 'workspace.settings.get-effective')).toHaveLength(2);
   await expect(page.locator('#settings-panel')).toBeVisible();
 });
 

@@ -209,14 +209,14 @@ function load() {
 // 与 Rust settings schema v1 序列化键一致的完整全局设置夹具。
 const GLOBAL_SETTINGS = {
   version: 1,
-  appearance: { theme: 'dark' },
+  appearance: { theme: 'dark', sidebarFontSize: 14 },
   files: {
     visibleExts: ['md', 'markdown'],
     showHidden: false,
     exclude: ['.git'],
     watcherExclude: ['.git', 'node_modules'],
   },
-  watching: { autoSave: 'off', autoSaveDelayMs: 1000 },
+  watching: { autoSave: 'off', autoSaveDelayMs: 1000, enableWatcher: true },
   search: { exclude: ['.git'], maxFileSizeMB: 5, maxResults: 2000 },
   editor: { fontSize: 14, tabSize: 4, wordWrap: true, lineNumbers: true, largeFileMB: 5 },
   keybindings: { overrides: { 'file.save': 'Ctrl+S' } },
@@ -354,7 +354,7 @@ test('#settings-filter 过滤：命中英文 key 与中文标签', () => {
   );
   filter.value = '';
   filter.oninput();
-  assert.equal(panel.querySelectorAll('[data-setting]').length, 1, '清空后恢复全部（外观类仅 theme）');
+  assert.equal(panel.querySelectorAll('[data-setting]').length, 2, '清空后恢复全部（外观类 theme + sidebarFontSize）');
   panel.querySelector('#settings-categories').children[4].onclick(); // 编辑器
   filter.value = '字号';
   filter.oninput();
@@ -472,6 +472,30 @@ test('theme 变更即时写 data-theme 与 localStorage[glancemd-ultra-theme]', 
   theme.onchange();
   assert.equal(h.docElement.dataset.theme, 'dark');
   assert.equal(h.storage.get('glancemd-ultra-theme'), 'dark');
+});
+
+test('新增设置项渲染：watching.enableWatcher→switch、appearance.sidebarFontSize→number', () => {
+  const h = load();
+  const panel = openWith(h, GLOBAL_SETTINGS);
+  const nav = panel.querySelector('#settings-categories');
+  // 监听类：bool → switch（label+checkbox），含中文标签与说明
+  nav.children[2].onclick();
+  const enableWatcher = findBySetting(panel, 'enableWatcher');
+  assert.ok(enableWatcher, 'enableWatcher 控件存在');
+  assert.equal(enableWatcher.type, 'checkbox');
+  assert.equal(enableWatcher.checked, true);
+  const watcherBody = panel.querySelector('#settings-body').textContent;
+  assert.match(watcherBody, /启用文件监听/);
+  assert.match(watcherBody, /修改此设置后自动暂停或恢复监听/);
+  // 外观类：number → <input type=number>
+  nav.children[0].onclick();
+  const sidebarFontSize = findBySetting(panel, 'sidebarFontSize');
+  assert.ok(sidebarFontSize, 'sidebarFontSize 控件存在');
+  assert.equal(sidebarFontSize.tagName, 'input');
+  assert.equal(sidebarFontSize.type, 'number');
+  assert.equal(sidebarFontSize.value, '14');
+  assert.match(panel.querySelector('#settings-body').textContent, /侧栏字体大小/);
+  assert.match(panel.querySelector('#settings-body').textContent, /资源管理器与大纲面板的基准字号/);
 });
 
 test('workspace:settings-changed 订阅生效：面板打开时重发读命令刷新', () => {

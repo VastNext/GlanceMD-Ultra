@@ -39,8 +39,9 @@ pub const PROJECT_SETTINGS_DIR: &str = ".glancemd";
 
 /// 全局设置文件路径：`{base_dir}/settings.json`。
 ///
-/// 生产环境 `base_dir` 由粘合层注入 `dirs::config_dir()/glancemd-ultra`；
-/// 探针测试注入临时目录（本模块不触碰真实配置目录）。
+/// 生产环境 `base_dir` 由粘合层注入便携数据目录（`data_dir::data_base()`，
+/// 优先 exe 旁 `data/`、不可写时回退用户配置目录）；探针测试注入临时目录
+/// （本模块不触碰真实配置目录）。
 pub fn global_settings_path(base_dir: &Path) -> PathBuf {
     base_dir.join(SETTINGS_FILE_NAME)
 }
@@ -98,12 +99,16 @@ pub struct Appearance {
     /// 主题：`light` | `dark` | `system`。默认 `light`，与基线行为一致
     /// （app.js 启动时 `setTheme(saved || 'light')`）；`system` 随阶段 5 前端生效。
     pub theme: Theme,
+    /// 侧栏（资源管理器 / Outline）基准字号（px）。默认 14，各面板字号按
+    /// calc 比例换算后视觉 ≈ 基线（树行 13px / 面板标题 11px / 空态 12px）。
+    pub sidebar_font_size: u32,
 }
 
 impl Default for Appearance {
     fn default() -> Self {
         Appearance {
             theme: Theme::Light,
+            sidebar_font_size: 14,
         }
     }
 }
@@ -155,6 +160,9 @@ impl Default for Files {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Watching {
+    /// 是否启用文件监听。默认开；关闭后打开项目不启动监听、运行中变更
+    /// 自动 pause/resume（接线见 commands.rs，阶段 5+）。
+    pub enable_watcher: bool,
     /// 自动保存模式（阶段 6 生效）：`off` | `afterDelay` | `onFocusLost`，默认关闭。
     pub auto_save: AutoSave,
     /// `afterDelay` 模式的延时（毫秒）。
@@ -164,6 +172,7 @@ pub struct Watching {
 impl Default for Watching {
     fn default() -> Self {
         Watching {
+            enable_watcher: true,
             auto_save: AutoSave::Off,
             auto_save_delay_ms: 1000,
         }
@@ -333,6 +342,8 @@ pub struct SettingsPatch {
 pub struct AppearancePatch {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub theme: Option<Theme>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sidebar_font_size: Option<u32>,
 }
 
 /// [`Files`] 的补丁镜像。
@@ -353,6 +364,8 @@ pub struct FilesPatch {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct WatchingPatch {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enable_watcher: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auto_save: Option<AutoSave>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -423,6 +436,13 @@ pub fn effective(global: &Settings, project: &SettingsPatch) -> Settings {
                 .as_ref()
                 .and_then(|a| a.theme)
                 .unwrap_or(global.appearance.theme),
+            sidebar_font_size: opt_or(
+                project
+                    .appearance
+                    .as_ref()
+                    .and_then(|a| a.sidebar_font_size),
+                global.appearance.sidebar_font_size,
+            ),
         },
         files: Files {
             visible_exts: opt_or(
@@ -446,6 +466,10 @@ pub fn effective(global: &Settings, project: &SettingsPatch) -> Settings {
             ),
         },
         watching: Watching {
+            enable_watcher: opt_or(
+                project.watching.as_ref().and_then(|w| w.enable_watcher),
+                global.watching.enable_watcher,
+            ),
             auto_save: opt_or(
                 project.watching.as_ref().and_then(|w| w.auto_save),
                 global.watching.auto_save,
@@ -554,6 +578,10 @@ pub fn is_overridden(project: &SettingsPatch, key_path: &str) -> bool {
             .appearance
             .as_ref()
             .is_some_and(|a| a.theme.is_some()),
+        ("appearance", "sidebarFontSize") => project
+            .appearance
+            .as_ref()
+            .is_some_and(|a| a.sidebar_font_size.is_some()),
         ("files", "visibleExts") => project
             .files
             .as_ref()
@@ -567,6 +595,10 @@ pub fn is_overridden(project: &SettingsPatch, key_path: &str) -> bool {
             .files
             .as_ref()
             .is_some_and(|f| f.watcher_exclude.is_some()),
+        ("watching", "enableWatcher") => project
+            .watching
+            .as_ref()
+            .is_some_and(|w| w.enable_watcher.is_some()),
         ("watching", "autoSave") => project
             .watching
             .as_ref()
@@ -919,12 +951,15 @@ const KNOWN_TOP_LEVEL: &[&str] = &[
 /// 已知类内字段（JSON 键名）。`keybindings` 不在表中：其内层键是命令 ID
 /// （开放集合），不做未知键检查。
 const KNOWN_CATEGORY_FIELDS: &[(&str, &[&str])] = &[
-    ("appearance", &["theme"]),
+    ("appearance", &["theme", "sidebarFontSize"]),
     (
         "files",
         &["visibleExts", "showHidden", "exclude", "watcherExclude"],
     ),
-    ("watching", &["autoSave", "autoSaveDelayMs"]),
+    (
+        "watching",
+        &["autoSave", "autoSaveDelayMs", "enableWatcher"],
+    ),
     ("search", &["exclude", "maxFileSizeMB", "maxResults"]),
     (
         "editor",

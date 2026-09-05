@@ -215,9 +215,18 @@ fn workspace_open(_: &CommandContext, p: &CommandPayload) {
     };
     match workspace::Workspace::open_root(path) {
         Ok(ws) => {
+            // 监听开关接线：effective 的 watching.enableWatcher=false 则不启动监听。
+            // 这里只读全局设置（base=settings_base()）——项目覆盖可忽略：项目设置
+            // 仅是补丁语义，监听启停以全局开关为阶段边界（项目级独立启停留待后续
+            // 阶段，见 docs/dev/contracts/settings.md §2.3）。
+            let watcher_enabled = workspace::settings::load_global(&settings_base())
+                .watching
+                .enable_watcher;
             session::clear_root();
             session::set_root(ws.root().to_path_buf());
-            start_watcher(ws.root().to_path_buf());
+            if watcher_enabled {
+                start_watcher(ws.root().to_path_buf());
+            }
             let _ = workspace::open_and_scan(path);
         }
         Err(e) => error(format!("打开项目失败：{e}")),
@@ -486,6 +495,10 @@ fn settings_set(_: &CommandContext, p: &CommandPayload) {
 /// JSON 编码字符串（前端信封按字符串传输，见 settings 契约 §5）；解码后
 /// 迁移并落盘，成功返回 Ok，失败返回面向用户的中文错误。`base` 注入便于
 /// 测试使用临时目录（不触碰真实用户配置）。
+///
+/// 监听开关接线：落盘成功后对比保存前后的 `watching.enableWatcher`
+/// （保存前 `load_global` 读旧值，保存后再读一次得生效值）——关→`watcher_pause`，
+/// 开→`watcher_resume`；未打开项目（无监听服务）时两者均为空操作。
 fn apply_settings_at(base: &Path, raw: Value) -> Result<(), String> {
     let v = match raw {
         Value::String(s) => {
@@ -495,7 +508,18 @@ fn apply_settings_at(base: &Path, raw: Value) -> Result<(), String> {
     };
     let settings: workspace::settings::Settings =
         serde_json::from_value(v).map_err(|e| format!("设置格式错误：{e}"))?;
+    let watcher_before = workspace::settings::load_global(base)
+        .watching
+        .enable_watcher;
     workspace::settings::save(base, &settings).map_err(|e| format!("保存设置失败：{e}"))?;
+    let watcher_after = workspace::settings::load_global(base)
+        .watching
+        .enable_watcher;
+    if watcher_before && !watcher_after {
+        session::watcher_pause();
+    } else if !watcher_before && watcher_after {
+        session::watcher_resume();
+    }
     emit(workspace::events::Event::SettingsChanged {
         scope: "global".into(),
     });
@@ -655,6 +679,33 @@ mod tests {
         assert_eq!(path, path2);
         let saved = workspace::settings::load_global(&base);
         assert_eq!(saved.appearance.theme, workspace::settings::Theme::Dark);
+
+        std::fs::remove_dir_all(&base).unwrap();
+    }
+
+    #[test]
+    fn apply_settings_监听开关落盘并可回切() {
+        let base = std::env::temp_dir().join(format!(
+            "glancemd-ultra-settings-watcher-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&base);
+
+        // 关闭监听：保存后读回 false（pause/resume 在无监听服务时空操作，不 panic）
+        let raw = json!({ "version": 1, "watching": { "enableWatcher": false } });
+        apply_settings_at(&base, raw).unwrap();
+        let saved = workspace::settings::load_global(&base);
+        assert!(!saved.watching.enable_watcher);
+        assert_eq!(saved.watching.auto_save, workspace::settings::AutoSave::Off);
+
+        // 重新开启：走 resume 分支，同样落盘生效
+        let raw = json!({ "version": 1, "watching": { "enableWatcher": true } });
+        apply_settings_at(&base, raw).unwrap();
+        assert!(
+            workspace::settings::load_global(&base)
+                .watching
+                .enable_watcher
+        );
 
         std::fs::remove_dir_all(&base).unwrap();
     }

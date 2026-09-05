@@ -236,9 +236,9 @@ function loadAssembledPage() {
 
 const assembledPage = loadAssembledPage();
 
-test('组装页包含全部 17 个产品脚本且顺序与 build_html 一致', (t) => {
+test('组装页包含全部 18 个产品脚本且顺序与 build_html 一致', (t) => {
   if (!assembledPage) return t.skip('tests/.tmp/index.html 不存在且无法生成（需 Python）');
-  const names = ['highlight.min.js', 'marked.min.js', 'preview.js', 'tabs.js', 'editor.js', 'app.js', 'commands.js', 'workspace.js', 'layout.js', 'outline.js', 'project-tree.js', 'search-panel.js', 'quick-open.js', 'settings.js', 'keybindings.js', 'command-palette.js', 'recovery.js'];
+  const names = ['highlight.min.js', 'marked.min.js', 'preview.js', 'tabs.js', 'editor.js', 'app.js', 'commands.js', 'workspace.js', 'layout.js', 'outline.js', 'project-tree.js', 'search-panel.js', 'quick-open.js', 'settings.js', 'keybindings.js', 'command-palette.js', 'recovery.js', 'settings-apply.js'];
   const positions = names.map((name) => {
     const source = fs.readFileSync(path.join(FRONTEND, name), 'utf8');
     const pos = assembledPage.indexOf(escapeForScriptTag(source));

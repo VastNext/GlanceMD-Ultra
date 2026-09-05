@@ -9,9 +9,10 @@
 拼接规则（与 main.rs::build_html 保持一致，勿单方面改动）：
 - index.html 中 ``/* __CSS__ */`` 替换为 style.css 全文，随后按 main.rs 同序追加 7 个面板 CSS；
 - ``<body>`` 替换为 ``<body data-platform="{platform}">``；
-- ``<!-- __SCRIPTS__ -->`` 替换为按序 9 个内联 <script>：
+- ``<!-- __SCRIPTS__ -->`` 替换为按序内联 <script>（与 main.rs 同序）：
   highlight.min.js -> marked.min.js -> preview.js -> tabs.js -> editor.js -> app.js
-  -> commands.js -> workspace.js -> layout.js；
+  -> commands.js -> workspace.js -> layout.js -> …面板脚本… -> settings-apply.js
+  （完整清单见下方 SCRIPT_ORDER）；
 - 每个 JS 经 ``</script`` -> ``<\\/script`` 转义后内联，防止提前闭合标签。
 
 用法
@@ -54,6 +55,7 @@ SCRIPT_ORDER = (
     "keybindings.js",
     "command-palette.js",
     "recovery.js",
+    "settings-apply.js",
 )
 
 
