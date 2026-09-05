@@ -7,7 +7,7 @@
    并额外输出 tests/.tmp/mock-ipc.js 供 Playwright addInitScript 使用。
 
 拼接规则（与 main.rs::build_html 保持一致，勿单方面改动）：
-- index.html 中 ``/* __CSS__ */`` 替换为 style.css 全文；
+- index.html 中 ``/* __CSS__ */`` 替换为 style.css 全文，随后按 main.rs 同序追加 7 个面板 CSS；
 - ``<body>`` 替换为 ``<body data-platform="{platform}">``；
 - ``<!-- __SCRIPTS__ -->`` 替换为按序 9 个内联 <script>：
   highlight.min.js -> marked.min.js -> preview.js -> tabs.js -> editor.js -> app.js
@@ -62,6 +62,18 @@ def escape_for_script_tag(js: str) -> str:
     return js.replace("</script", "<\\/script")
 
 
+# 与 main.rs::build_html 的 CSS 拼接顺序严格一致（style.css 之后）
+PANEL_CSS_ORDER = (
+    "outline.css",
+    "project-tree.css",
+    "search-panel.css",
+    "quick-open.css",
+    "settings.css",
+    "command-palette.css",
+    "recovery.css",
+)
+
+
 def build_html(platform: str, mock_bootstrap: str) -> str:
     index_html = (FRONTEND_DIR / "index.html").read_text(encoding="utf-8")
     style_css = (FRONTEND_DIR / "style.css").read_text(encoding="utf-8")
@@ -78,7 +90,13 @@ def build_html(platform: str, mock_bootstrap: str) -> str:
         for name in SCRIPT_ORDER
     )
 
-    html = index_html.replace("/* __CSS__ */", style_css)
+    panel_css = "".join(
+        f"\n/* ── {name} ── */\n"
+        + (FRONTEND_DIR / name).read_text(encoding="utf-8")
+        for name in PANEL_CSS_ORDER
+    )
+
+    html = index_html.replace("/* __CSS__ */", style_css + panel_css)
     html = html.replace("<body>", f'<body data-platform="{platform}">')
     html = html.replace("<!-- __SCRIPTS__ -->", scripts)
     return html
