@@ -20,21 +20,19 @@ function makeButtonNode(id) {
   return node;
 }
 
-// 装载 commands.js：document 提供可被克隆替换的 #btn-open（或不存在），
-// window.ipc 捕获上行消息。返回 window.Commands 与捕获到的消息。
-function loadCommands({ withButton = true } = {}) {
+// 装载 commands.js：document 提供入口按钮，window.ipc 捕获上行消息。
+function loadCommands({ withButton = true, withSettings = false } = {}) {
   const messages = [];
   const legacyClicks = [];
   const original = makeButtonNode('btn-open');
+  const openFile = makeButtonNode('btn-open-file');
+  const settings = makeButtonNode('btn-settings');
   let replacedBy = null;
-  const replacements = [];
   if (withButton) {
-    // 模拟 app.js 在启动时对 #btn-open 的既有绑定
     original.addEventListener('click', () => legacyClicks.push(true));
     original.parentNode = {
       replaceChild(child, old) {
         assert.equal(old, original);
-        replacements.push(old);
         replacedBy = child;
         child.parentNode = original.parentNode;
       },
@@ -42,17 +40,14 @@ function loadCommands({ withButton = true } = {}) {
   }
   const context = {
     window: {
-      ipc: {
-        postMessage(msg) {
-          messages.push(JSON.parse(msg));
-        },
-      },
+      ipc: { postMessage(msg) { messages.push(JSON.parse(msg)); } },
+      SettingsUI: withSettings ? { toggle() { messages.push({ settingsToggled: true }); } } : undefined,
     },
     document: {
       getElementById(id) {
-        if (id === 'btn-open') {
-          return replacedBy || original;
-        }
+        if (id === 'btn-open') return replacedBy || (withButton ? original : null);
+        if (id === 'btn-open-file') return openFile;
+        if (id === 'btn-settings') return withSettings ? settings : null;
         return null;
       },
     },
@@ -66,6 +61,8 @@ function loadCommands({ withButton = true } = {}) {
     original,
     replacedBy,
     legacyClicks,
+    openFile,
+    settings,
   };
 }
 
@@ -73,7 +70,7 @@ test('装载后暴露 window.Commands 并注册阶段 0 内置命令', () => {
   const { commands } = loadCommands();
   assert.ok(commands);
   // ids() 返回 vm 沙箱内的数组（原型与宿主不同），展开为宿主数组后比较
-  assert.deepEqual([...commands.ids()], ['file.open', 'workspace.open']);
+  assert.deepEqual([...commands.ids()], ['file.open', 'workspace.open', 'settings.toggle']);
   assert.equal(commands.get('file.open').label, '打开文件…');
 });
 
@@ -142,6 +139,20 @@ test('接管打开按钮：克隆替换原节点，旧 app.js 绑定不再触发
   assert.deepEqual(messages[0], { command: 'workspace.open' });
   // 旧绑定未随克隆复制，不会被触发（无双重对话框）
   assert.equal(legacyClicks.length, 0);
+});
+
+test('独立打开文件按钮经 file.open 命令工作', () => {
+  const h = loadCommands();
+  assert.equal(h.commands.has('file.open'), true);
+  h.openFile.listeners.click({ preventDefault() {} });
+  assert.deepEqual(h.messages, [{ command: 'open_file' }]);
+});
+
+test('settings.toggle 可执行并由按钮触发 SettingsUI.toggle', () => {
+  const h = loadCommands({ withSettings: true });
+  assert.equal(h.commands.has('settings.toggle'), true);
+  h.settings.listeners.click({ preventDefault() {} });
+  assert.equal(h.messages.filter((x) => x.settingsToggled).length, 1);
 });
 
 test('按钮不存在时优雅跳过且命令表仍可用', () => {

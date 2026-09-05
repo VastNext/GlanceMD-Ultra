@@ -54,8 +54,11 @@ test('页面加载：标题栏、平台标记与编辑器就绪', async ({ page 
   expect(commands).toContain('ready');
 });
 
-test('新建 tab：点击 #btn-new 后 tab 栏出现两个 tab 且可切换', async ({ page }) => {
-  // 初始只有 1 个 tab，tab 栏隐藏；新建后应有 2 个 tab 元素
+test('单 tab 也显示 tab 栏，新建 tab 后可切换', async ({ page }) => {
+  // 单 tab 状态也保留 tab 栏，避免布局与入口跳变
+  await expect(page.locator('#tab-bar-wrap')).toBeVisible();
+  await expect(page.locator('#tab-bar .tab')).toHaveCount(1);
+
   await page.click('#btn-new');
   const tabs = page.locator('#tab-bar .tab');
   await expect(tabs).toHaveCount(2);
@@ -65,6 +68,18 @@ test('新建 tab：点击 #btn-new 后 tab 栏出现两个 tab 且可切换', as
   // 点击第一个 tab 切换回去
   await tabs.first().click();
   await expect(tabs.first()).toHaveClass(/active/);
+});
+
+test('双入口与设置：文件、项目、设置按钮分别触发对应命令', async ({ page }) => {
+  await page.click('#btn-open-file');
+  await page.click('#btn-open');
+  await page.click('#btn-settings');
+
+  const messages = await page.evaluate(() => (window.__ipcLog || []).map((msg) => JSON.parse(msg)));
+  expect(messages.filter((message) => message.command === 'open_file')).toHaveLength(1);
+  expect(messages.filter((message) => message.command === 'workspace.open')).toHaveLength(1);
+  expect(messages.filter((message) => message.command === 'workspace.settings.get-effective')).toHaveLength(1);
+  await expect(page.locator('#settings-panel')).toBeVisible();
 });
 
 test('主题切换：data-theme 在 light/dark 间往返并持久化', async ({ page }) => {

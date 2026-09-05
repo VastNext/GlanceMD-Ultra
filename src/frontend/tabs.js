@@ -88,6 +88,7 @@ var TabManager = (function() {
     if (!tab) return;
     restoreTabState(tab);
     renderTabBar();
+    ensureActiveTabVisible();
     updateWindowTitle();
   }
 
@@ -183,13 +184,26 @@ var TabManager = (function() {
   function renderTabBar() {
     var bar = document.getElementById('tab-bar');
     var wrap = document.getElementById('tab-bar-wrap');
-    var show = tabs.length > 1;
-    wrap.style.display = show ? '' : 'none';
+    var show = true;
+    wrap.style.display = '';
     document.body.classList.toggle('has-tabs', show);
     bar.innerHTML = '';
     tabs.forEach(function(tab) {
       bar.appendChild(createTabElement(tab));
     });
+    updateTabNav();
+    ensureActiveTabVisible();
+  }
+
+  function ensureActiveTabVisible() {
+    var bar = document.getElementById('tab-bar');
+    if (!bar) return;
+    var active = bar.querySelector('.tab.active');
+    if (!active) return;
+    var left = active.offsetLeft;
+    var right = left + active.offsetWidth;
+    if (left < bar.scrollLeft) bar.scrollLeft = left;
+    else if (right > bar.scrollLeft + bar.clientWidth) bar.scrollLeft = right - bar.clientWidth;
     updateTabNav();
   }
 
@@ -415,6 +429,7 @@ var TabManager = (function() {
     findTabByPath: findTabByPath,
     getActiveTab: getActiveTab,
     hasAnyDirty: hasAnyDirty,
-    updateTabPath: updateTabPath
+    updateTabPath: updateTabPath,
+    ensureActiveTabVisible: ensureActiveTabVisible
   };
 })();

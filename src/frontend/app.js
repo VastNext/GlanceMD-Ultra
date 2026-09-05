@@ -729,7 +729,8 @@ document.addEventListener('keydown', function(e) {
     closeFind();
   } else if (primaryModifier && !e.shiftKey && e.key.toLowerCase() === 'o') {
     e.preventDefault();
-    sendToRust('open_file');
+    if (window.Commands && Commands.has && Commands.has('file.open')) Commands.run('file.open');
+    else sendToRust('open_file');
   } else if (primaryModifier && !e.shiftKey && e.key.toLowerCase() === 's') {
     e.preventDefault();
     doSave();
