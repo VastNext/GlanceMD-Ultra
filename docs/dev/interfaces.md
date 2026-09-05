@@ -42,7 +42,7 @@
 | wire 命令 | 注册表 ID | 参数 | 行为（Rust 侧） | 备注 |
 |---|---|---|---|---|
 | `open_file` | `file.open` | `path?` | 有 `path`：读文件，成功发 `file_opened` 并前置窗口，失败发 `error`；无 `path`：弹出系统打开文件对话框 | 自 `ipc.rs` 原分支逐行迁移，行为与迁移前一致 |
-| `workspace.open` | `workspace.open` | `path`（必填） | `Workspace::open_root` 校验 + canonicalize，发 `workspace:opened`，后台线程扫描并周期发 `workspace:scan-progress`；校验失败发 `workspace:error` | 阶段 0 新增 |
+| `workspace.open` | `workspace.open` | `path?` | 有 path 时打开指定目录；无 path 时弹出原生目录选择器；`Workspace::open_root` 校验 + canonicalize，发 `workspace:opened`，后台线程扫描并周期发 `workspace:scan-progress`；校验失败发 `workspace:error` | 阶段 0/目录入口已实现 |
 
 ### 2.2 未迁移（仍由 `ipc.rs` match 直连，阶段 0 现状）
 
@@ -129,7 +129,11 @@
 ### 4.3 DOM 契约补充
 
 - 状态栏：`#statusbar` 内既有 `#status-mode / #status-file / #status-counts / #status-info`；workspace 信息使用**运行时创建**的 `#status-workspace`（workspace.js 惰性创建），与 `#status-info`（Saved/Error 短暂占用并自动清空）互不覆盖。
-- 打开文件按钮：`#btn-open` 的点击由 commands.js 以**克隆替换节点**方式接管（旧 app.js 匿名监听器无法摘除；克隆不复制监听器），点击即 `Commands.run('file.open')`。其他模块给 `#btn-open` 加逻辑必须走命令表，不得再绑 click。
+- 打开入口：`#btn-open` 为 Open Folder，点击由 commands.js 以**克隆替换节点**方式接管并执行 `Commands.run('workspace.open')`；`#btn-open-file` 为 Open File，执行 `Commands.run('file.open')`。两者均不得在其他模块中重复绑定 click。
+- Settings 入口：`#btn-settings` 执行 `Commands.run('settings.toggle')`；面板本身由 `window.SettingsUI` 惰性创建。
+- Tab 可见性：`#tab-bar` 为横向滚动容器；每次活动 tab 切换或 tab 栏重绘后，必须把 `.tab.active` 保持在容器可视区内，不改变用户主动滚动时的其他 tab 顺序。
+- 单文档规则：即使只有一个文件 tab，tab 栏仍显示；关闭最后一个文档后回到可编辑的 Untitled tab。
+- Toggle Preview：`#btn-toggle.active` 仅表示纯 Preview 模式；其紫→粉背景复用 `--heading-glow`，是工具栏 active 状态，不是预览内容区背景；split 模式不把按钮标成纯预览 active。
 
 ## 5. 前端新文件接入 build_html
 
