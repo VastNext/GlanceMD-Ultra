@@ -220,6 +220,8 @@ function loadTree({ rootPath = null, lsExpanded = null, withClipboard = true } =
     },
   };
   context.window = {
+    innerWidth: 400,
+    innerHeight: 300,
     ipc: {
       postMessage(msg) {
         ipcMessages.push(JSON.parse(msg));
@@ -647,6 +649,63 @@ test('右键打开上下文菜单：未选中行先选中，Esc/外点击关闭'
   assert.ok(item);
   h.docHandlers.click.forEach((fn) => fn({ target: item }));
   assert.ok(h.menu(), '菜单内点击不触发外点关闭');
+});
+
+test('上下文菜单无障碍语义与键盘导航：aria-disabled、方向键、Enter、Escape', () => {
+  const h = loadTree({ rootPath: 'G:/proj' });
+  h.listed('', [{ name: 'a.md', rel: 'a.md', kind: 'file' }, { name: 'docs', rel: 'docs', kind: 'dir' }]);
+  h.contextOn('a.md');
+  const menu = h.menu();
+  assert.equal(menu.getAttribute('role'), 'menu');
+  assert.equal(menu.getAttribute('aria-label'), '项目树操作');
+  const rename = h.menuItem('rename');
+  assert.equal(rename.getAttribute('role'), 'menuitem');
+  assert.equal(rename.getAttribute('tabindex'), '-1');
+  assert.equal(rename.getAttribute('aria-disabled'), 'false');
+  const paste = h.menuItem('paste');
+  assert.equal(paste.getAttribute('aria-disabled'), 'true');
+  assert.equal(rename.focused, false);
+  const down = { key: 'ArrowDown', preventDefault() { this.prevented = true; } };
+  menu.listeners.keydown.forEach((fn) => fn(down));
+  assert.equal(down.prevented, true);
+  assert.equal(h.menuItem('create-dir').classList.contains('is-active'), true);
+  const enter = { key: 'Enter', preventDefault() { this.prevented = true; } };
+  menu.listeners.keydown.forEach((fn) => fn(enter));
+  assert.equal(enter.prevented, true);
+  assert.equal(h.menu(), null, 'Enter 执行菜单项后关闭');
+
+  h.contextOn('a.md');
+  const menu2 = h.menu();
+  const up = { key: 'ArrowUp', preventDefault() {} };
+  menu2.listeners.keydown.forEach((fn) => fn(up));
+  assert.equal(h.menuItem('copy-rel').classList.contains('is-active'), true, '向上从首项环回末项');
+  const esc = { key: 'Escape', preventDefault() { this.prevented = true; } };
+  menu2.listeners.keydown.forEach((fn) => fn(esc));
+  assert.equal(esc.prevented, true);
+  assert.equal(h.menu(), null);
+});
+
+test('上下文菜单边界定位：右下角翻转并夹紧到 viewport', () => {
+  const h = loadTree({ rootPath: 'G:/proj' });
+  h.listed('', [{ name: 'a.md', rel: 'a.md', kind: 'file' }]);
+  h.contextOn('a.md', { clientX: 390, clientY: 290 });
+  const menu = h.menu();
+  // mock DOM 的默认 rect 为 0，运行时 fallback 使用 212px 宽、320px 高。
+  // 400×300 viewport 下，右下角坐标应翻转/夹紧为 (188px, 0px)。
+  assert.equal(menu.style.left, '188px');
+  assert.equal(menu.style.top, '0px');
+});
+
+test('菜单样式包含明暗主题 token、raised overlay、hover/危险态与 focus-visible', () => {
+  const css = fs.readFileSync(path.join(__dirname, 'project-tree.css'), 'utf8');
+  for (const token of ['--tree-menu-bg', '--tree-menu-border', '--tree-menu-shadow', '--tree-menu-hover', '--tree-menu-danger-hover']) {
+    assert.match(css, new RegExp(token));
+  }
+  assert.match(css, /\[data-theme="light"\]/);
+  assert.match(css, /\.ctx-item:focus-visible/);
+  assert.match(css, /\.ctx-item\.danger:hover/);
+  assert.match(css, /min-width:\s*212px/);
+  assert.match(css, /height:\s*26px/);
 });
 
 test('菜单项→命令映射：新建文件按目标目录、终端、reveal、删除', () => {
