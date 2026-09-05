@@ -473,18 +473,32 @@ fn settings_effective(_: &CommandContext, _: &CommandPayload) {
     });
 }
 fn settings_set(_: &CommandContext, p: &CommandPayload) {
-    let Some(v) = value(p, &["data", "settings"]) else {
+    let Some(raw) = value(p, &["data", "settings"]) else {
         return;
     };
-    match serde_json::from_value(v) {
-        Ok(s) => match workspace::settings::save(&settings_base(), &s) {
-            Ok(_) => emit(workspace::events::Event::SettingsChanged {
-                scope: "global".into(),
-            }),
-            Err(e) => error(format!("保存设置失败：{e}")),
-        },
-        Err(e) => error(format!("设置格式错误：{e}")),
+    if let Err(e) = apply_settings_at(&settings_base(), raw) {
+        error(e);
     }
+}
+
+/// `settings.set-global` 的纯逻辑：`data` 兼容两种形态——设置对象本身，或
+/// JSON 编码字符串（前端信封按字符串传输，见 settings 契约 §5）；解码后
+/// 迁移并落盘，成功返回 Ok，失败返回面向用户的中文错误。`base` 注入便于
+/// 测试使用临时目录（不触碰真实用户配置）。
+fn apply_settings_at(base: &Path, raw: Value) -> Result<(), String> {
+    let v = match raw {
+        Value::String(s) => {
+            serde_json::from_str::<Value>(&s).map_err(|e| format!("设置格式错误：{e}"))?
+        }
+        other => other,
+    };
+    let settings: workspace::settings::Settings =
+        serde_json::from_value(v).map_err(|e| format!("设置格式错误：{e}"))?;
+    workspace::settings::save(base, &settings).map_err(|e| format!("保存设置失败：{e}"))?;
+    emit(workspace::events::Event::SettingsChanged {
+        scope: "global".into(),
+    });
+    Ok(())
 }
 fn settings_project(_: &CommandContext, _: &CommandPayload) {
     if let Some(r) = require_root() {
@@ -558,5 +572,34 @@ mod tests {
     #[test]
     fn payload_defaults() {
         assert!(CommandPayload::default().extra.is_null());
+    }
+
+    #[test]
+    fn apply_settings_接受字符串与对象两种_data_形态() {
+        let base = std::env::temp_dir().join(format!(
+            "glancemd-ultra-settings-test-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&base);
+
+        // data = JSON 编码字符串（前端信封形态）：data 值本身就是字符串
+        let raw = Value::String(r#"{"version":1,"appearance":{"theme":"dark"}}"#.into());
+        apply_settings_at(&base, raw).unwrap();
+        let saved = workspace::settings::load_global(&base);
+        assert_eq!(saved.appearance.theme, workspace::settings::Theme::Dark);
+
+        // data = 对象形态
+        let raw = json!({ "version": 1, "appearance": { "theme": "light" } });
+        apply_settings_at(&base, raw).unwrap();
+        let saved = workspace::settings::load_global(&base);
+        assert_eq!(saved.appearance.theme, workspace::settings::Theme::Light);
+
+        // data = 非法字符串：报错且不落盘（文件内容保持上一次成功值）
+        let raw = Value::String("not-json".into());
+        assert!(apply_settings_at(&base, raw).is_err());
+        let saved = workspace::settings::load_global(&base);
+        assert_eq!(saved.appearance.theme, workspace::settings::Theme::Light);
+
+        std::fs::remove_dir_all(&base).unwrap();
     }
 }
