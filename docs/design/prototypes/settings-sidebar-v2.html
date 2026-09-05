@@ -10,12 +10,20 @@
    Linear / Raycast Dark Ladder + Cursor / Notion Warm-White Light
    ════════════════════════════════════════════════════════════════ */
 :root {
+  color-scheme: dark;
   /* ── 暗色模式阶梯（Dark Surface Ladder） ── */
   --bg-base: #101012;
   --bg-surface: #17171a;
   --bg-raised: #1f1f24;
   --bg-overlay: #28282e;
   --bg-active: #2c2c34;
+  
+  --input-bg: #191a1b;
+  --input-bg-hover: #28282e;
+  --input-border: rgba(255, 255, 255, 0.08);
+  --input-border-hover: rgba(255, 255, 255, 0.16);
+  --input-text: #f4f4f6;
+  --input-placeholder: #5c5c6b;
   
   --text: #c8c8d2;
   --text-secondary: #868694;
@@ -75,11 +83,19 @@
 
 /* ── 暖白浅色阶梯（Cursor / Notion Warm-White Light Hairline） ── */
 [data-theme="light"] {
+  color-scheme: light;
   --bg-base: #f5f6f9;
   --bg-surface: #ffffff;
   --bg-raised: #f0f2f6;
   --bg-overlay: #e5e8f0;
   --bg-active: #dbe0ea;
+  
+  --input-bg: #ffffff;
+  --input-bg-hover: #f0f2f6;
+  --input-border: #d4d8e2;
+  --input-border-hover: #cbd2df;
+  --input-text: #2c303b;
+  --input-placeholder: #9299a9;
   
   --text: #2c303b;
   --text-secondary: #626877;
@@ -742,13 +758,16 @@ html, body {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: var(--bg-base);
-  border: 1px solid var(--border);
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
   border-radius: var(--radius-sm);
   padding: 0 8px;
   height: 28px;
   width: 220px;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.search-input-box:hover {
+  border-color: var(--input-border-hover);
 }
 .search-input-box:focus-within {
   border-color: var(--focus-border);
@@ -760,11 +779,11 @@ html, body {
   outline: none;
   font-family: var(--font-body);
   font-size: 12px;
-  color: var(--text);
+  color: var(--input-text);
   width: 100%;
 }
 .search-input-box input::placeholder {
-  color: var(--text-dim);
+  color: var(--input-placeholder);
 }
 
 .modal-close-btn {
@@ -966,39 +985,62 @@ html, body {
 .select-input {
   height: 28px;
   padding: 0 28px 0 10px;
-  background-color: var(--bg-raised);
-  border: 1px solid var(--border);
+  background-color: var(--input-bg);
+  border: 1px solid var(--input-border);
   border-radius: var(--radius-sm);
-  color: var(--text);
+  color: var(--input-text);
   font-family: var(--font-body);
   font-size: 12px;
   outline: none;
   cursor: pointer;
+  -webkit-appearance: none;
+  -moz-appearance: none;
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23868694' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 8px center;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.select-input:focus {
+.select-input:hover {
+  background-color: var(--input-bg-hover);
+  border-color: var(--input-border-hover);
+  color: var(--input-text);
+}
+.select-input:focus,
+.select-input:focus-visible {
+  outline: none;
   border-color: var(--focus-border);
   box-shadow: var(--focus-ring);
+}
+.select-input option {
+  background-color: var(--input-bg);
+  color: var(--input-text);
+}
+
+[data-theme="light"] .select-input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23626877' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
 }
 
 /* Text / Number Input */
 .text-input {
   height: 28px;
   padding: 0 8px;
-  background-color: var(--bg-raised);
-  border: 1px solid var(--border);
+  background-color: var(--input-bg);
+  border: 1px solid var(--input-border);
   border-radius: var(--radius-sm);
-  color: var(--text);
+  color: var(--input-text);
   font-family: var(--font-body);
   font-size: 12px;
   outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.text-input:focus {
+.text-input:hover {
+  background-color: var(--input-bg-hover);
+  border-color: var(--input-border-hover);
+}
+.text-input:focus,
+.text-input:focus-visible {
+  outline: none;
   border-color: var(--focus-border);
   box-shadow: var(--focus-ring);
 }
