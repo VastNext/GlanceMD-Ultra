@@ -206,6 +206,11 @@
     row.className = 'tree-row';
     row.dataset.rel = entry.rel;
     row.dataset.kind = entry.kind;
+    row.id = 'project-tree-row-' + (entry.rel === '' ? 'root' : entry.rel.replace(/[^A-Za-z0-9_-]/g, '-'));
+    row.setAttribute('role', 'treeitem');
+    row.setAttribute('aria-level', String(depth + 1));
+    row.setAttribute('aria-selected', 'false');
+    if (entry.kind === 'dir') row.setAttribute('aria-expanded', setHas(expanded, entry.rel) ? 'true' : 'false');
     // 缩进走 --tree-indent token（style.css 阶段 1 登记值）
     row.style.paddingLeft = 'calc(8px + var(--tree-indent) * ' + depth + ')';
 
@@ -291,10 +296,15 @@
       var row = rowByRel[rel];
       if (!row) return;
       var cls = row.classList;
-      cls.toggle('st-selected', selectedRels.indexOf(rel) !== -1);
+      var selected = selectedRels.indexOf(rel) !== -1;
+      cls.toggle('st-selected', selected);
       cls.toggle('st-active', !multi && rel === activeRel);
       cls.toggle('st-reveal', activeFileRel !== null && rel === activeFileRel);
       cls.toggle('st-cut', clipboard.mode === 'cut' && clipboard.rels.indexOf(rel) !== -1);
+      row.setAttribute('aria-selected', selected ? 'true' : 'false');
+      if (String(row.dataset.kind) === 'dir') {
+        row.setAttribute('aria-expanded', setHas(expanded, rel) ? 'true' : 'false');
+      }
     });
     // 面板头"定位当前文件"按钮：无活动文件时置灰
     if (els.headBtn) {

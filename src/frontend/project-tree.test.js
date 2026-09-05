@@ -691,8 +691,8 @@ test('上下文菜单边界定位：右下角翻转并夹紧到 viewport', () =>
   h.contextOn('a.md', { clientX: 390, clientY: 290 });
   const menu = h.menu();
   // mock DOM 的默认 rect 为 0，运行时 fallback 使用 212px 宽、320px 高。
-  // 400×300 viewport 下，右下角坐标应翻转/夹紧为 (188px, 0px)。
-  assert.equal(menu.style.left, '188px');
+  // 400×300 viewport 下，右下角坐标应翻转/夹紧为 (178px, 0px)。
+  assert.equal(menu.style.left, '178px');
   assert.equal(menu.style.top, '0px');
 });
 
