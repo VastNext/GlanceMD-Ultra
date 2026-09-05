@@ -358,9 +358,10 @@ test('#settings-filter 过滤：命中英文 key 与中文标签', () => {
   panel.querySelector('#settings-categories').children[4].onclick(); // 编辑器
   filter.value = '字号';
   filter.oninput();
+  // 搜索是全局的：同时命中 编辑器.fontSize 与 外观.sidebarFontSize（按分类先后排序）
   assert.deepEqual(
     panel.querySelectorAll('[data-setting]').map((el) => el.dataset.setting),
-    ['fontSize'],
+    ['sidebarFontSize', 'fontSize'],
   );
   filter.value = '不存在的关键字';
   filter.oninput();
