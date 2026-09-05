@@ -11,6 +11,7 @@ use tao::window::Window;
 use wry::WebView;
 
 use crate::atomic_save;
+use crate::data_dir;
 use crate::file_codec::{self, Eol, TextFile};
 use crate::file_ops;
 use crate::ipc;
@@ -448,10 +449,10 @@ fn watcher_resume(_: &CommandContext, _: &CommandPayload) {
     session::watcher_resume();
 }
 
+/// 全局设置/恢复区的基目录：跟随便携数据目录（优先 exe 旁 data/，自动回退）。
+/// `global_settings_path(base)` 等下游契约不变，仍以 `base` 注入。
 fn settings_base() -> PathBuf {
-    dirs::config_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("glancemd-ultra")
+    data_dir::data_base().to_path_buf()
 }
 fn settings_global(_: &CommandContext, _: &CommandPayload) {
     let x = workspace::settings::load_global_checked(&settings_base());

@@ -19,6 +19,7 @@ use wry::WebViewBuilder;
 
 mod atomic_save;
 mod commands;
+mod data_dir;
 mod file_codec;
 mod file_ops;
 mod ipc;
@@ -211,6 +212,21 @@ fn main() {
             st.pending_content = Some(buf);
             st.pending_title = title_arg;
         }
+    }
+
+    // 便携数据目录：在事件桥/窗口/WebView 创建之前解析并固定。此后全局设置、
+    // 恢复区、窗口状态、WebView2 用户数据全部经 data_dir::data_base() 取路径。
+    // WEBVIEW2_USER_DATA_FOLDER：wry 在 Windows 未显式指定 UDF（传空）时，
+    // WebView2 加载器会读取该环境变量；指到 data_base()/webview2，避免默认
+    // 落在 exe 旁可能不可写的位置（该变量在 macOS/Linux 上无作用，无害）。
+    // unsafe 理由：std::env::set_var 自 Rust 2024 edition 起为 unsafe（进程级
+    // 环境表无同步机制）；本 crate 仍为 edition 2021（调用现为安全，allow 抑制
+    // unused_unsafe），且此处仅在 main 启动早期、单线程、事件循环与任何后台
+    // 线程启动之前调用一次，不存在并发读写环境变量的竞态。
+    let data_base = data_dir::data_base();
+    #[allow(unused_unsafe)]
+    unsafe {
+        std::env::set_var("WEBVIEW2_USER_DATA_FOLDER", data_base.join("webview2"));
     }
 
     let (pos, size) = window_state::load_window_state();

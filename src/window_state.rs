@@ -10,11 +10,9 @@ struct WindowState {
     height: u32,
 }
 
+/// 窗口状态文件随便携数据目录走（优先 exe 旁 data/，自动回退）
 fn config_path() -> PathBuf {
-    let mut p = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
-    p.push("glancemd-ultra");
-    p.push("window_state.json");
-    p
+    crate::data_dir::data_base().join("window_state.json")
 }
 
 pub fn load_window_state() -> ((i32, i32), (u32, u32)) {
