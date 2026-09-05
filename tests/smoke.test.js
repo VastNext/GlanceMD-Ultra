@@ -1,7 +1,8 @@
 /* 零依赖冒烟套件：node:test + node:vm，stub 风格照 src/frontend/preview.test.js。
  *
  * 覆盖三组内容（全部不依赖真实浏览器）：
- * 1. tabs.js：tab 创建/激活切换/dirty 标记/关闭/同路径复用；
+ * 1. tabs.js：tab 创建/激活切换/dirty 标记/关闭/同路径复用；右键菜单（四项操作、
+ *    批量关闭 closeTabs 的单次 dirty 确认、活动 tab 相邻规则、document 级关闭逻辑）；
  *    为贴近真实加载顺序，tabs.js 与 app.js 在同一 vm 上下文中按页面顺序加载，
  *    由 app.js 提供 sendToRust/toggleMode/setTitle 等全局（与浏览器一致）。
  * 2. app.js：主题切换函数（light/dark 往返 + localStorage 键名）与 IPC 事件桥。
@@ -48,6 +49,7 @@ function createElement(tag) {
     selectionStart: 0,
     selectionEnd: 0,
     appendChild(child) {
+      child.parentNode = element;
       element.children.push(child);
       return child;
     },
@@ -56,7 +58,14 @@ function createElement(tag) {
       if (current !== -1) element.children.splice(current, 1);
       const idx = ref ? element.children.indexOf(ref) : -1;
       element.children.splice(idx === -1 ? element.children.length : idx, 0, node);
+      node.parentNode = element;
       return node;
+    },
+    removeChild(child) {
+      const idx = element.children.indexOf(child);
+      if (idx !== -1) element.children.splice(idx, 1);
+      child.parentNode = null;
+      return child;
     },
     addEventListener(type, handler) {
       (element.listeners[type] = element.listeners[type] || []).push(handler);
@@ -105,8 +114,11 @@ function createElement(tag) {
   Object.defineProperty(element, 'innerHTML', {
     get: () => innerHTMLValue,
     set: (value) => {
-      innerHTMLValue = String(value);
+      element.children.forEach((child) => {
+        child.parentNode = null;
+      });
       element.children.length = 0;
+      innerHTMLValue = String(value);
     },
   });
   return element;
@@ -190,6 +202,9 @@ function createHarness() {
     },
     fireDOMContentLoaded() {
       (docHandlers.DOMContentLoaded || []).forEach((handler) => handler({ type: 'DOMContentLoaded' }));
+    },
+    fireDocumentEvent(type, event) {
+      (docHandlers[type] || []).forEach((handler) => handler(event));
     },
     clickButton(id) {
       const el = byId(id);
@@ -372,6 +387,197 @@ test('关闭当前 tab 自动切换相邻 tab；关闭未保存 tab 需确认', 
   const active = h.context.TabManager.getActiveTab();
   assert.equal(active.filename, 'Untitled', '最后一个 tab 关闭后回到 Untitled');
   assert.equal(active.mode, 'edit');
+});
+
+/* ── tabs.js 右键菜单 ── */
+
+function tabIds(h) {
+  return h.byId('tab-bar').children.map((el) => Number(el.dataset.tabId));
+}
+
+function tabElementOf(h, id) {
+  const el = h.byId('tab-bar').children.find((el) => Number(el.dataset.tabId) === id);
+  assert.ok(el, 'tab 栏中应存在 id=' + id + ' 的 tab 元素');
+  return el;
+}
+
+/* 在 vm 中直接触发 tab 元素的 contextmenu 监听（即菜单打开路径） */
+function openTabContextMenu(h, tabElement) {
+  assert.ok(tabElement.listeners.contextmenu, 'tab 元素应绑定 contextmenu 监听');
+  const flags = { prevented: false, stopped: false };
+  tabElement.listeners.contextmenu.forEach((handler) =>
+    handler({
+      preventDefault() {
+        flags.prevented = true;
+      },
+      stopPropagation() {
+        flags.stopped = true;
+      },
+      clientX: 12,
+      clientY: 24,
+    }),
+  );
+  return flags;
+}
+
+function findTabMenu(h) {
+  return h.context.document.body.children.find((el) => el.className === 'ctx-menu') || null;
+}
+
+function menuItem(menu, action) {
+  const item = menu.children.find((el) => el.dataset.action === action);
+  assert.ok(item, '菜单缺少动作项：' + action);
+  assert.ok(item.listeners.click, '菜单项应绑定 click 监听：' + action);
+  return item;
+}
+
+function clickMenuItem(menu, action) {
+  menuItem(menu, action).listeners.click.forEach((handler) => handler({ stopPropagation() {} }));
+}
+
+test('tab 右键弹出菜单：四项齐全、menuitem 语义、首尾 tab 对应侧禁用', () => {
+  const h = createHarness();
+  h.fireDOMContentLoaded();
+  const u = h.context.TabManager.getActiveTab();
+  const a = h.context.TabManager.createTab(null, 'A');
+  const b = h.context.TabManager.createTab(null, 'B');
+
+  const flags = openTabContextMenu(h, tabElementOf(h, u.id));
+  assert.equal(flags.prevented, true, 'contextmenu 应 preventDefault 阻止原生菜单');
+  assert.equal(flags.stopped, true, 'contextmenu 应 stopPropagation，避免冒泡到 document 关闭逻辑');
+
+  const menu = findTabMenu(h);
+  assert.ok(menu, '右键后 body 上应出现 .ctx-menu 菜单');
+  assert.equal(menu.className, 'ctx-menu', '复用 project-tree.css 的菜单类');
+  assert.equal(menu.getAttribute('role'), 'menu');
+  assert.deepEqual(
+    menu.children.map((el) => el.textContent),
+    ['关闭', '关闭左侧标签', '关闭右侧标签', '关闭所有标签'],
+    '菜单应包含全部四项',
+  );
+  assert.deepEqual(
+    menu.children.map((el) => el.getAttribute('role')),
+    ['menuitem', 'menuitem', 'menuitem', 'menuitem'],
+  );
+  assert.equal(menu.style.left, '12px', '菜单应按右键位置定位');
+  assert.equal(menu.style.top, '24px');
+
+  // 首个 tab：左侧无目标 → 关闭左侧禁用（aria-disabled），右侧可用
+  const left = menuItem(menu, 'left');
+  assert.equal(left.classList.contains('disabled'), true, '首 tab 的关闭左侧应禁用');
+  assert.equal(left.getAttribute('aria-disabled'), 'true');
+  assert.equal(menuItem(menu, 'right').getAttribute('aria-disabled'), 'false');
+
+  // 末个 tab：右侧无目标 → 关闭右侧禁用
+  h.fireDocumentEvent('keydown', { key: 'Escape', preventDefault() {} });
+  assert.equal(findTabMenu(h), null, '换目标前菜单应可被 Esc 关闭');
+  openTabContextMenu(h, tabElementOf(h, b.id));
+  const menuB = findTabMenu(h);
+  assert.ok(menuB, '换目标右键应重新打开菜单');
+  assert.equal(menuItem(menuB, 'right').classList.contains('disabled'), true, '末 tab 的关闭右侧应禁用');
+  assert.equal(menuItem(menuB, 'right').getAttribute('aria-disabled'), 'true');
+  assert.equal(menuItem(menuB, 'left').classList.contains('disabled'), false);
+  assert.equal(menuItem(menuB, 'all').classList.contains('disabled'), false, '关闭所有始终可用');
+});
+
+test('右键菜单关闭左侧/右侧：只关对应集合、活动 tab 沿用相邻规则', () => {
+  const h = createHarness();
+  h.fireDOMContentLoaded();
+  const confirmCalls = [];
+  h.context.confirm = (msg) => {
+    confirmCalls.push(msg);
+    return true;
+  };
+  const b = h.context.TabManager.createTab(null, 'B');
+  const c = h.context.TabManager.createTab(null, 'C');
+  // tabs：[Untitled, B, C]，活动 C
+
+  // 在 B 上关闭左侧 → Untitled 被关；B、C 保留，活动保持 C
+  openTabContextMenu(h, tabElementOf(h, b.id));
+  clickMenuItem(findTabMenu(h), 'left');
+  assert.deepEqual(tabIds(h), [b.id, c.id], '只应关闭目标左侧的 tab');
+  assert.equal(h.context.TabManager.getActiveTab().id, c.id, '活动 tab 未被关闭时保持不变');
+  assert.equal(confirmCalls.length, 0, '无 dirty 时批量关闭不应弹确认');
+  assert.equal(findTabMenu(h), null, '点击菜单项后菜单应关闭');
+
+  // 在 B 上关闭右侧 → C 被关；活动 tab 被移除，切到相邻的 B
+  openTabContextMenu(h, tabElementOf(h, b.id));
+  clickMenuItem(findTabMenu(h), 'right');
+  assert.deepEqual(tabIds(h), [b.id], '只应关闭目标右侧的 tab');
+  assert.equal(h.context.TabManager.getActiveTab().id, b.id, '活动 tab 被关闭后切到相邻 tab');
+});
+
+test('右键菜单关闭所有：dirty 单次 confirm 且文案含数量，关完回到 Untitled', () => {
+  const h = createHarness();
+  h.fireDOMContentLoaded();
+  const confirmCalls = [];
+  h.context.confirm = (msg) => {
+    confirmCalls.push(msg);
+    return true;
+  };
+  const a = h.context.TabManager.createTab(null, 'A');
+  const b = h.context.TabManager.createTab(null, 'B');
+  h.context.TabManager.markDirty(a.id);
+  h.context.TabManager.markDirty(b.id);
+
+  openTabContextMenu(h, tabElementOf(h, b.id));
+  clickMenuItem(findTabMenu(h), 'all');
+  assert.equal(confirmCalls.length, 1, '整批关闭只做一次确认');
+  assert.match(confirmCalls[0], /有 2 个未保存的标签页，确定全部关闭？/);
+  const active = h.context.TabManager.getActiveTab();
+  assert.equal(active.filename, 'Untitled', '全部关完后自动回到 Untitled');
+  assert.equal(active.mode, 'edit');
+  assert.equal(tabIds(h).length, 1, 'tab 栏仅剩新建的 Untitled');
+  assert.equal(findTabMenu(h), null);
+});
+
+test('右键菜单取消确认整批保留；"关闭"项保留单 tab dirty 确认语义', () => {
+  const h = createHarness();
+  h.fireDOMContentLoaded();
+  const u = h.context.TabManager.getActiveTab();
+  // 用 forceFilename 命名，便于断言确认文案对应具体 tab（无路径 tab 默认都叫 Untitled）
+  const a = h.context.TabManager.createTab(null, 'A', null, 'A.md');
+  const b = h.context.TabManager.createTab(null, 'B', null, 'B.md');
+  h.context.TabManager.markDirty(a.id);
+
+  // 取消确认：整批原样保留
+  h.context.confirm = () => false;
+  openTabContextMenu(h, tabElementOf(h, b.id));
+  clickMenuItem(findTabMenu(h), 'all');
+  assert.deepEqual(tabIds(h), [u.id, a.id, b.id], '取消确认则整批保留');
+  assert.equal(findTabMenu(h), null, '取消后菜单仍应关闭');
+
+  // "关闭"项走 closeTab：确认文案是该 tab 的未保存提示，关闭后活动切相邻
+  const closeCalls = [];
+  h.context.confirm = (msg) => {
+    closeCalls.push(msg);
+    return true;
+  };
+  openTabContextMenu(h, tabElementOf(h, a.id));
+  clickMenuItem(findTabMenu(h), 'close');
+  assert.equal(closeCalls.length, 1, '关闭 dirty tab 应确认一次');
+  assert.match(closeCalls[0], /Unsaved changes in "A\.md"/);
+  assert.deepEqual(tabIds(h), [u.id, b.id]);
+  assert.equal(h.context.TabManager.getActiveTab().id, b.id, '关闭非活动 tab 不改变活动 tab');
+});
+
+test('菜单开着时：菜单外点击 / Esc / 其他右键均关闭菜单', () => {
+  const h = createHarness();
+  h.fireDOMContentLoaded();
+  const a = h.context.TabManager.createTab(null, 'A');
+
+  openTabContextMenu(h, tabElementOf(h, a.id));
+  assert.ok(findTabMenu(h));
+  h.fireDocumentEvent('click', { target: h.context.document.body });
+  assert.equal(findTabMenu(h), null, 'document 级 click（菜单外）应关闭菜单');
+
+  openTabContextMenu(h, tabElementOf(h, a.id));
+  h.fireDocumentEvent('keydown', { key: 'Escape', preventDefault() {} });
+  assert.equal(findTabMenu(h), null, 'Esc 应关闭菜单');
+
+  openTabContextMenu(h, tabElementOf(h, a.id));
+  h.fireDocumentEvent('contextmenu', { target: {} });
+  assert.equal(findTabMenu(h), null, '菜单外右键应关闭菜单');
 });
 
 /* ── app.js 冒烟 ── */

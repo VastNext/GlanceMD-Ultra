@@ -74,6 +74,33 @@ var TabManager = (function() {
     }
   }
 
+  /* ── 批量关闭 ──
+     整批只做一次 dirty 确认（文案含数量），不走逐个 closeTab 的确认；
+     关闭后活动 tab 沿用 closeTab 的相邻规则：以被移除的最左下标为锚，
+     取移除后占据该位置的 tab（min(锚下标, 末位)）；全部关完回到 Untitled */
+  function closeTabs(ids) {
+    var idSet = {};
+    (ids || []).forEach(function(id) { idSet[id] = true; });
+    var targets = tabs.filter(function(t) { return idSet[t.id]; });
+    if (targets.length === 0) return;
+    var dirtyCount = targets.filter(function(t) { return t.dirty; }).length;
+    if (dirtyCount > 0) {
+      if (!confirm('有 ' + dirtyCount + ' 个未保存的标签页，确定全部关闭？')) return;
+    }
+    var anchorIdx = tabs.indexOf(targets[0]);
+    tabs = tabs.filter(function(t) { return !idSet[t.id]; });
+    syncDirtyState();
+    if (tabs.length === 0) {
+      createTab(null, '');
+      return;
+    }
+    if (!getActiveTab() || idSet[activeTabId]) {
+      switchTab(tabs[Math.min(anchorIdx, tabs.length - 1)].id);
+    } else {
+      renderTabBar();
+    }
+  }
+
   function switchTab(id) {
     var outgoing = getActiveTab();
     if (outgoing && outgoing.id === id) {
@@ -249,6 +276,16 @@ var TabManager = (function() {
         beginDragWatch(el, e);
       }
     });
+    el.addEventListener('contextmenu', function(e) {
+      if (e.preventDefault) e.preventDefault();
+      /* 不冒泡到 document 关闭逻辑，避免菜单刚打开就被关闭（同 project-tree） */
+      if (e.stopPropagation) e.stopPropagation();
+      openTabMenu(
+        typeof e.clientX === 'number' ? e.clientX : 0,
+        typeof e.clientY === 'number' ? e.clientY : 0,
+        tab.id
+      );
+    });
     return el;
   }
 
@@ -338,6 +375,138 @@ var TabManager = (function() {
   document.addEventListener('mousemove', onDragMove);
   document.addEventListener('mouseup', onDragEnd);
 
+  /* ── tab 右键菜单 ──
+     视觉复用 project-tree.css 的 .ctx-menu/.ctx-item（该 CSS 全局注入，无需新样式）。
+     与项目树菜单共存：两边的 document 级 contextmenu/click 监听都以各自菜单的
+     开合状态门控（tree 侧见 project-tree.js bindDocumentHandlers），菜单关闭时互为
+     no-op、不抢占；本菜单的开启（tab 元素 contextmenu）与菜单项点击均
+     stopPropagation，避免事件冒泡到 document 关闭逻辑把刚打开的菜单立即关闭；
+     菜单开着时的"外部关闭"由下方 document 级监听负责。 */
+
+  var tabMenuEl = null;
+  var tabMenuOpen = false;
+  var tabMenuTargetId = null;
+  var TAB_MENU_DEFS = [
+    { action: 'close', label: '关闭' },
+    { action: 'left', label: '关闭左侧标签' },
+    { action: 'right', label: '关闭右侧标签' },
+    { action: 'all', label: '关闭所有标签' }
+  ];
+
+  function tabMenuItems() {
+    if (!tabMenuEl) return [];
+    return Array.prototype.filter.call(tabMenuEl.children || [], function(el) {
+      return el.dataset && el.dataset.action;
+    });
+  }
+
+  function buildTabMenu() {
+    if (tabMenuEl) return tabMenuEl;
+    tabMenuEl = document.createElement('div');
+    tabMenuEl.className = 'ctx-menu';
+    tabMenuEl.setAttribute('role', 'menu');
+    tabMenuEl.setAttribute('aria-label', '标签页操作');
+    TAB_MENU_DEFS.forEach(function(def) {
+      var item = document.createElement('div');
+      item.className = 'ctx-item';
+      item.dataset.action = def.action;
+      item.setAttribute('role', 'menuitem');
+      item.setAttribute('tabindex', '-1');
+      item.textContent = def.label;
+      item.addEventListener('click', function(e) {
+        /* 不冒泡到 document 关闭逻辑（同 project-tree 菜单项） */
+        if (e.stopPropagation) e.stopPropagation();
+        if (item.classList.contains('disabled')) return;
+        var id = tabMenuTargetId;
+        runTabMenuAction(item.dataset.action, id);
+        closeTabMenu();
+      });
+      tabMenuEl.appendChild(item);
+    });
+    return tabMenuEl;
+  }
+
+  /* 可用态：以右键目标 tab 为锚，对应侧没有 tab 时置灰 */
+  function refreshTabMenuState() {
+    if (!tabMenuEl) return;
+    var idx = tabs.findIndex(function(t) { return t.id === tabMenuTargetId; });
+    var state = {
+      'close': idx !== -1,
+      'left': idx > 0,
+      'right': idx !== -1 && idx < tabs.length - 1,
+      'all': tabs.length > 0
+    };
+    tabMenuItems().forEach(function(item) {
+      var disabled = !state[item.dataset.action];
+      item.classList.toggle('disabled', disabled);
+      item.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+    });
+  }
+
+  function runTabMenuAction(action, id) {
+    var idx = tabs.findIndex(function(t) { return t.id === id; });
+    if (action === 'close') {
+      closeTab(id); /* 保留单 tab 的 dirty 确认语义 */
+    } else if (action === 'left') {
+      if (idx <= 0) return;
+      closeTabs(tabs.slice(0, idx).map(function(t) { return t.id; }));
+    } else if (action === 'right') {
+      if (idx === -1 || idx >= tabs.length - 1) return;
+      closeTabs(tabs.slice(idx + 1).map(function(t) { return t.id; }));
+    } else if (action === 'all') {
+      closeTabs(tabs.map(function(t) { return t.id; }));
+    }
+  }
+
+  function openTabMenu(x, y, id) {
+    closeTabMenu(); /* 重复右键另一 tab 时换目标重开而非叠加 */
+    tabMenuTargetId = id;
+    var menu = buildTabMenu();
+    refreshTabMenuState();
+    document.body.appendChild(menu);
+    /* 先挂载测量再夹紧，空间不足时向内翻转，确保不越出 viewport（同 project-tree） */
+    var px = typeof x === 'number' ? x : 0;
+    var py = typeof y === 'number' ? y : 0;
+    var rect = menu.getBoundingClientRect ? menu.getBoundingClientRect() : { width: 212, height: 26 * 4 + 8 };
+    var vw = typeof window.innerWidth === 'number' && window.innerWidth > 0 ? window.innerWidth : 1024;
+    var vh = typeof window.innerHeight === 'number' && window.innerHeight > 0 ? window.innerHeight : 768;
+    var width = rect.width || 212;
+    var height = rect.height || (26 * 4 + 8);
+    if (px + width > vw) px = Math.max(0, px - width);
+    if (py + height > vh) py = Math.max(0, py - height);
+    px = Math.max(0, Math.min(px, Math.max(0, vw - width)));
+    py = Math.max(0, Math.min(py, Math.max(0, vh - height)));
+    menu.style.left = px + 'px';
+    menu.style.top = py + 'px';
+    tabMenuOpen = true;
+  }
+
+  function closeTabMenu() {
+    tabMenuOpen = false;
+    tabMenuTargetId = null;
+    if (tabMenuEl && tabMenuEl.parentNode && tabMenuEl.parentNode.removeChild) {
+      tabMenuEl.parentNode.removeChild(tabMenuEl);
+    }
+  }
+
+  /* 菜单开着期间：菜单外点击 / 右键 / Esc 均关闭（document 级，开合状态门控） */
+  document.addEventListener('click', function(e) {
+    if (!tabMenuOpen) return;
+    if (e.target && tabMenuEl && tabMenuEl.contains && tabMenuEl.contains(e.target)) return;
+    closeTabMenu();
+  });
+  document.addEventListener('keydown', function(e) {
+    if (tabMenuOpen && e.key === 'Escape') {
+      if (e.preventDefault) e.preventDefault();
+      closeTabMenu();
+    }
+  });
+  document.addEventListener('contextmenu', function(e) {
+    if (!tabMenuOpen) return;
+    if (e.target && tabMenuEl && tabMenuEl.contains && tabMenuEl.contains(e.target)) return;
+    closeTabMenu();
+  });
+
   /* ── tab 溢出导航 ──
      tab 过多超出栏宽时显示左右按钮；同时在滚动区内支持滚轮横向滚动 */
 
@@ -421,6 +590,7 @@ var TabManager = (function() {
   return {
     createTab: createTab,
     closeTab: closeTab,
+    closeTabs: closeTabs,
     switchTab: switchTab,
     markDirty: markDirty,
     markClean: markClean,
