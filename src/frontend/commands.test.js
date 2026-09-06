@@ -79,6 +79,28 @@ test('run(file.open) 发送与原按钮等效的 open_file 上行消息', () => 
   commands.run('file.open');
   assert.equal(messages.length, 1);
   assert.deepEqual(messages[0], { command: 'open_file' });
+  commands.run('file.open', { path: 'D:/doc.md' });
+  assert.equal(messages.length, 2);
+  assert.deepEqual(messages[1], { command: 'open_file', path: 'D:/doc.md' });
+});
+
+test('register 保存 category, description, visibleInPalette 与 isEnabled 元数据', () => {
+  const { commands } = loadCommands();
+  commands.register('demo.meta', {
+    label: '元数据命令',
+    category: 'Demo',
+    description: '说明文字',
+    visibleInPalette: false,
+    requiresArgs: true,
+    isEnabled: () => false,
+    run() {},
+  });
+  const def = commands.get('demo.meta');
+  assert.equal(def.category, 'Demo');
+  assert.equal(def.description, '说明文字');
+  assert.equal(def.visibleInPalette, false);
+  assert.equal(def.requiresArgs, true);
+  assert.equal(def.isEnabled(), false);
 });
 
 test('run(workspace.open) 有路径时直接打开，无路径时请求原生目录选择器', () => {

@@ -89,7 +89,13 @@ function makeElement(tag) {
     click() {
       el.dispatchEvent({ type: 'click' });
     },
-    focus() {},
+    focus() {
+      el.focusCalls = (el.focusCalls || 0) + 1;
+      el.focused = true;
+    },
+    blur() {
+      el.focused = false;
+    },
   };
   Object.defineProperty(el, 'className', {
     get: () => Array.from(classes).join(' '),
@@ -111,25 +117,30 @@ function makeElement(tag) {
 
 /* ── 装载 harness ── */
 
-function loadHarness({ headings = [], withIntersection = false, seedPreview = true } = {}) {
+function loadHarness({ headings = [], withIntersection = false, seedPreview = true, withCommands = true, withLayoutUI = true } = {}) {
   const observers = [];
   const editorNavigationCalls = [];
   const intersections = [];
   const pendingTimers = [];
   const scrollCalls = [];
+  const commandsRan = [];
+  const commandsRegistry = {};
 
   const ids = {};
-  const byId = (id) => (ids[id] = ids[id] || makeElement('div'));
+  const byId = (id) => (ids[id] = ids[id] || makeElement(id));
 
   const body = makeElement('body');
   const outlineRoot = byId('outline-root');
+  const panelOutline = byId('panel-outline');
+  const editorEl = byId('editor');
   const builtinEmpty = makeElement('p');
   builtinEmpty.className = 'panel-empty';
   builtinEmpty.textContent = '暂无大纲';
   outlineRoot.appendChild(builtinEmpty); // index.html 自带空态
   if (seedPreview) byId('preview');
   byId('preview-container');
-  body.appendChild(outlineRoot);
+  body.appendChild(panelOutline);
+  panelOutline.appendChild(outlineRoot);
 
   headings.forEach((def) => {
     const el = makeElement('h' + def.level);
@@ -169,6 +180,60 @@ function loadHarness({ headings = [], withIntersection = false, seedPreview = tr
     }
   }
 
+  const commandsObj = {
+    register(id, def) {
+      commandsRegistry[id] = def;
+      return id;
+    },
+    has(id) {
+      return Object.prototype.hasOwnProperty.call(commandsRegistry, id);
+    },
+    get(id) {
+      return commandsRegistry[id] || null;
+    },
+    run(id, arg) {
+      commandsRan.push({ id, arg });
+      if (!commandsRegistry[id]) throw new Error('Unknown command: ' + id);
+      return commandsRegistry[id].run(arg);
+    },
+    ids() {
+      return Object.keys(commandsRegistry);
+    }
+  };
+
+  let layoutCollapsed = { outline: true };
+  let layoutSide = 'right';
+  const layoutResets = [];
+  const layoutUIObj = {
+    toggle(panel) {
+      layoutCollapsed[panel] = !layoutCollapsed[panel];
+      panelOutline.classList.toggle('open', !layoutCollapsed[panel]);
+    },
+    expand(panel) {
+      layoutCollapsed[panel] = false;
+      panelOutline.classList.add('open');
+    },
+    collapse(panel) {
+      layoutCollapsed[panel] = true;
+      panelOutline.classList.remove('open');
+    },
+    isCollapsed(panel) {
+      return Boolean(layoutCollapsed[panel]);
+    },
+    resetWidth(panel) {
+      layoutResets.push(panel);
+    },
+    resetPanel(panel) {
+      layoutResets.push(panel);
+    },
+    setOutlineSide(side) {
+      layoutSide = side;
+    },
+    getOutlineSide() {
+      return layoutSide;
+    }
+  };
+
   const windowObj = {
     EditorNavigation: {
       scrollToHeading(index, expected) {
@@ -186,6 +251,13 @@ function loadHarness({ headings = [], withIntersection = false, seedPreview = tr
       if (i !== -1) pendingTimers.splice(i, 1);
     },
   };
+
+  if (withCommands) {
+    windowObj.Commands = commandsObj;
+  }
+  if (withLayoutUI) {
+    windowObj.LayoutUI = layoutUIObj;
+  }
 
   const context = {
     window: windowObj,
@@ -208,6 +280,14 @@ function loadHarness({ headings = [], withIntersection = false, seedPreview = tr
   return {
     ids,
     Outline: windowObj.Outline,
+    Commands: windowObj.Commands,
+    LayoutUI: windowObj.LayoutUI,
+    commandsRan,
+    commandsRegistry,
+    layoutCollapsed,
+    layoutResets,
+    editorEl,
+    panelOutline,
     observers,
     intersections,
     pendingTimers,
@@ -477,4 +557,181 @@ test('重建时断开旧观察器并重新观察新标题', () => {
   assert.equal(first.disconnected, true, '旧观察器已断开');
   assert.equal(h.intersections.length, 2);
   assert.equal(h.intersections[1].observed.length, 5);
+});
+
+/* ══════════ Commands 注册与 Outline / LayoutUI 同步 ══════════ */
+
+test('Commands 注册：向 window.Commands 注册 outline.* 系列 11 项命令', () => {
+  const h = loadHarness({ headings: SAMPLE, withCommands: true });
+  const expectedCommands = [
+    'outline.toggle',
+    'outline.show',
+    'outline.hide',
+    'outline.resetWidth',
+    'outline.setSide',
+    'outline.refresh',
+    'outline.goTo',
+    'outline.openSelection',
+    'outline.selectNext',
+    'outline.selectPrevious',
+    'outline.focus'
+  ];
+  expectedCommands.forEach((cmd) => {
+    assert.equal(h.Commands.has(cmd), true, `命令 ${cmd} 应被注册`);
+  });
+});
+
+test('统一 Outline 显隐：outline.toggle/show/hide/resetWidth/setSide 与 LayoutUI 同步', () => {
+  const h = loadHarness({ headings: SAMPLE, withCommands: true, withLayoutUI: true });
+  assert.equal(h.Outline.isOpen(), false);
+  assert.equal(h.LayoutUI.isCollapsed('outline'), true);
+
+  // show
+  h.Commands.run('outline.show');
+  assert.equal(h.Outline.isOpen(), true);
+  assert.equal(h.LayoutUI.isCollapsed('outline'), false);
+
+  // hide
+  h.Commands.run('outline.hide');
+  assert.equal(h.Outline.isOpen(), false);
+  assert.equal(h.LayoutUI.isCollapsed('outline'), true);
+
+  // toggle
+  h.Commands.run('outline.toggle');
+  assert.equal(h.Outline.isOpen(), true);
+  assert.equal(h.LayoutUI.isCollapsed('outline'), false);
+
+  // resetWidth
+  h.Commands.run('outline.resetWidth');
+  assert.deepEqual(h.layoutResets, ['outline']);
+
+  // setSide
+  h.Commands.run('outline.setSide', 'left');
+  assert.equal(h.LayoutUI.getOutlineSide(), 'left');
+  h.Commands.run('outline.setSide', { side: 'right' });
+  assert.equal(h.LayoutUI.getOutlineSide(), 'right');
+});
+
+test('标题项点击委托 Commands.run("outline.goTo", { index })', () => {
+  const h = loadHarness({ headings: SAMPLE, withCommands: true });
+  h.listItems()[1].click();
+
+  assert.equal(h.commandsRan.length >= 1, true);
+  const goToCall = h.commandsRan.find((c) => c.id === 'outline.goTo');
+  assert.ok(goToCall);
+  assert.equal(goToCall.arg.index, 1);
+  assert.equal(h.Outline.getActiveIndex(), 1);
+  assert.equal(h.scrollCalls.length, 1);
+  assert.equal(h.scrollCalls[0].el, h.preview().children[1]);
+});
+
+/* ══════════ 键盘导航 ══════════ */
+
+test('键盘导航：ArrowDown 与 ArrowUp 移动选中项并具备边界钳制', () => {
+  const h = loadHarness({ headings: SAMPLE });
+  const root = h.ids['outline-root'];
+
+  assert.equal(h.Outline.getActiveIndex(), -1);
+
+  // ArrowDown 从 -1 进入第 0 项
+  root.dispatchEvent({ type: 'keydown', key: 'ArrowDown', preventDefault() {} });
+  assert.equal(h.Outline.getActiveIndex(), 0);
+  assert.equal(h.listItems()[0].classList.contains('active'), true);
+
+  // 下移到 1, 2, 3
+  root.dispatchEvent({ type: 'keydown', key: 'ArrowDown', preventDefault() {} });
+  assert.equal(h.Outline.getActiveIndex(), 1);
+  root.dispatchEvent({ type: 'keydown', key: 'ArrowDown', preventDefault() {} });
+  assert.equal(h.Outline.getActiveIndex(), 2);
+  root.dispatchEvent({ type: 'keydown', key: 'ArrowDown', preventDefault() {} });
+  assert.equal(h.Outline.getActiveIndex(), 3);
+
+  // 底部钳制
+  root.dispatchEvent({ type: 'keydown', key: 'ArrowDown', preventDefault() {} });
+  assert.equal(h.Outline.getActiveIndex(), 3);
+
+  // 上移到 2, 1, 0
+  root.dispatchEvent({ type: 'keydown', key: 'ArrowUp', preventDefault() {} });
+  assert.equal(h.Outline.getActiveIndex(), 2);
+  root.dispatchEvent({ type: 'keydown', key: 'ArrowUp', preventDefault() {} });
+  assert.equal(h.Outline.getActiveIndex(), 1);
+  root.dispatchEvent({ type: 'keydown', key: 'ArrowUp', preventDefault() {} });
+  assert.equal(h.Outline.getActiveIndex(), 0);
+
+  // 顶部钳制
+  root.dispatchEvent({ type: 'keydown', key: 'ArrowUp', preventDefault() {} });
+  assert.equal(h.Outline.getActiveIndex(), 0);
+});
+
+test('键盘导航：Enter 滚动对应标题并返回编辑器焦点', () => {
+  const h = loadHarness({ headings: SAMPLE });
+  const root = h.ids['outline-root'];
+  const editor = h.ids['editor'];
+
+  h.Outline.setActive(2);
+  editor.focused = false;
+  editor.focusCalls = 0;
+
+  root.dispatchEvent({ type: 'keydown', key: 'Enter', preventDefault() {} });
+
+  assert.equal(h.scrollCalls.length, 1);
+  assert.equal(h.scrollCalls[0].el, h.preview().children[2]);
+  assert.equal(editor.focusCalls, 1);
+  assert.equal(editor.focused, true);
+});
+
+test('键盘导航：Ctrl+Enter 滚动对应标题但保留 Outline 焦点', () => {
+  const h = loadHarness({ headings: SAMPLE });
+  const root = h.ids['outline-root'];
+  const editor = h.ids['editor'];
+
+  h.Outline.setActive(1);
+  editor.focused = false;
+  editor.focusCalls = 0;
+
+  root.dispatchEvent({ type: 'keydown', key: 'Enter', ctrlKey: true, preventDefault() {} });
+
+  assert.equal(h.scrollCalls.length, 1);
+  assert.equal(h.scrollCalls[0].el, h.preview().children[1]);
+  assert.equal(editor.focusCalls, 0, 'Ctrl+Enter 不应将焦点切到编辑器');
+  assert.equal(editor.focused, false);
+});
+
+test('键盘导航：F5 立即触发大纲刷新', () => {
+  const h = loadHarness({ headings: SAMPLE });
+  const root = h.ids['outline-root'];
+
+  const extra = makeElement('h3');
+  extra.textContent = 'F5 新加的标题';
+  h.preview().appendChild(extra);
+
+  root.dispatchEvent({ type: 'keydown', key: 'F5', preventDefault() {} });
+
+  const headings = h.Outline.getHeadings();
+  assert.equal(headings.length, 5);
+  assert.equal(headings[4].text, 'F5 新加的标题');
+});
+
+test('命令测试：outline.selectNext / selectPrevious / openSelection / focus', () => {
+  const h = loadHarness({ headings: SAMPLE, withCommands: true });
+  const editor = h.ids['editor'];
+
+  h.Commands.run('outline.selectNext');
+  assert.equal(h.Outline.getActiveIndex(), 0);
+
+  h.Commands.run('outline.selectNext');
+  assert.equal(h.Outline.getActiveIndex(), 1);
+
+  h.Commands.run('outline.selectPrevious');
+  assert.equal(h.Outline.getActiveIndex(), 0);
+
+  // openSelection
+  h.Commands.run('outline.openSelection');
+  assert.equal(h.scrollCalls.length, 1);
+  assert.equal(editor.focusCalls, 1);
+
+  // focus
+  h.Commands.run('outline.focus');
+  const outlineList = h.ids['outline-root'].children[0];
+  assert.equal(outlineList.focusCalls >= 1, true);
 });

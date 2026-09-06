@@ -294,6 +294,39 @@
     }
   }
 
+  function registerCommands() {
+    if (!window.Commands || typeof window.Commands.register !== 'function') return;
+    var reg = window.Commands.register;
+    if (!window.Commands.has('layout.tree.toggle')) {
+      reg('layout.tree.toggle', {
+        label: '切换项目树',
+        category: 'View',
+        run: function() { toggle('tree'); }
+      });
+    }
+    if (!window.Commands.has('layout.tree.collapse')) {
+      reg('layout.tree.collapse', {
+        label: '折叠项目树',
+        category: 'View',
+        run: function() { collapse('tree'); }
+      });
+    }
+    if (!window.Commands.has('layout.tree.expand')) {
+      reg('layout.tree.expand', {
+        label: '展开项目树',
+        category: 'View',
+        run: function() { expand('tree'); }
+      });
+    }
+    if (!window.Commands.has('layout.tree.resetWidth')) {
+      reg('layout.tree.resetWidth', {
+        label: '重置项目树宽度',
+        category: 'View',
+        run: function() { resetPanel('tree'); }
+      });
+    }
+  }
+
   function init() {
     els.tree = document.getElementById('panel-tree');
     els.outline = document.getElementById('panel-outline');
@@ -308,6 +341,7 @@
     document.addEventListener('pointercancel', onDocumentPointerUp);
     restore();
     if (window.addEventListener) window.addEventListener('resize', constrainLayout);
+    registerCommands();
   }
 
   window.LayoutUI = {
@@ -317,8 +351,11 @@
     isCollapsed: isCollapsed,
     restore: restore,
     reset: reset,
+    resetWidth: resetPanel,
+    resetPanel: resetPanel,
     resize: constrainLayout,
-    setOutlineSide: setOutlineSide
+    setOutlineSide: setOutlineSide,
+    registerCommands: registerCommands
   };
   init();
 })();

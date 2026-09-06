@@ -43,10 +43,30 @@ function makeElement(id, getContext) {
   };
 }
 
-function loadLayout({ storage = new Map() } = {}) {
+function loadLayout({ storage = new Map(), withCommands = false } = {}) {
   const ids = {};
   const docElement = makeElement('html');
   const bodyElement = makeElement('body');
+  const commandsRegistry = {};
+  const commandsObj = {
+    register(id, def) {
+      commandsRegistry[id] = def;
+      return id;
+    },
+    has(id) {
+      return Object.prototype.hasOwnProperty.call(commandsRegistry, id);
+    },
+    get(id) {
+      return commandsRegistry[id] || null;
+    },
+    run(id, arg) {
+      if (!commandsRegistry[id]) throw new Error('Unknown command: ' + id);
+      return commandsRegistry[id].run(arg);
+    },
+    ids() {
+      return Object.keys(commandsRegistry);
+    }
+  };
   const getElementRect = (id, el) => {
     if (id === 'content') {
       return { left: 0, right: 1000, top: 0, bottom: 500, width: 1000, height: 500 };
@@ -90,6 +110,9 @@ function loadLayout({ storage = new Map() } = {}) {
     },
     addEventListener() {},
   };
+  if (withCommands) {
+    windowObj.Commands = commandsObj;
+  }
   const context = {
     window: windowObj,
     document: {
@@ -105,6 +128,8 @@ function loadLayout({ storage = new Map() } = {}) {
   vm.runInNewContext(SOURCE, context, { filename: 'layout.js' });
   return {
     LayoutUI: context.window.LayoutUI,
+    Commands: context.window.Commands || commandsObj,
+    commandsRegistry,
     byId: ids,
     docElement,
     bodyElement,
@@ -359,4 +384,37 @@ test('双击 resizer 恢复对应面板默认宽度', () => {
 
   h.byId['panel-outline-resizer'].listeners.dblclick.forEach((fn) => fn());
   assert.equal(h.byId['panel-outline'].style.width, '264px');
+});
+
+test('命令注册：向 window.Commands 注册 layout.tree.{toggle,collapse,expand,resetWidth}', () => {
+  const h = loadLayout({ withCommands: true });
+  assert.equal(h.Commands.has('layout.tree.toggle'), true);
+  assert.equal(h.Commands.has('layout.tree.collapse'), true);
+  assert.equal(h.Commands.has('layout.tree.expand'), true);
+  assert.equal(h.Commands.has('layout.tree.resetWidth'), true);
+
+  // toggle
+  h.Commands.run('layout.tree.toggle');
+  assert.equal(h.LayoutUI.isCollapsed('tree'), true);
+  assert.equal(h.byId['panel-tree'].classList.contains('collapsed'), true);
+
+  // expand
+  h.Commands.run('layout.tree.expand');
+  assert.equal(h.LayoutUI.isCollapsed('tree'), false);
+  assert.equal(h.byId['panel-tree'].classList.contains('collapsed'), false);
+
+  // collapse
+  h.Commands.run('layout.tree.collapse');
+  assert.equal(h.LayoutUI.isCollapsed('tree'), true);
+
+  // resetWidth
+  pointerDown(h, 'panel-tree-resizer');
+  h.fireDocument('pointermove', { clientX: 340 });
+  h.fireDocument('pointerup', {});
+  assert.equal(h.byId['panel-tree'].style.width, '340px');
+  assert.equal(h.storage.get('glancemd-ultra-layout-tree-width'), '340');
+
+  h.Commands.run('layout.tree.resetWidth');
+  assert.equal(h.byId['panel-tree'].style.width, '264px');
+  assert.equal(h.storage.has('glancemd-ultra-layout-tree-width'), false);
 });

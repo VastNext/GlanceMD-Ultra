@@ -19,7 +19,16 @@
     if (!definition || typeof definition.run !== 'function') {
       throw new Error('[Commands] 命令缺少 run(): ' + id);
     }
-    registry[id] = { label: String(definition.label || id), run: definition.run };
+    registry[id] = {
+      id: id,
+      label: String(definition.label || id),
+      category: definition.category ? String(definition.category) : '',
+      description: definition.description ? String(definition.description) : '',
+      visibleInPalette: definition.visibleInPalette !== false,
+      requiresArgs: Boolean(definition.requiresArgs),
+      isEnabled: typeof definition.isEnabled === 'function' ? definition.isEnabled : function() { return true; },
+      run: definition.run
+    };
     order.push(id);
     return id;
   }
@@ -61,17 +70,24 @@
 
   // ---- 阶段 0 内置命令 ----
 
-  // 与原 #btn-open 点击行为完全等效：无 path 的 open_file 由 Rust 弹出打开对话框。
+  // 与原 #btn-open 点击行为完全等效：无 path 时由 Rust 弹选择框；有 path 时直接打开。
   register('file.open', {
     label: '打开文件…',
-    run: function() {
-      sendToRust('open_file');
+    category: 'File',
+    run: function(arg) {
+      var path = arg && typeof arg === 'object' ? arg.path : arg;
+      if (typeof path === 'string' && path) {
+        sendToRust('open_file', { path: path });
+      } else {
+        sendToRust('open_file');
+      }
     }
   });
 
   // 打开可信项目根：有 path 时直接打开，无 path 时由 Rust 弹原生目录选择器。
   register('workspace.open', {
     label: '打开项目文件夹…',
+    category: 'File',
     run: function(arg) {
       var path = arg && typeof arg === 'object' ? arg.path : arg;
       if (typeof path === 'string' && path) {
