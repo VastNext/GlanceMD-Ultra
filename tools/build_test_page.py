@@ -47,6 +47,11 @@ SCRIPT_ORDER = (
     "editor.js",
     "app.js",
     "commands.js",
+    "context-keys.js",
+    "when-clause.js",
+    "keybinding-parser.js",
+    "default-keybindings.js",
+    "keybinding-service.js",
     "workspace.js",
     "layout.js",
     "outline.js",
@@ -56,6 +61,8 @@ SCRIPT_ORDER = (
     "settings.js",
     "keybindings.js",
     "command-palette.js",
+    "key-assist.js",
+    "keybindings-settings.js",
     "recovery.js",
     "settings-apply.js",
 )
@@ -74,6 +81,8 @@ PANEL_CSS_ORDER = (
     "quick-open.css",
     "settings.css",
     "command-palette.css",
+    "key-assist.css",
+    "keybindings-settings.css",
     "recovery.css",
 )
 

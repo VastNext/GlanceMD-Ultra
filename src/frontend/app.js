@@ -729,73 +729,110 @@ document.getElementById('find-close').addEventListener('click', closeFind);
 document.getElementById('find-next').addEventListener('click', findNext);
 document.getElementById('find-prev').addEventListener('click', findPrev);
 
-// Keyboard Shortcuts
-document.addEventListener('keydown', function(e) {
-  var primaryModifier = hasPrimaryModifier(e);
-  if (primaryModifier && e.key.toLowerCase() === 'f') {
-    e.preventDefault();
-    openFind();
-  } else if (e.key === 'Escape' && findState.open) {
-    e.preventDefault();
-    closeFind();
-  } else if (primaryModifier && !e.shiftKey && e.key.toLowerCase() === 'o') {
-    // keybindings.js owns Ctrl+O when the command registry is available. It is
-    // loaded after app.js, so check at dispatch time and retain the legacy IPC
-    // fallback for test pages and older builds without the keybinding stack.
-    var keybindingsReady = window.Keybindings && window.Commands
-      && typeof window.Keybindings.dispatch === 'function'
-      && typeof window.Keybindings.effective === 'function'
-      && typeof window.Keybindings.normalize === 'function'
-      && typeof window.Commands.has === 'function';
-    var keybindingsOwnsOpen = keybindingsReady
-      && window.Keybindings.effective()['file.open'] === window.Keybindings.normalize(e)
-      && window.Commands.has('file.open');
-    if (!keybindingsOwnsOpen) {
-      e.preventDefault();
-      if (window.Commands && Commands.has && Commands.has('file.open')) Commands.run('file.open');
-      else sendToRust('open_file');
-    }
-  } else if (primaryModifier && !e.shiftKey && e.key.toLowerCase() === 's') {
-    e.preventDefault();
-    doSave();
-  } else if (primaryModifier && e.shiftKey && e.key.toLowerCase() === 's') {
-    e.preventDefault();
-    sendToRust('save_as', { content: document.getElementById('editor').value });
-  } else if (primaryModifier && e.key.toLowerCase() === 'e') {
-    e.preventDefault();
-    toggleMode();
-  } else if (primaryModifier && e.key.toLowerCase() === 'n') {
-    e.preventDefault();
-    TabManager.createTab(null, '');
-  } else if (primaryModifier && e.key.toLowerCase() === 'w') {
-    e.preventDefault();
-    var active = TabManager.getActiveTab();
-    if (active) TabManager.closeTab(active.id);
-  } else if (e.ctrlKey && !e.shiftKey && e.key === 'Tab') {
-    e.preventDefault();
-    TabManager.nextTab();
-  } else if (e.ctrlKey && e.shiftKey && e.key === 'Tab') {
-    e.preventDefault();
-    TabManager.prevTab();
-  } else if (primaryModifier && (e.key === '=' || e.key === '+')) {
-    e.preventDefault();
-    applyZoom(zoomLevel + ZOOM_STEP);
-  } else if (primaryModifier && e.key === '-') {
-    e.preventDefault();
-    applyZoom(zoomLevel - ZOOM_STEP);
-  } else if (primaryModifier && e.key === '0') {
-    e.preventDefault();
-    applyZoom(1);
-  } else if (primaryModifier && e.key === '\\') {
-    e.preventDefault();
-    toggleSplit();
-  } else if (primaryModifier && e.shiftKey && e.key.toLowerCase() === 'o') {
-    e.preventDefault();
-    if (window.LayoutUI && typeof window.LayoutUI.toggle === 'function') {
-      window.LayoutUI.toggle('outline');
-    }
+// Keyboard Shortcuts: legacy document keydown block is removed in favor of
+// unified BindingService / Keybindings dispatcher. Only keep find-input local keys.
+function initAppCommands() {
+  if (!window.Commands || typeof window.Commands.register !== 'function') return;
+  var reg = window.Commands.register;
+  function safeReg(id, def) {
+    if (!window.Commands.has(id)) reg(id, def);
   }
-});
+
+  safeReg('file.new', {
+    label: '新建文件',
+    category: 'File',
+    run: function() { TabManager.createTab(null, ''); }
+  });
+  safeReg('file.save', {
+    label: '保存',
+    category: 'File',
+    run: function() { doSave(); }
+  });
+  safeReg('file.saveAs', {
+    label: '另存为…',
+    category: 'File',
+    run: function() {
+      sendToRust('save_as', { content: document.getElementById('editor').value });
+    }
+  });
+  safeReg('file.saveAll', {
+    label: '保存全部',
+    category: 'File',
+    run: function() {
+      if (typeof TabManager !== 'undefined' && TabManager.hasAnyDirty()) {
+        doSave();
+      }
+    }
+  });
+  safeReg('file.close', {
+    label: '关闭标签页',
+    category: 'File',
+    run: function() {
+      var active = typeof TabManager !== 'undefined' ? TabManager.getActiveTab() : null;
+      if (active) TabManager.closeTab(active.id);
+    }
+  });
+  safeReg('editor.togglePreview', {
+    label: '切换编辑/预览',
+    category: 'View',
+    run: function() { toggleMode(); }
+  });
+  safeReg('editor.toggleSplit', {
+    label: '切换分屏视图',
+    category: 'View',
+    run: function() { toggleSplit(); }
+  });
+  safeReg('actions.find', {
+    label: '在文档中查找',
+    category: 'Edit',
+    run: function() { openFind(); }
+  });
+  safeReg('actions.find.close', {
+    label: '关闭查找',
+    category: 'Edit',
+    visibleInPalette: false,
+    run: function() { closeFind(); }
+  });
+  safeReg('actions.find.next', {
+    label: '查找下一个',
+    category: 'Edit',
+    run: function() { findNext(); }
+  });
+  safeReg('actions.find.previous', {
+    label: '查找上一个',
+    category: 'Edit',
+    run: function() { findPrev(); }
+  });
+  safeReg('window.zoomIn', {
+    label: '放大',
+    category: 'View',
+    run: function() { applyZoom(zoomLevel + ZOOM_STEP); }
+  });
+  safeReg('window.zoomOut', {
+    label: '缩小',
+    category: 'View',
+    run: function() { applyZoom(zoomLevel - ZOOM_STEP); }
+  });
+  safeReg('window.zoomReset', {
+    label: '重置缩放',
+    category: 'View',
+    run: function() { applyZoom(1); }
+  });
+  safeReg('appearance.toggleTheme', {
+    label: '切换主题',
+    category: 'Appearance',
+    run: function() {
+      var current = document.documentElement.getAttribute('data-theme') || 'light';
+      var next = current === 'dark' ? 'light' : 'dark';
+      if (window.ipc && window.ipc.postMessage) {
+        window.ipc.postMessage(JSON.stringify({ command: 'workspace.settings.set-theme', theme: next }));
+      }
+      setTheme(next);
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', initAppCommands);
 
 // Window Controls
 document.getElementById('btn-minimize').addEventListener('click', function() { sendToRust('window_minimize'); });
@@ -812,15 +849,31 @@ document.getElementById('btn-close').addEventListener('click', function() {
 });
 
 // Toolbar Buttons
-document.getElementById('btn-new').addEventListener('click', function() { TabManager.createTab(null, ''); });
-document.getElementById('btn-open').addEventListener('click', function() { sendToRust('open_file'); });
-document.getElementById('btn-save').addEventListener('click', doSave);
-document.getElementById('btn-toggle').addEventListener('click', toggleMode);
-document.getElementById('btn-split').addEventListener('click', toggleSplit);
+document.getElementById('btn-new').addEventListener('click', function() {
+  if (window.Commands && Commands.has('file.new')) Commands.run('file.new');
+  else TabManager.createTab(null, '');
+});
+document.getElementById('btn-open').addEventListener('click', function() {
+  if (window.Commands && Commands.has('workspace.open')) Commands.run('workspace.open');
+  else sendToRust('workspace.open');
+});
+document.getElementById('btn-save').addEventListener('click', function() {
+  if (window.Commands && Commands.has('file.save')) Commands.run('file.save');
+  else doSave();
+});
+document.getElementById('btn-toggle').addEventListener('click', function() {
+  if (window.Commands && Commands.has('editor.togglePreview')) Commands.run('editor.togglePreview');
+  else toggleMode();
+});
+document.getElementById('btn-split').addEventListener('click', function() {
+  if (window.Commands && Commands.has('editor.toggleSplit')) Commands.run('editor.toggleSplit');
+  else toggleSplit();
+});
 var btnToc = document.getElementById('btn-toc');
 if (btnToc) {
   btnToc.addEventListener('click', function() {
-    if (window.LayoutUI && typeof window.LayoutUI.toggle === 'function') {
+    if (window.Commands && Commands.has('outline.toggle')) Commands.run('outline.toggle');
+    else if (window.LayoutUI && typeof window.LayoutUI.toggle === 'function') {
       window.LayoutUI.toggle('outline');
     }
   });

@@ -42,6 +42,11 @@ const MARKED_JS: &str = include_str!("frontend/marked.min.js");
 const HLJS: &str = include_str!("frontend/highlight.min.js");
 // 阶段 0 新增前端模块：排在既有脚本（app.js）之后加载
 const COMMANDS_JS: &str = include_str!("frontend/commands.js");
+const CONTEXT_KEYS_JS: &str = include_str!("frontend/context-keys.js");
+const WHEN_CLAUSE_JS: &str = include_str!("frontend/when-clause.js");
+const KEYBINDING_PARSER_JS: &str = include_str!("frontend/keybinding-parser.js");
+const DEFAULT_KEYBINDINGS_JS: &str = include_str!("frontend/default-keybindings.js");
+const KEYBINDING_SERVICE_JS: &str = include_str!("frontend/keybinding-service.js");
 const WORKSPACE_JS: &str = include_str!("frontend/workspace.js");
 // 阶段 1 前端骨架：三栏布局的面板折叠/拖宽/持久化，追加在 workspace.js 之后
 const LAYOUT_JS: &str = include_str!("frontend/layout.js");
@@ -53,6 +58,8 @@ const QUICK_OPEN_JS: &str = include_str!("frontend/quick-open.js");
 const SETTINGS_JS: &str = include_str!("frontend/settings.js");
 const KEYBINDINGS_JS: &str = include_str!("frontend/keybindings.js");
 const COMMAND_PALETTE_JS: &str = include_str!("frontend/command-palette.js");
+const KEY_ASSIST_JS: &str = include_str!("frontend/key-assist.js");
+const KEYBINDINGS_SETTINGS_JS: &str = include_str!("frontend/keybindings-settings.js");
 const RECOVERY_JS: &str = include_str!("frontend/recovery.js");
 const SETTINGS_APPLY_JS: &str = include_str!("frontend/settings-apply.js");
 const ICON_PNG: &[u8] = include_bytes!("../assets/icon.png");
@@ -607,11 +614,17 @@ fn build_html() -> String {
         escape_for_script_tag(APP_JS),
     );
 
-    // 阶段 0 追加：commands.js、workspace.js 排在 app.js 之后（保持既有脚本顺序不变）
+    // 阶段 0 追加：commands.js、context-keys、when-clause、keybinding-parser、
+    // default-keybindings、keybinding-service、workspace.js 排在 app.js 之后
     let scripts = format!(
-        "{}\n<script>{}</script>\n<script>{}</script>",
+        "{}\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>",
         scripts,
         escape_for_script_tag(COMMANDS_JS),
+        escape_for_script_tag(CONTEXT_KEYS_JS),
+        escape_for_script_tag(WHEN_CLAUSE_JS),
+        escape_for_script_tag(KEYBINDING_PARSER_JS),
+        escape_for_script_tag(DEFAULT_KEYBINDINGS_JS),
+        escape_for_script_tag(KEYBINDING_SERVICE_JS),
         escape_for_script_tag(WORKSPACE_JS),
     );
 
@@ -623,10 +636,9 @@ fn build_html() -> String {
     );
 
     // 阶段 1–6 前端面板：顺序 outline → project-tree → search-panel → quick-open
-    // → settings → keybindings → command-palette → recovery（keybindings 晚于 settings，
-    // palette 晚于 keybindings；面板均只依赖 commands/workspace/layout 的公开命名空间）
+    // → settings → keybindings → command-palette → key-assist → keybindings-settings → recovery
     let scripts = format!(
-        "{}\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>",
+        "{}\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>",
         scripts,
         escape_for_script_tag(OUTLINE_JS),
         escape_for_script_tag(PROJECT_TREE_JS),
@@ -635,6 +647,8 @@ fn build_html() -> String {
         escape_for_script_tag(SETTINGS_JS),
         escape_for_script_tag(KEYBINDINGS_JS),
         escape_for_script_tag(COMMAND_PALETTE_JS),
+        escape_for_script_tag(KEY_ASSIST_JS),
+        escape_for_script_tag(KEYBINDINGS_SETTINGS_JS),
         escape_for_script_tag(RECOVERY_JS),
     );
 
@@ -662,6 +676,10 @@ fn build_html() -> String {
         include_str!("frontend/settings.css"),
         "\n/* ── command-palette.css ── */\n",
         include_str!("frontend/command-palette.css"),
+        "\n/* ── key-assist.css ── */\n",
+        include_str!("frontend/key-assist.css"),
+        "\n/* ── keybindings-settings.css ── */\n",
+        include_str!("frontend/keybindings-settings.css"),
         "\n/* ── recovery.css ── */\n",
         include_str!("frontend/recovery.css"),
     );

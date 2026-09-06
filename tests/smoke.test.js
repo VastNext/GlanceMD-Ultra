@@ -248,7 +248,34 @@ const assembledPage = loadAssembledPage();
 
 test('组装页包含全部 19 个产品脚本且顺序与 build_html 一致', (t) => {
   if (!assembledPage) return t.skip('tests/.tmp/index.html 不存在且无法生成（需 Python）');
-  const names = ['i18n.js', 'highlight.min.js', 'marked.min.js', 'preview.js', 'tabs.js', 'editor.js', 'app.js', 'commands.js', 'workspace.js', 'layout.js', 'outline.js', 'project-tree.js', 'search-panel.js', 'quick-open.js', 'settings.js', 'keybindings.js', 'command-palette.js', 'recovery.js', 'settings-apply.js'];
+  const names = [
+    'i18n.js',
+    'highlight.min.js',
+    'marked.min.js',
+    'preview.js',
+    'tabs.js',
+    'editor.js',
+    'app.js',
+    'commands.js',
+    'context-keys.js',
+    'when-clause.js',
+    'keybinding-parser.js',
+    'default-keybindings.js',
+    'keybinding-service.js',
+    'workspace.js',
+    'layout.js',
+    'outline.js',
+    'project-tree.js',
+    'search-panel.js',
+    'quick-open.js',
+    'settings.js',
+    'keybindings.js',
+    'command-palette.js',
+    'key-assist.js',
+    'keybindings-settings.js',
+    'recovery.js',
+    'settings-apply.js',
+  ];
   // 用完整 <script> 块定位：避免不同脚本出现相同前缀片段时 indexOf 撞车
   // （如 tabs.js 与 app.js 都以同样的 t() 辅助行开头）
   const positions = names.map((name) => {
@@ -285,36 +312,25 @@ test('mock 引导脚本先于全部产品脚本注入', (t) => {
   assert.equal(assembledPage.includes('</script>\n<script>'), true); // 标签边界正常
 });
 
-/* ── app.js / keybindings.js 冒烟 ── */
+/* ── app.js / commands.js 冒烟 ── */
 
-test('完整脚本加载后 Ctrl+O 只执行一次 file.open', () => {
-  const h = createHarness({ loadCommands: true, loadKeybindings: true });
-  h.fireDocumentEvent('keydown', {
-    target: h.context.document.body,
-    key: 'o',
-    ctrlKey: true,
-    shiftKey: false,
-    preventDefault() {},
-  });
+test('Commands.run(file.open) 统一触发 open_file IPC', () => {
+  const h = createHarness({ loadCommands: true });
+  h.context.Commands.run('file.open');
   assert.deepEqual(
     h.parseIpc().filter((message) => message.command === 'open_file'),
     [{ command: 'open_file' }],
   );
 });
 
-test('缺少 keybindings 时 Ctrl+O 保留 fallback 且不重复', () => {
-  const h = createHarness();
-  h.fireDocumentEvent('keydown', {
-    target: h.context.document.body,
-    key: 'o',
-    ctrlKey: true,
-    shiftKey: false,
-    preventDefault() {},
-  });
-  assert.deepEqual(
-    h.parseIpc().filter((message) => message.command === 'open_file'),
-    [{ command: 'open_file' }],
-  );
+test('Commands.run(file.save) 触发保存行为', () => {
+  const h = createHarness({ loadCommands: true });
+  h.fireDOMContentLoaded();
+  h.context.TabManager.createTab(null, 'Test');
+  h.context.TabManager.markDirty();
+  h.context.Commands.run('file.save');
+  const msgs = h.parseIpc().map((m) => m.command);
+  assert.ok(msgs.includes('save_as') || msgs.includes('save_file'));
 });
 
 /* ── tabs.js 冒烟 ── */

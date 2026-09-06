@@ -643,6 +643,71 @@ var TabManager = (function() {
     }
   }
 
+  function initCommands() {
+    if (!window.Commands || typeof window.Commands.register !== 'function') return;
+    var reg = window.Commands.register;
+    function safeReg(id, def) {
+      if (!window.Commands.has(id)) reg(id, def);
+    }
+    safeReg('tab.next', {
+      label: '下一个标签页',
+      category: 'View',
+      run: function() { nextTab(); }
+    });
+    safeReg('tab.previous', {
+      label: '上一个标签页',
+      category: 'View',
+      run: function() { prevTab(); }
+    });
+    safeReg('tab.close', {
+      label: '关闭标签页',
+      category: 'File',
+      run: function(arg) {
+        var id = arg && typeof arg === 'object' ? arg.tabId : arg;
+        closeTab(id || activeTabId);
+      }
+    });
+    safeReg('tab.closeAll', {
+      label: '关闭所有标签页',
+      category: 'File',
+      run: function() {
+        closeTabs(tabs.map(function(t) { return t.id; }));
+      }
+    });
+    safeReg('tab.closeLeft', {
+      label: '关闭左侧标签页',
+      category: 'File',
+      run: function(arg) {
+        var id = (arg && typeof arg === 'object' ? arg.tabId : arg) || activeTabId;
+        var idx = tabs.findIndex(function(t) { return t.id === id; });
+        if (idx > 0) closeTabs(tabs.slice(0, idx).map(function(t) { return t.id; }));
+      }
+    });
+    safeReg('tab.closeRight', {
+      label: '关闭右侧标签页',
+      category: 'File',
+      run: function(arg) {
+        var id = (arg && typeof arg === 'object' ? arg.tabId : arg) || activeTabId;
+        var idx = tabs.findIndex(function(t) { return t.id === id; });
+        if (idx !== -1 && idx < tabs.length - 1) closeTabs(tabs.slice(idx + 1).map(function(t) { return t.id; }));
+      }
+    });
+    safeReg('tabs.quickSwitch', {
+      label: '快速切换标签页',
+      category: 'View',
+      run: function() {
+        if (window.QuickOpen && typeof window.QuickOpen.toggle === 'function') {
+          window.QuickOpen.toggle();
+        } else {
+          nextTab();
+        }
+      }
+    });
+  }
+
+  // commands.js 晚于 tabs.js 加载，由 DOMContentLoaded 统一补挂
+  document.addEventListener('DOMContentLoaded', initCommands);
+
   return {
     createTab: createTab,
     closeTab: closeTab,
@@ -657,6 +722,7 @@ var TabManager = (function() {
     hasAnyDirty: hasAnyDirty,
     updateTabPath: updateTabPath,
     updateWindowTitle: updateWindowTitle,
-    ensureActiveTabVisible: ensureActiveTabVisible
+    ensureActiveTabVisible: ensureActiveTabVisible,
+    initCommands: initCommands
   };
 })();
