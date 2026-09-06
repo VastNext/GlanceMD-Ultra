@@ -1,7 +1,7 @@
 # GlanceMD Ultra 工作区实施计划
 
 - 日期：2026-09-04
-- 状态：待执行（按阶段推进，每阶段独立验收）
+- 状态：执行中（阶段 5 设置与快捷键 Wave 2a；按阶段推进，每阶段独立验收）
 - 仓库：`VastNext/GlanceMD-Ultra`（私有），基线为 GlanceMD v1.6.3 快照
 - 输入文档（按 `naming-and-planning-readiness.md` §4 的优先级）：
   1. `reports/2026-08-29-目录项目管理功能影响评估-096d/naming-and-planning-readiness.md`
@@ -207,7 +207,13 @@ src/
 
 **回归清单**：搜索结果打开的文件若已被外部删除（阶段 2 场景），不得崩溃。
 
-### 阶段 5：设置与快捷键（2–3 周）
+### 阶段 5：设置与快捷键（2–3 周；执行中）
+
+**当前状态（2026-09-06，v0.1.0，Wave 2a）**：设置 schema v1、七类设置 UI、设置搜索、全局/项目覆盖、项目树与 Outline 侧栏布局、快捷键编辑器、语言/主题接线及设置 v2 视觉基线已落地。工作区当前可打开项目目录并使用项目树进行文件浏览与基础文件操作（新建、重命名、移动、复制、删除、撤销、系统文件管理器 reveal、终端打开），并提供 Outline、项目级搜索、文件监听/冲突提示及基础恢复 UI。此处仅记录 v0.1.0 当前实现，不代表本计划完成；完整监听/恢复、跨平台矩阵、全工作区事务和发布门禁仍未完成。
+
+当前快捷键仅为**基础快捷键/有限自定义**：可对现有单段快捷键进行录制、冲突提示、清除、恢复默认和持久化。v0.1.0 明确不含 chord、context、多键位方案（multi-scheme）、Key Assist 或 Vim。`docs/design/prototypes/settings-sidebar-v2.html` 仅作为视觉/交互基线，schema 七类保持不变；custom select、密度公式、动态宽度与 420px 编辑器下限的批准规则记录于 `docs/dev/contracts/settings.md` §8。独立 overlay 与产品 custom select DOM 尚未接入，不在本轮测试中假造接口。
+
+**强快捷键方向（仅评估，全部尚未实施）**：用户最终确认采用 Eclipse 式架构与导航语义，首装默认启用 Eclipse scheme，同时提供完整 VS Code scheme；所有公开命令都必须有默认键。Eclipse 键位包括 `Ctrl+O` Quick Outline、`Ctrl+Shift+S` Save All、`Ctrl+E` Quick Switch、`Ctrl+H` Search、`Ctrl+3` Find Actions。Ultra 扩展包括 `Alt+Shift+F O` 打开文件、`Alt+Shift+F P` 打开项目、`Alt+Shift+S` 另存为、`Alt+Shift+P` 打开设置、设置内 `Alt+Shift+P K` 进入快捷键页、`Alt+Shift+E V` 切换 Vim。Vim 属于编辑器层，首版目标为常用完整集。该方向的完整测试门禁预计 **398–588 项**；上述强快捷键系统、scheme、chord、context、Key Assist、Vim 及对应测试目前全部尚未实施。
 
 **交付内容**（`settings.rs` + `settings.js` + `keybindings.js` + `command-palette.js`）
 

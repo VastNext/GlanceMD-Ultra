@@ -17,55 +17,55 @@
   --bg-raised: #1f1f24;
   --bg-overlay: #28282e;
   --bg-active: #2c2c34;
-  
-  --input-bg: #191a1b;
-  --input-bg-hover: #28282e;
-  --input-border: rgba(255, 255, 255, 0.08);
-  --input-border-hover: rgba(255, 255, 255, 0.16);
+
+  --input-bg: #141418;
+  --input-bg-hover: #1c1c22;
+  --input-border: #2c2c36;
+  --input-border-hover: rgba(168, 85, 247, 0.45);
   --input-text: #f4f4f6;
   --input-placeholder: #5c5c6b;
-  
+
   --text: #c8c8d2;
   --text-secondary: #868694;
   --text-dim: #5c5c6b;
   --text-inverse: #0d0d10;
-  
+
   --editor-bg: #111113;
   --editor-gutter: #161619;
   --editor-gutter-text: #50505e;
-  
+
   --border: #26262c;
   --border-subtle: #1e1e24;
   --hairline: rgba(255, 255, 255, 0.06);
   --divider: #202026;
-  
+
   --mk-heading: #a855f7;
   --mk-heading-end: #ec4899;
   --mk-link: #70b8ff;
   --heading-gradient: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
   --heading-glow: linear-gradient(135deg, rgba(168, 85, 247, 0.16), rgba(236, 72, 153, 0.16));
   --heading-soft: rgba(168, 85, 247, 0.15);
-  
+
   --selection-bg: rgba(168, 85, 247, 0.32);
   --focus-ring: 0 0 0 2px rgba(168, 85, 247, 0.4);
   --focus-border: #a855f7;
-  
+
   --success: #10b981;
   --success-soft: rgba(16, 185, 129, 0.14);
   --warning: #f59e0b;
   --warning-soft: rgba(245, 158, 11, 0.14);
   --danger: #ef4444;
   --danger-soft: rgba(239, 68, 68, 0.14);
-  
+
   --scrollbar: #2d2d36;
   --scrollbar-hover: #40404c;
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 10px;
-  
+
   --modal-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), 0 8px 24px rgba(0, 0, 0, 0.4);
   --popover-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
-  
+
   --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
   --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
 
@@ -89,52 +89,52 @@
   --bg-raised: #f0f2f6;
   --bg-overlay: #e5e8f0;
   --bg-active: #dbe0ea;
-  
+
   --input-bg: #ffffff;
   --input-bg-hover: #f0f2f6;
   --input-border: #d4d8e2;
   --input-border-hover: #cbd2df;
   --input-text: #2c303b;
   --input-placeholder: #9299a9;
-  
+
   --text: #2c303b;
   --text-secondary: #626877;
   --text-dim: #9299a9;
   --text-inverse: #ffffff;
-  
+
   --editor-bg: #ffffff;
   --editor-gutter: #fafbfc;
   --editor-gutter-text: #9ca3af;
-  
+
   --border: #d4d8e2;
   --border-subtle: #e6e9f0;
   --hairline: rgba(0, 0, 0, 0.06);
   --divider: #ebeef5;
-  
+
   --mk-heading: #9333ea;
   --mk-heading-end: #db2777;
   --mk-link: #2563eb;
   --heading-gradient: linear-gradient(135deg, #9333ea 0%, #db2777 100%);
   --heading-glow: linear-gradient(135deg, rgba(147, 51, 234, 0.1), rgba(219, 39, 119, 0.1));
   --heading-soft: rgba(147, 51, 234, 0.12);
-  
+
   --selection-bg: rgba(147, 51, 234, 0.22);
   --focus-ring: 0 0 0 2px rgba(147, 51, 234, 0.3);
   --focus-border: #9333ea;
-  
+
   --success: #059669;
   --success-soft: rgba(5, 150, 105, 0.12);
   --warning: #d97706;
   --warning-soft: rgba(217, 119, 6, 0.12);
   --danger: #dc2626;
   --danger-soft: rgba(220, 38, 38, 0.12);
-  
+
   --scrollbar: #cbd2df;
   --scrollbar-hover: #a6b0c2;
-  
+
   --modal-shadow: 0 24px 54px rgba(22, 28, 45, 0.18), 0 8px 20px rgba(22, 28, 45, 0.1);
   --popover-shadow: 0 12px 28px rgba(22, 28, 45, 0.14);
-  
+
   --tree-active-bg: rgba(147, 51, 234, 0.1);
   --tree-active-border: #9333ea;
   --tree-hover-bg: rgba(0, 0, 0, 0.035);
@@ -981,7 +981,7 @@ html, body {
   box-shadow: var(--focus-ring);
 }
 
-/* Select 下拉选择器 */
+/* Select 下拉选择器 (原生 Select 兜底 + 自定义高精度弹出层) */
 .select-input {
   height: 28px;
   padding: 0 28px 0 10px;
@@ -1015,6 +1015,112 @@ html, body {
 .select-input option {
   background-color: var(--input-bg);
   color: var(--input-text);
+}
+
+/* ════ 自定义 Select 控件（彻底消除浏览器原生下拉白边与粗暴弹窗） ════ */
+.custom-select-wrapper {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+}
+.custom-select-trigger {
+  height: 28px;
+  min-width: 150px;
+  padding: 0 28px 0 10px;
+  background-color: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-sm);
+  color: var(--input-text);
+  font-family: var(--font-body);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+}
+.custom-select-trigger:hover {
+  background-color: var(--input-bg-hover);
+  border-color: var(--input-border-hover);
+  color: var(--input-text);
+}
+.custom-select-trigger.active,
+.custom-select-trigger:focus-visible {
+  outline: none;
+  border-color: var(--focus-border);
+  box-shadow: var(--focus-ring);
+}
+.custom-select-arrow {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  color: var(--text-secondary);
+  pointer-events: none;
+  transition: transform 0.15s ease;
+}
+.custom-select-trigger.active .custom-select-arrow {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+/* 自定义下拉菜单弹出层 (深色纯净边框 + 品牌强调微光) */
+.custom-select-menu {
+  position: fixed;
+  z-index: 2200;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.35);
+  padding: 4px;
+  min-width: 160px;
+  max-height: 240px;
+  overflow-y: auto;
+  opacity: 0;
+  transform: translateY(-4px) scale(0.98);
+  pointer-events: none;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  backdrop-filter: blur(12px);
+}
+.custom-select-menu.open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+.custom-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+.custom-select-option:hover,
+.custom-select-option.hovered {
+  background: var(--tree-hover-bg);
+  color: var(--text);
+}
+.custom-select-option.selected {
+  background: var(--tree-active-bg);
+  color: var(--text);
+  font-weight: 600;
+}
+.custom-select-option .check-icon {
+  width: 13px;
+  height: 13px;
+  color: var(--mk-heading);
+  margin-left: 8px;
+  opacity: 0;
+  stroke-width: 2.5;
+}
+.custom-select-option.selected .check-icon {
+  opacity: 1;
 }
 
 [data-theme="light"] .select-input {
@@ -1297,15 +1403,15 @@ html, body {
       <div class="editor-canvas">
         <div class="md-h1"># GlanceMD Ultra · 轻量原生工作区</div>
         <p class="md-p">GlanceMD Ultra 专注于为本地 Markdown 与结构化项目提供极速、无运行时负担的原生编辑体验。二进制仅 2–5MB，启动耗时低于 120ms，零 Electron 与 Monaco 依赖。</p>
-        
+
         <div class="md-h2">## 视觉设计体系：Quiet Technical Layers</div>
         <p class="md-p">暗色模式采用 Linear / Raycast 风格的 Surface Ladder 递进，浅色模式采用 Cursor / Notion 的暖白微边框（Hairline）。普通设置行不做厚重卡片，视觉层级完全由表面深度与分割线构筑。</p>
-        
+
         <div class="md-quote">"纯粹的工具性美学：克制、精密、轻盈。"</div>
-        
+
         <div class="md-h3">### 侧栏排版与树形密度联动</div>
         <p class="md-p">通过单一滑动条（12–18px），可全局等比联动字号、图标尺寸、箭头角度、行高（26–38px）、层级缩进与 Outline 标记。</p>
-        
+
         <div class="md-code-block">
 // Rust Workspace Event Bus
 pub fn update_density(size: u32) -> Result<()> {
@@ -1360,7 +1466,7 @@ pub fn update_density(size: u32) -> Result<()> {
      ════════════════════════════════════════════════════════════════ -->
 <div id="settings-modal-overlay">
   <div id="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
-    
+
     <!-- Modal 顶部栏 (52px) -->
     <div class="dialog-header" id="dialog-drag-handle">
       <div class="dialog-header-title">
@@ -1382,7 +1488,7 @@ pub fn update_density(size: u32) -> Result<()> {
 
     <!-- Modal 中间主体 (外框高度恒定，左右分栏) -->
     <div class="dialog-body">
-      
+
       <!-- 7 分类导航 (208px) -->
       <nav class="dialog-nav" id="dialog-nav-list">
         <div class="nav-item" data-target="pane-general">
@@ -1421,7 +1527,7 @@ pub fn update_density(size: u32) -> Result<()> {
         <!-- ── 1. 通用 (General) ── -->
         <div class="category-pane" id="pane-general">
           <div class="settings-section-title">启动与行为</div>
-          
+
           <div class="setting-row">
             <div class="setting-info">
               <div class="setting-title">启动时恢复上次工作区</div>
@@ -1471,7 +1577,7 @@ pub fn update_density(size: u32) -> Result<()> {
         <!-- ── 2. 外观 (Appearance) - 完整 ── -->
         <div class="category-pane active" id="pane-appearance">
           <div class="settings-section-title">色彩与主题</div>
-          
+
           <div class="setting-row">
             <div class="setting-info">
               <div class="setting-title">色彩主题模式</div>
@@ -1874,7 +1980,7 @@ pub fn update_density(size: u32) -> Result<()> {
   const themeIcon = document.getElementById('theme-icon');
   const themeText = document.getElementById('theme-text');
   const settingThemeSelect = document.getElementById('setting-theme-select');
-  
+
   const densitySlider = document.getElementById('density-slider');
   const densityIndicator = document.getElementById('density-indicator');
   const modalDensitySlider = document.getElementById('modal-density-slider');
@@ -1917,15 +2023,21 @@ pub fn update_density(size: u32) -> Result<()> {
     }
     root.setAttribute('data-theme', theme);
     localStorage.setItem('glancemd-ultra-theme', theme);
-    
+
     if (theme === 'dark') {
       themeIcon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
       themeText.textContent = '深色';
-      if (settingThemeSelect) settingThemeSelect.value = 'dark';
+      if (settingThemeSelect) {
+        settingThemeSelect.value = 'dark';
+        settingThemeSelect.dispatchEvent(new Event('sync-custom'));
+      }
     } else {
       themeIcon.innerHTML = '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>';
       themeText.textContent = '浅色';
-      if (settingThemeSelect) settingThemeSelect.value = 'light';
+      if (settingThemeSelect) {
+        settingThemeSelect.value = 'light';
+        settingThemeSelect.dispatchEvent(new Event('sync-custom'));
+      }
     }
   }
 
@@ -1943,13 +2055,13 @@ pub fn update_density(size: u32) -> Result<()> {
   // ── 3. 侧栏密度与字号联动 (12–18px Slider) ──
   function applyDensity(val) {
     val = Math.max(12, Math.min(18, parseInt(val, 10) || 14));
-    
+
     // 等比计算派生尺寸
-    // 默认 14px -> 图标 16px, 箭头 12px, 行高 30px, gap 8px, 缩进 16px
-    const iconSize = Math.round(val * 1.14);
-    const caretSize = Math.round(val * 0.85);
-    const rowHeight = Math.round(val * 2.14);
-    const gap = Math.round(val * 0.57);
+    // 默认 14px -> 图标 20px, 箭头 14px, 行高 32px, gap 8px, 缩进 16px
+    const iconSize = Math.round(val * 1.42);
+    const caretSize = Math.round(val * 1.0);
+    const rowHeight = Math.round(val * 2.2);
+    const gap = Math.round(val * 0.6);
     const indent = Math.round(val * 1.14);
 
     root.style.setProperty('--tree-font-size', val + 'px');
@@ -2030,20 +2142,20 @@ pub fn update_density(size: u32) -> Result<()> {
       const workspaceW = document.getElementById('workspace-container').offsetWidth;
       const currentOutlineW = outlinePanel.offsetWidth;
       const currentTreeW = treePanel.offsetWidth;
-      const minEditorW = 420;
+      const minEditorW = 300;
 
       if (isDraggingTree) {
         const delta = e.clientX - startX;
         let newTreeW = startWidth + delta;
-        // 计算最大可允许宽度
-        const maxTreeW = Math.min(640, Math.floor(workspaceW * 0.40), workspaceW - currentOutlineW - minEditorW - 10);
+        // 计算最大可允许宽度（最高支持 800px，编辑区保留至少 300px）
+        const maxTreeW = Math.min(800, workspaceW - currentOutlineW - minEditorW - 10);
         newTreeW = Math.max(180, Math.min(maxTreeW, newTreeW));
         treePanel.style.width = newTreeW + 'px';
         updateMetricsDisplay();
       } else if (isDraggingOutline) {
         const delta = startX - e.clientX;
         let newOutlineW = startWidth + delta;
-        const maxOutlineW = Math.min(480, Math.floor(workspaceW * 0.30), workspaceW - currentTreeW - minEditorW - 10);
+        const maxOutlineW = Math.min(600, workspaceW - currentTreeW - minEditorW - 10);
         newOutlineW = Math.max(170, Math.min(maxOutlineW, newOutlineW));
         outlinePanel.style.width = newOutlineW + 'px';
         updateMetricsDisplay();
@@ -2101,7 +2213,7 @@ pub fn update_density(size: u32) -> Result<()> {
   navItems.forEach(item => {
     item.addEventListener('click', () => {
       const targetId = item.getAttribute('data-target');
-      
+
       navItems.forEach(n => n.classList.remove('active'));
       item.classList.add('active');
 
@@ -2188,7 +2300,7 @@ pub fn update_density(size: u32) -> Result<()> {
       } else if (isResizingModal) {
         const dx = e.clientX - dragStartX;
         const dy = e.clientY - dragStartY;
-        
+
         const minW = Math.min(760, window.innerWidth - 32);
         const minH = Math.min(520, window.innerHeight - 48);
         const maxW = Math.min(1080, window.innerWidth * 0.95);
@@ -2316,7 +2428,7 @@ pub fn update_density(size: u32) -> Result<()> {
     applyDensity(DEFAULT_DENSITY);
     treePanel.style.width = DEFAULT_TREE_WIDTH + 'px';
     outlinePanel.style.width = DEFAULT_OUTLINE_WIDTH + 'px';
-    
+
     settingsDialog.style.width = '880px';
     settingsDialog.style.height = '640px';
     settingsDialog.style.left = '';
@@ -2331,7 +2443,125 @@ pub fn update_density(size: u32) -> Result<()> {
     updateMetricsDisplay();
   });
 
-  // ── 9. 初始化载入 ──
+  // ── 9. 自定义高保真下拉选择器组件 (消除原生弹出层白色白边与系统级生硬感) ──
+  function initCustomSelects() {
+    document.querySelectorAll('select.select-input').forEach(select => {
+      if (select.dataset.customized) return;
+      select.dataset.customized = 'true';
+      select.style.display = 'none';
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'custom-select-wrapper';
+
+      const trigger = document.createElement('div');
+      trigger.className = 'custom-select-trigger';
+      trigger.tabIndex = 0;
+      trigger.setAttribute('role', 'combobox');
+      trigger.setAttribute('aria-expanded', 'false');
+
+      const labelSpan = document.createElement('span');
+      labelSpan.className = 'custom-select-label';
+      const selectedOption = select.options[select.selectedIndex] || select.options[0];
+      labelSpan.textContent = selectedOption ? selectedOption.textContent : '';
+
+      const arrowSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      arrowSvg.setAttribute('class', 'custom-select-arrow svg-icon');
+      arrowSvg.setAttribute('viewBox', '0 0 24 24');
+      arrowSvg.innerHTML = '<polyline points="6 9 12 15 18 9"></polyline>';
+
+      trigger.appendChild(labelSpan);
+      trigger.appendChild(arrowSvg);
+      wrapper.appendChild(trigger);
+      select.parentNode.insertBefore(wrapper, select);
+
+      const menu = document.createElement('div');
+      menu.className = 'custom-select-menu';
+      document.body.appendChild(menu);
+
+      function renderOptions() {
+        menu.innerHTML = '';
+        Array.from(select.options).forEach(opt => {
+          const item = document.createElement('div');
+          const isSelected = opt.value === select.value;
+          item.className = 'custom-select-option' + (isSelected ? ' selected' : '');
+          item.dataset.value = opt.value;
+          item.innerHTML = `<span>${opt.textContent}</span><svg class="check-icon svg-icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+
+          item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            select.value = opt.value;
+            labelSpan.textContent = opt.textContent;
+            closeMenu();
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+          });
+          menu.appendChild(item);
+        });
+      }
+
+      function positionMenu() {
+        const rect = trigger.getBoundingClientRect();
+        menu.style.minWidth = Math.max(rect.width, 160) + 'px';
+        menu.style.left = rect.left + 'px';
+        const spaceBelow = window.innerHeight - rect.bottom;
+        if (spaceBelow < 220 && rect.top > spaceBelow) {
+          menu.style.top = 'auto';
+          menu.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
+        } else {
+          menu.style.bottom = 'auto';
+          menu.style.top = (rect.bottom + 4) + 'px';
+        }
+      }
+
+      function openMenu() {
+        document.querySelectorAll('.custom-select-menu.open').forEach(m => m.classList.remove('open'));
+        document.querySelectorAll('.custom-select-trigger.active').forEach(t => t.classList.remove('active'));
+        renderOptions();
+        positionMenu();
+        menu.classList.add('open');
+        trigger.classList.add('active');
+        trigger.setAttribute('aria-expanded', 'true');
+      }
+
+      function closeMenu() {
+        menu.classList.remove('open');
+        trigger.classList.remove('active');
+        trigger.setAttribute('aria-expanded', 'false');
+      }
+
+      trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (menu.classList.contains('open')) {
+          closeMenu();
+        } else {
+          openMenu();
+        }
+      });
+
+      trigger.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          openMenu();
+        } else if (e.key === 'Escape') {
+          closeMenu();
+        }
+      });
+
+      select.addEventListener('sync-custom', () => {
+        const currentOpt = select.options[select.selectedIndex];
+        if (currentOpt) {
+          labelSpan.textContent = currentOpt.textContent;
+        }
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!wrapper.contains(e.target) && !menu.contains(e.target)) {
+          closeMenu();
+        }
+      });
+    });
+  }
+
+  // ── 10. 初始化载入 ──
   function init() {
     const savedTheme = localStorage.getItem('glancemd-ultra-theme') || 'dark';
     setTheme(savedTheme);
@@ -2347,6 +2577,7 @@ pub fn update_density(size: u32) -> Result<()> {
 
     initResizers();
     initModalDragAndResize();
+    initCustomSelects();
     updateMetricsDisplay();
   }
 

@@ -27,12 +27,23 @@ Project lineage: **[Peekdown](https://github.com/Mockitup/Peekdown)** (by Mockit
   <img src="screenshot-preview_dark.png" alt="GlanceMD Ultra preview (dark theme)" width="820">
 </p>
 
-## 🧭 Workspace Capabilities (delivered incrementally)
+## 🧭 Current Workspace Capabilities in v0.1.0
 
-- **Project tree** 🌲 — lazy-loaded directory tree, multi-select, reveal current file, Ctrl+P quick open
-- **File watching & conflict protection** 🛡️ — external change detection, atomic saves, crash recovery
-- **Full-text search** 🔍 — project-wide search and filtering
-- **Settings & shortcuts** ⚙️ — configurable preferences, keybindings, and a command palette
+v0.1.0 includes the first usable workspace, sidebar, and settings capabilities. This is not a claim that the master implementation plan is complete; later stages are still being implemented.
+
+- **Workspace** 🌲 — open a local project directory, scan and lazy-load its tree, and open project files; the tree also provides create, rename, move, copy, delete, undo, reveal in the system file manager, and open in a terminal.
+- **Sidebars** 🧭 — show the project tree and Outline together; collapse panels, resize them by dragging, persist the layout, and place Outline on the left or right; locating the current file and the project search panel are available.
+- **Files and recovery** 🛡️ — file watching, external-change/conflict notifications, workspace recovery events, and the basic recovery UI are wired in; full cross-platform and abnormal-exit gates are not complete.
+- **Settings** ⚙️ — Settings v1 provides seven categories: Appearance, Files, Watching, Search, Editor, Keybindings, and Recovery. It supports global settings, project overrides in `.glancemd/settings.json`, settings search, Simplified Chinese/English language selection, themes, sidebar font size, Outline position, terminal settings, and opening the settings JSON.
+- **Keyboard shortcuts** ⌨️ — the current system is **basic shortcuts with limited customization**: single-stroke shortcut recording for available commands, conflict feedback, clear, restore-default, and persistence. v0.1.0 **does not include** chords, context bindings, multiple schemes, Key Assist, or Vim mode.
+
+These capabilities describe the current v0.1.0 worktree. Full workspace transactions, complete keyboard accessibility, cross-platform matrices, and the strong keyboard system remain planned and are not yet implemented.
+
+## 🧭 Future Workspace Work
+
+- **File watching and conflict protection** 🛡️ — complete external-change matrix, atomic saves, and crash recovery
+- **Full-text search** 🔍 — complete project-wide behavior and performance gates
+- **Settings and shortcuts** ⚙️ — complete command registration, contexts, chords, schemes, and keyboard assistance
 
 ## ✅ Features (single-file editor baseline)
 
@@ -53,7 +64,9 @@ Project lineage: **[Peekdown](https://github.com/Mockitup/Peekdown)** (by Mockit
 - **File associations** 📄 — use as default `.md` viewer via "Open With"
 - **Embedded frontend** 💾 — HTML, CSS and JavaScript are compiled into the native binary
 
-## ⌨️ Keyboard Shortcuts
+## ⌨️ Basic Keyboard Shortcuts (v0.1.0)
+
+The following are the currently available basic shortcuts. Customization is currently limited to recording single-stroke bindings; v0.1.0 does not include chords, contexts, multiple schemes, Key Assist, or Vim.
 
 | Shortcut | Action |
 |---|---|
