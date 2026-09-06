@@ -229,7 +229,7 @@ fn scan_counting(root: &Path, generation: usize) -> usize {
             if file_type.is_dir() {
                 stack.push(entry.path());
             } else if file_type.is_symlink()
-                && entry.metadata().is_ok_and(|metadata| metadata.is_dir())
+                && std::fs::metadata(entry.path()).is_ok_and(|metadata| metadata.is_dir())
             {
                 // 目录符号链接不递归，也不计入文件总数。
                 continue;

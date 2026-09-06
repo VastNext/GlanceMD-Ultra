@@ -406,42 +406,35 @@ fn 复制_中途失败回滚_已复制项被清理_unix() {
     cleanup(&root);
 }
 
-#[cfg(target_os = "windows")]
-/// 给文件加显式 deny DELETE 的 ACE（icacls 特定权限写法 `DE`=Delete，
-/// SID 直接写法避免本地化组名差异；只拒删除、不影响读写，供降级路径注入）。
-fn deny_delete_ace(path: &Path) {
-    let status = std::process::Command::new("icacls")
-        .arg(path)
-        .args(["/deny", "*S-1-1-0:(DE)"])
-        .status()
-        .expect("icacls 启动失败");
-    assert!(status.success(), "icacls 拒绝 DELETE 权限失败");
+fn always_fail_rename(_: &Path, _: &Path) -> std::io::Result<()> {
+    Err(std::io::Error::other("注入 rename 失败"))
 }
 
-#[cfg(target_os = "windows")]
-/// 移除文件的 deny ACE（尽力而为；幂等）。
-fn remove_deny_ace(path: &Path) {
-    let _ = std::process::Command::new("icacls")
-        .arg(path)
-        .args(["/remove:d", "*S-1-1-0"])
-        .status();
+fn fail_source_remove_succeed_target(path: &Path) -> std::io::Result<()> {
+    if path.file_name().is_some_and(|name| name == "报表.md")
+        && path
+            .parent()
+            .is_some_and(|parent| parent.file_name() != Some(std::ffi::OsStr::new("dst")))
+    {
+        return Err(std::io::Error::other("注入删源失败"));
+    }
+    std::fs::remove_file(path)
 }
 
-#[cfg(target_os = "windows")]
 #[test]
 fn 移动_降级复制后删源失败_回滚目标副本() {
-    // 跨盘移动 = 复制后删除 + 失败回滚。注入方式：icacls 给源文件加显式
-    // deny DELETE ACE（现代 Windows 上 rename 对普通打开句柄仍可能成功，
-    // 打开句柄注入不可靠）→ 同卷 rename（需要 DELETE 访问权）失败 →
-    // 降级复制（只需读权限）成功 → 删除源失败 → 目标副本必须被回滚、
-    // 报错、源原样保留。
     let root = temp_root("move-rollback");
     std::fs::create_dir(root.join("dst")).unwrap();
     let source = root.join("报表.md");
+    let target = root.join("dst").join("报表.md");
     std::fs::write(&source, "# 报表内容").unwrap();
-    deny_delete_ace(&source);
 
-    let result = ops().move_entry(&root, "报表.md", "dst");
+    let result = operations::move_path_with_test_hooks(
+        &source,
+        &target,
+        always_fail_rename,
+        fail_source_remove_succeed_target,
+    );
     assert!(
         matches!(result, Err(OpError::Io(_))),
         "应在删源一步失败：{result:?}"
@@ -452,15 +445,11 @@ fn 移动_降级复制后删源失败_回滚目标副本() {
         "# 报表内容",
         "源内容不应受影响"
     );
-    assert!(
-        !root.join("dst").join("报表.md").exists(),
-        "目标副本应被回滚"
-    );
+    assert!(!target.exists(), "目标副本应被回滚");
 
-    // 解除拒绝后同一移动应成功（失败可重试语义）
-    remove_deny_ace(&source);
+    // 失败后仍可通过正常入口重试。
     ops().move_entry(&root, "报表.md", "dst").unwrap();
-    assert!(root.join("dst").join("报表.md").exists());
+    assert!(target.exists());
     assert!(!source.exists());
     cleanup(&root);
 }

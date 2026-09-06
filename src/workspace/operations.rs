@@ -652,17 +652,40 @@ fn reject_colliding_target(source: &Path, target: &Path) -> Result<(), OpError> 
 
 /// 移动路径：优先同卷原子 `rename`，失败降级"复制 + 删除源"（复制失败自动回滚）。
 fn move_path(from: &Path, to: &Path) -> Result<(), OpError> {
-    if fs::rename(from, to).is_ok() {
+    move_path_with(from, to, rename_path, remove_path)
+}
+
+fn rename_path(from: &Path, to: &Path) -> std::io::Result<()> {
+    fs::rename(from, to)
+}
+
+fn move_path_with(
+    from: &Path,
+    to: &Path,
+    rename: fn(&Path, &Path) -> std::io::Result<()>,
+    remove: fn(&Path) -> std::io::Result<()>,
+) -> Result<(), OpError> {
+    if rename(from, to).is_ok() {
         return Ok(());
     }
     copy_tree_rollback_on_error(from, to)?;
     // 复制全部成功后删除源；删除失败则回滚目标副本（尽力而为），保证失败时
     // "数据要么在源、要么在目标"，不丢失也不重复。
-    if let Err(delete_err) = remove_path(from) {
-        let _ = remove_path(to);
+    if let Err(delete_err) = remove(from) {
+        let _ = remove(to);
         return Err(OpError::Io(delete_err));
     }
     Ok(())
+}
+
+#[cfg(test)]
+pub fn move_path_with_test_hooks(
+    from: &Path,
+    to: &Path,
+    rename: fn(&Path, &Path) -> std::io::Result<()>,
+    remove: fn(&Path) -> std::io::Result<()>,
+) -> Result<(), OpError> {
+    move_path_with(from, to, rename, remove)
 }
 
 /// 复制一棵树（文件或目录）到 `to`；复制中途任一步失败时，按后进先出清理
