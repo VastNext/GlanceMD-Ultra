@@ -25,7 +25,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 /// 当前 schema 版本。升级 schema 时递增，并在 [`MIGRATION_STEPS`] 登记迁移步骤。
-pub const SCHEMA_VERSION: u32 = 1;
+pub const SCHEMA_VERSION: u32 = 2;
+
+/// Built-in scheme used when no user preference has been recorded.
+pub const DEFAULT_KEYBINDING_SCHEME: &str = "ultra.eclipse";
 
 /// 设置文件名（全局与项目设置同名，靠所在目录区分）。
 pub const SETTINGS_FILE_NAME: &str = "settings.json";
@@ -260,14 +263,50 @@ impl Default for Editor {
     }
 }
 
-/// 快捷键（方案 §7.1 类 6）。v1 仅保留覆盖表占位；组合键格式与冲突检测
-/// 由阶段 5 快捷键流实现（格式约定见契约文档）。
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+/// 快捷键绑定记录。`removed=true` 是显式 unbind，不等同于缺失绑定。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Keybinding {
+    pub command_id: String,
+    pub sequence: String,
+    pub context: Option<String>,
+    pub when: Option<String>,
+    pub platform: Option<String>,
+    pub removed: bool,
+}
+
+impl Default for Keybinding {
+    fn default() -> Self {
+        Self {
+            command_id: String::new(),
+            sequence: String::new(),
+            context: None,
+            when: None,
+            platform: None,
+            removed: false,
+        }
+    }
+}
+
+/// 快捷键：活动方案与按方案隔离的用户绑定。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Keybindings {
-    /// 命令 ID → canonical 组合键（如 `"file.save" → "Ctrl+S"`）。
-    /// 使用 `BTreeMap` 保证序列化键序稳定（roundtrip 零漂移）。
+    pub active_scheme: String,
+    pub schemes: BTreeMap<String, Vec<Keybinding>>,
+    /// Deprecated v1 compatibility view; not serialized in v2 documents.
+    #[serde(skip)]
     pub overrides: BTreeMap<String, String>,
+}
+
+impl Default for Keybindings {
+    fn default() -> Self {
+        Self {
+            active_scheme: DEFAULT_KEYBINDING_SCHEME.to_string(),
+            schemes: BTreeMap::new(),
+            overrides: BTreeMap::new(),
+        }
+    }
 }
 
 /// 恢复与启动行为（方案 §7.1 类 7）。
@@ -421,11 +460,16 @@ pub struct EditorPatch {
     pub large_file_mb: Option<u64>,
 }
 
-/// [`Keybindings`] 的补丁镜像。
+/// [`Keybindings`] 的项目补丁。出于安全边界，项目快捷键默认不生效；
+/// 调用方必须显式选择允许后再应用此字段。
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct KeybindingsPatch {
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub active_scheme: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub schemes: Option<BTreeMap<String, Vec<Keybinding>>>,
+    #[serde(skip)]
     pub overrides: Option<BTreeMap<String, String>>,
 }
 
@@ -554,15 +598,9 @@ pub fn effective(global: &Settings, project: &SettingsPatch) -> Settings {
                 global.editor.large_file_mb,
             ),
         },
-        keybindings: Keybindings {
-            overrides: opt_or(
-                project
-                    .keybindings
-                    .as_ref()
-                    .and_then(|k| k.overrides.clone()),
-                global.keybindings.overrides.clone(),
-            ),
-        },
+        // Project keybindings are intentionally ignored by default. A workspace
+        // file must not silently change commands/shortcuts when opened.
+        keybindings: global.keybindings.clone(),
         recovery: Recovery {
             confirm_close_dirty: opt_or(
                 project
@@ -691,10 +729,14 @@ pub fn is_overridden(project: &SettingsPatch, key_path: &str) -> bool {
             .editor
             .as_ref()
             .is_some_and(|e| e.large_file_mb.is_some()),
-        ("keybindings", "overrides") => project
+        ("keybindings", "activeScheme") => project
             .keybindings
             .as_ref()
-            .is_some_and(|k| k.overrides.is_some()),
+            .is_some_and(|k| k.active_scheme.is_some()),
+        ("keybindings", "schemes") => project
+            .keybindings
+            .as_ref()
+            .is_some_and(|k| k.schemes.is_some()),
         ("recovery", "confirmCloseDirty") => project
             .recovery
             .as_ref()
@@ -735,7 +777,8 @@ pub fn overridden_keys(project: &SettingsPatch) -> Vec<String> {
         "editor.wordWrap",
         "editor.lineNumbers",
         "editor.largeFileMB",
-        "keybindings.overrides",
+        "keybindings.activeScheme",
+        "keybindings.schemes",
         "recovery.confirmCloseDirty",
         "recovery.crashRecovery",
         "recovery.createProjectSettings",
@@ -856,6 +899,8 @@ pub fn load_project_checked(root: &Path) -> Option<LoadedPatch> {
         }
     }
     let mut warnings = Vec::new();
+    let mut raw = raw;
+    migrate_v1_keybindings(&mut raw, &mut warnings);
     collect_unknown_keys(&raw, &mut warnings);
     match serde_json::from_value::<SettingsPatch>(raw) {
         Ok(mut patch) => {
@@ -1042,7 +1087,7 @@ type MigrationStep = fn(&mut Value, &mut Vec<String>);
 /// 迁移步骤注册表：按起始版本升序登记 `(from_version, step)`。schema 升级到 v2
 /// 时在此追加 `(1, migrate_v1_to_v2)`，[`migrate_checked`] 即沿链式步骤把旧文档
 /// 逐级推进到 [`SCHEMA_VERSION`]，无需改动加载路径。
-const MIGRATION_STEPS: &[(u32, MigrationStep)] = &[(0, migrate_v0_to_v1)];
+const MIGRATION_STEPS: &[(u32, MigrationStep)] = &[(0, migrate_v0_to_v1), (1, migrate_v1_to_v2)];
 
 /// 迁移设置文档到当前版本（丢弃告警的便捷封装，签名满足契约）。
 pub fn migrate(raw: &Value) -> Result<Settings, MigrateError> {
@@ -1096,6 +1141,45 @@ pub fn migrate_checked(raw: &Value) -> Result<MigratedSettings, MigrateError> {
     Ok(MigratedSettings { settings, warnings })
 }
 
+/// v1 → v2：把旧 overrides map 迁移为默认活动方案的用户绑定列表。
+fn migrate_v1_to_v2(doc: &mut Value, warnings: &mut Vec<String>) {
+    migrate_v1_keybindings(doc, warnings);
+}
+
+fn migrate_v1_keybindings(doc: &mut Value, warnings: &mut Vec<String>) {
+    let Some(obj) = doc.as_object_mut() else {
+        return;
+    };
+    let Some(keybindings) = obj.get_mut("keybindings").and_then(Value::as_object_mut) else {
+        warnings.push("设置文档已按 v1→v2 迁移（快捷键使用默认方案）".to_string());
+        return;
+    };
+    if let Some(overrides) = keybindings.remove("overrides") {
+        let mut bindings = Vec::new();
+        if let Some(map) = overrides.as_object() {
+            for (command_id, sequence) in map {
+                if let Some(sequence) = sequence.as_str() {
+                    bindings.push(json!({"commandId": command_id, "sequence": sequence}));
+                } else {
+                    warnings.push(format!("旧快捷键覆盖 {command_id} 不是字符串，已忽略"));
+                }
+            }
+        }
+        keybindings.insert("activeScheme".to_string(), json!(DEFAULT_KEYBINDING_SCHEME));
+        keybindings.insert(
+            "schemes".to_string(),
+            json!({DEFAULT_KEYBINDING_SCHEME: bindings}),
+        );
+        warnings
+            .push("已迁移 keybindings.overrides → keybindings.schemes.ultra.eclipse".to_string());
+    } else {
+        keybindings
+            .entry("activeScheme")
+            .or_insert_with(|| json!(DEFAULT_KEYBINDING_SCHEME));
+        keybindings.entry("schemes").or_insert_with(|| json!({}));
+    }
+}
+
 /// v0 → v1 迁移规则（演练步，证明迁移框架可扩展）。
 ///
 /// v0 特征：无 `version` 字段——v1.6.3 基线时代设置散落在 localStorage，尚无
@@ -1122,7 +1206,7 @@ fn migrate_v0_to_v1(doc: &mut Value, warnings: &mut Vec<String>) {
             None => warnings.push("旧设置键 theme 的值不是字符串，已忽略".to_string()),
         }
     }
-    obj.insert("version".to_string(), json!(SCHEMA_VERSION));
+    obj.insert("version".to_string(), json!(1));
 }
 
 /// 已知顶层键（与 [`Settings`] 字段一一对应；全字段文档测试守护两者不失同步）。
@@ -1137,8 +1221,8 @@ const KNOWN_TOP_LEVEL: &[&str] = &[
     "recovery",
 ];
 
-/// 已知类内字段（JSON 键名）。`keybindings` 不在表中：其内层键是命令 ID
-/// （开放集合），不做未知键检查。
+/// 已知类内字段（JSON 键名）。快捷键 schemes 内层为方案 ID，命令记录字段另行校验。
+/// 命令 ID 与方案 ID 均为开放集合。
 const KNOWN_CATEGORY_FIELDS: &[(&str, &[&str])] = &[
     (
         "appearance",
@@ -1170,6 +1254,7 @@ const KNOWN_CATEGORY_FIELDS: &[(&str, &[&str])] = &[
             "largeFileMB",
         ],
     ),
+    ("keybindings", &["activeScheme", "schemes"]),
     (
         "recovery",
         &[

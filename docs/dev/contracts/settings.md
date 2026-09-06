@@ -1,4 +1,4 @@
-# 设置体系契约（schema v1 / 合并引擎 / 命令与事件）
+# 设置体系契约（schema v2 / 合并引擎 / 命令与事件）
 
 - 事实源：本模块 `src/workspace/settings.rs`（schema、加载/保存、合并、迁移）+ 本文（命令、事件、路径约定、字段表）。
 - 分类依据：产品架构方案 §7.1 的七类（**以方案实际分类名为准**，而非任务描述中的 general/advanced 猜测名）：外观与布局、文件类型/隐藏文件/排除规则、文件监听与自动保存、搜索、编辑器与大文件模式、快捷键、恢复与启动行为。
@@ -16,9 +16,9 @@
 - 项目设置是否**自动创建**由全局 `recovery.createProjectSettings` 控制（默认不创建）——粘合层在 `load-project` 命令中按需调用 `save_project`。
 - 原子性注记：当前保存为直接 `std::fs::write`（**非原子**）；阶段 6 `atomic_save` 落地后，粘合层应改走"临时文件写入 → 替换目标"，模块签名不变。
 
-## 2. Schema v1 字段全表（七类）
+## 2. Schema v2 字段全表（七类）
 
-顶层键：`version`（u32，当前恒为 `1`）+ 七个分类键。所有键为 camelCase；未知键**容忍**（解析时收集进 warnings 后忽略，绝不拒绝文档）。
+顶层键：`version`（u32，当前恒为 `2`）+ 七个分类键。所有键为 camelCase；未知键**容忍**（解析时收集进 warnings 后忽略，绝不拒绝文档）。
 
 ### 2.1 appearance（外观与布局）
 
@@ -66,9 +66,11 @@
 
 | JSON 键 | 类型 | 默认 | 语义 |
 |---|---|---|---|
-| `overrides` | map<命令 ID, 组合键> | `{}` | 用户自定义快捷键覆盖表（占位，阶段 5 快捷键流对接）；序列化用 BTreeMap，键序稳定 |
+| `activeScheme` | string | `"ultra.eclipse"` | 当前活动方案 ID |
+| `schemes` | map<方案 ID, binding[]> | `{}` | 按方案隔离的用户绑定；记录含 `commandId`、`sequence`、可选 `context`/`when`/`platform` 与 `removed` |
 
 **组合键占位格式**（存储值，canonical）：修饰键按固定顺序 `Ctrl` → `Alt` → `Shift` → `Meta`，`+` 连接，后接主键（字母大写），如 `"Ctrl+Shift+P"`、`"Ctrl+Alt+S"`。存储始终使用 Windows/Linux 词表；macOS 显示映射（`Ctrl`→`⌘`、`Alt`→`⌥`、`Shift`→`⇧`、`Meta`→`⌃`）由 keybindings 前端流负责。本模块不做冲突检测/录制校验（属阶段 5 快捷键流），仅存取该 map。
+`removed: true` 是显式 unbind；同一命令允许多条 binding。
 
 ### 2.7 recovery（恢复与启动行为）
 
@@ -83,14 +85,14 @@
 - `effective(global, project) -> Settings`：**字段级覆盖**——项目补丁中 `Some` 的字段覆盖全局对应字段，`None`/缺省保留全局；**`Vec` 与 map 为整体替换，不做并集**（项目想"在全局基础上追加"必须写出完整列表）；结果 `version` 恒为当前版本。
 - `is_overridden(project, key_path) -> bool`：`key_path` 用 JSON 键名，字段级 `"appearance.theme"` / `"files.watcherExclude"`，类级 `"files"`（该类任一字段被覆盖）；未知路径返回 `false`。设置 UI 据此显示"项目已覆盖"徽标。
 - 项目文件解析为补丁（`SettingsPatch`）：文件里未出现的类别为 `None`；保存补丁时 `None` 字段不落盘。
-- 项目文件版本守卫：`version > 1` 时**整体忽略**项目覆盖并告警（避免半新半旧混合）；缺 `version` 容忍（仅字段补丁，无需迁移）。
+- 项目文件版本守卫：`version > 2` 时**整体忽略**项目覆盖并告警（避免半新半旧混合）；缺 `version` 容忍（仅字段补丁，无需迁移）。
 
 ## 4. 版本与迁移
 
 - `migrate(raw: &Value) -> Result<Settings, MigrateError>` / `migrate_checked`（附带 warnings）。
 - 缺 `version`（或显式 `0`）视为 v0 → 执行 `MIGRATION_STEPS` 中 `(0, …)` 步骤：映射顶层散落 `theme` → `appearance.theme`（非法值忽略并告警）、补 `version=1`。
-- `version == 1` 直通；`version > 1` 报 `MigrateError::UnsupportedVersion`（未来版本不降级）。
-- 扩展方式：schema 升到 v2 时在 `MIGRATION_STEPS` 追加 `(1, migrate_v1_to_v2)`，加载路径零改动（框架可扩展性由探针测试的 v0 演练步证明）。
+- `version == 2` 直通；`version > 2` 报 `MigrateError::UnsupportedVersion`（未来版本不降级）。
+- v1 的 `keybindings.overrides` map 迁移为 `schemes.ultra.eclipse[]` binding records；缺 version 文档先走 v0→v1 再走 v1→v2。旧 localStorage 迁移由前端后续执行，本模块仅定义握手。
 - 加载失败语义（损坏/版本过新/非对象）：**回退全默认 + warnings**，绝不阻断启动；项目侧对应"忽略覆盖"。
 
 ## 5. 命令表（粘合层由主 Agent 编写，注册到 `commands.rs`）
@@ -120,7 +122,7 @@
 ## 7. Rust API 速查（集成者）
 
 ```text
-常量        SCHEMA_VERSION=1, SETTINGS_FILE_NAME="settings.json", PROJECT_SETTINGS_DIR=".glancemd"
+常量        SCHEMA_VERSION=2, SETTINGS_FILE_NAME="settings.json", PROJECT_SETTINGS_DIR=".glancemd"
 路径        global_settings_path(base_dir), project_settings_path(root)
 类型        Settings / 各分类（Appearance, Files, Watching, Search, Editor, Keybindings, Recovery）
             SettingsPatch / 各分类补丁（全 Option 镜像）；LoadedSettings{settings,warnings}
