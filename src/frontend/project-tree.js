@@ -1265,6 +1265,113 @@
         }
       }
     });
+
+    // 面向键盘与快捷键系统的无参数 UI Handler 命令
+    reg('projectTree.focus', {
+      label: '聚焦项目树',
+      category: 'View',
+      run: function() {
+        if (els.tree && typeof els.tree.focus === 'function') {
+          if (window.LayoutUI && typeof window.LayoutUI.expand === 'function') {
+            window.LayoutUI.expand('tree');
+          }
+          els.tree.focus();
+        }
+      }
+    });
+    reg('projectTree.openSelection', {
+      label: '打开选中项',
+      category: 'File',
+      run: function() {
+        var cur = currentRel();
+        if (cur == null) return;
+        if (String(rowByRel[cur] && rowByRel[cur].dataset.kind) === 'dir') {
+          toggleDir(cur);
+        } else {
+          runCommand('project.open-file', { rel: cur });
+        }
+      }
+    });
+    reg('projectTree.rename', {
+      label: '重命名',
+      category: 'File',
+      run: function() {
+        var cur = currentRel();
+        if (selectedRels.length === 1 && cur) startRename(cur);
+      }
+    });
+    reg('projectTree.createFile', {
+      label: '在当前目录新建文件',
+      category: 'File',
+      run: function() {
+        var targetDir = activeDirForCreate();
+        startCreate(targetDir, false);
+      }
+    });
+    reg('projectTree.createDirectory', {
+      label: '在当前目录新建文件夹',
+      category: 'File',
+      run: function() {
+        var targetDir = activeDirForCreate();
+        startCreate(targetDir, true);
+      }
+    });
+    reg('projectTree.delete', {
+      label: '移到回收站',
+      category: 'File',
+      run: function() { deleteSelection(false); }
+    });
+    reg('projectTree.deletePermanently', {
+      label: '永久删除',
+      category: 'File',
+      run: function() { deleteSelection(true); }
+    });
+    reg('projectTree.cut', {
+      label: '剪切',
+      category: 'Edit',
+      run: function() { clipboardCut(); }
+    });
+    reg('projectTree.copy', {
+      label: '复制',
+      category: 'Edit',
+      run: function() { clipboardCopy(); }
+    });
+    reg('projectTree.paste', {
+      label: '粘贴',
+      category: 'Edit',
+      run: function() { clipboardPaste(currentRel()); }
+    });
+    reg('projectTree.undo', {
+      label: '撤销文件操作',
+      category: 'Edit',
+      run: function() { runCommand('project.undo'); }
+    });
+    reg('projectTree.refresh', {
+      label: '刷新项目树',
+      category: 'View',
+      run: function() { refreshAll(); }
+    });
+    reg('projectTree.revealCurrent', {
+      label: '定位当前文件',
+      category: 'View',
+      run: function() { revealCurrent(); }
+    });
+    reg('projectTree.openInTerminal', {
+      label: '在终端中打开',
+      category: 'File',
+      run: function() {
+        var cur = currentRel();
+        runCommand('project.terminal', { path: cur || '' });
+      }
+    });
+    reg('projectTree.openContextMenu', {
+      label: '打开上下文菜单',
+      category: 'View',
+      run: function() {
+        var cur = currentRel();
+        openMenuAtRow(cur);
+      }
+    });
   }
 
   /* ══════════ 挂载 ══════════ */
@@ -1339,6 +1446,16 @@
     els.tree.addEventListener('click', onTreeClick);
     els.tree.addEventListener('keydown', onTreeKeyDown);
     els.tree.addEventListener('contextmenu', onTreeContextMenu);
+    els.tree.addEventListener('focus', function() {
+      if (window.contextKeys && typeof window.contextKeys.set === 'function') {
+        window.contextKeys.set('projectTreeFocus', true);
+      }
+    });
+    els.tree.addEventListener('blur', function() {
+      if (window.contextKeys && typeof window.contextKeys.remove === 'function') {
+        window.contextKeys.remove('projectTreeFocus');
+      }
+    });
 
     if (window.Workspace && typeof window.Workspace.on === 'function') {
       window.Workspace.on('workspace:opened', onOpened);
