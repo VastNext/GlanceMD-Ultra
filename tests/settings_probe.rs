@@ -96,6 +96,7 @@ fn 默认值与主计划及基线一致() {
     assert!(s.watching.enable_watcher);
     // 侧栏基准字号默认 14（换算比例后视觉 ≈ 基线树行 13px）
     assert_eq!(s.appearance.sidebar_font_size, 14);
+    assert_eq!(s.appearance.outline_side, "right");
     assert!(s.keybindings.overrides.is_empty());
     assert!(s.recovery.confirm_close_dirty);
     assert!(s.recovery.crash_recovery);
@@ -300,7 +301,7 @@ fn 非对象文档_迁移报错() {
 fn 全字段v1文档_迁移无告警且逐字段相等_守护已知键表不失同步() {
     let raw = serde_json::json!({
         "version": 1,
-        "appearance": { "theme": "dark", "sidebarFontSize": 16 },
+        "appearance": { "theme": "dark", "sidebarFontSize": 16, "outlineSide": "left" },
         "files": {
             "visibleExts": ["md"],
             "showHidden": true,
@@ -332,6 +333,7 @@ fn 全字段v1文档_迁移无告警且逐字段相等_守护已知键表不失�
             appearance: Appearance {
                 theme: Theme::Dark,
                 sidebar_font_size: 16,
+                outline_side: "left".to_string(),
                 language: "zh-CN".to_string(),
             },
             files: Files {
@@ -339,6 +341,8 @@ fn 全字段v1文档_迁移无告警且逐字段相等_守护已知键表不失�
                 show_hidden: true,
                 exclude: vec!["x".to_string()],
                 watcher_exclude: vec!["y".to_string()],
+                terminal_path: String::new(),
+                terminal_args: String::new(),
             },
             watching: Watching {
                 enable_watcher: false,
@@ -379,6 +383,7 @@ fn 项目部分覆盖全局_未覆盖字段保留全局值() {
         appearance: Appearance {
             theme: Theme::Dark,
             sidebar_font_size: 18,
+            outline_side: "right".to_string(),
             language: "zh-CN".to_string(),
         },
         editor: Editor {
@@ -391,6 +396,7 @@ fn 项目部分覆盖全局_未覆盖字段保留全局值() {
         appearance: Some(AppearancePatch {
             theme: Some(Theme::Light),
             sidebar_font_size: Some(12),
+            outline_side: Some("left".to_string()),
             language: Some("en".to_string()),
         }),
         watching: Some(WatchingPatch {
@@ -505,6 +511,7 @@ fn v1_roundtrip_自定义设置_保存加载零漂移() {
         appearance: Appearance {
             theme: Theme::System,
             sidebar_font_size: 16,
+            outline_side: "left".to_string(),
             language: "en".to_string(),
         },
         files: Files {
@@ -512,6 +519,8 @@ fn v1_roundtrip_自定义设置_保存加载零漂移() {
             show_hidden: true,
             exclude: vec!["secrets".to_string()],
             watcher_exclude: vec!["logs".to_string(), "tmp".to_string()],
+            terminal_path: "custom-terminal".to_string(),
+            terminal_args: "--cwd {dir}".to_string(),
         },
         watching: Watching {
             enable_watcher: false,
@@ -705,4 +714,73 @@ fn 端到端_全局加载_项目覆盖_合并_保存有效值() {
     cleanup(&global_dir);
     cleanup(&project_dir);
     cleanup(&out_dir);
+}
+
+#[test]
+fn outline位置_非法值加载回退并告警_保存拒绝() {
+    let dir = temp_dir("outline-side-validation");
+    write_json(
+        &global_settings_path(&dir),
+        r#"{ "version": 1, "appearance": { "outlineSide": "middle" } }"#,
+    );
+    let loaded = load_global_checked(&dir);
+    assert_eq!(loaded.settings.appearance.outline_side, "right");
+    assert!(loaded.warnings.iter().any(|w| w.contains("outlineSide")));
+    let invalid = Settings {
+        appearance: Appearance {
+            outline_side: "middle".to_string(),
+            ..Appearance::default()
+        },
+        ..Settings::default()
+    };
+    assert!(save(&dir, &invalid).is_err());
+    cleanup(&dir);
+}
+
+#[test]
+fn sidebar字号_超出范围加载回退并告警_保存拒绝() {
+    let dir = temp_dir("sidebar-font-size-validation");
+    write_json(
+        &global_settings_path(&dir),
+        r#"{ "version": 1, "appearance": { "sidebarFontSize": 19 } }"#,
+    );
+    let loaded = load_global_checked(&dir);
+    assert_eq!(loaded.settings.appearance.sidebar_font_size, 14);
+    assert!(loaded
+        .warnings
+        .iter()
+        .any(|w| w.contains("sidebarFontSize")));
+    let invalid = Settings {
+        appearance: Appearance {
+            sidebar_font_size: 11,
+            ..Appearance::default()
+        },
+        ..Settings::default()
+    };
+    assert!(save(&dir, &invalid).is_err());
+    cleanup(&dir);
+}
+
+#[test]
+fn overridden_keys_只返回真实显式字段() {
+    let patch = SettingsPatch {
+        appearance: Some(AppearancePatch {
+            sidebar_font_size: Some(16),
+            outline_side: Some("left".to_string()),
+            ..AppearancePatch::default()
+        }),
+        files: Some(FilesPatch {
+            show_hidden: Some(true),
+            ..FilesPatch::default()
+        }),
+        ..SettingsPatch::default()
+    };
+    assert_eq!(
+        settings::overridden_keys(&patch),
+        vec![
+            "appearance.sidebarFontSize".to_string(),
+            "appearance.outlineSide".to_string(),
+            "files.showHidden".to_string()
+        ]
+    );
 }

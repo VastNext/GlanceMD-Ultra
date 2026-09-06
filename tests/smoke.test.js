@@ -124,7 +124,7 @@ function createElement(tag) {
   return element;
 }
 
-function createHarness() {
+function createHarness(options = {}) {
   const ids = {};
   const docHandlers = {};
   const ipcMessages = [];
@@ -191,6 +191,15 @@ function createHarness() {
   vm.runInNewContext(fs.readFileSync(path.join(FRONTEND, 'i18n.js'), 'utf8'), context, { filename: 'i18n.js' });
   vm.runInNewContext(fs.readFileSync(path.join(FRONTEND, 'tabs.js'), 'utf8'), context, { filename: 'tabs.js' });
   vm.runInNewContext(fs.readFileSync(path.join(FRONTEND, 'app.js'), 'utf8'), context, { filename: 'app.js' });
+  if (options.loadCommands) {
+    vm.runInNewContext(fs.readFileSync(path.join(FRONTEND, 'commands.js'), 'utf8'), context, { filename: 'commands.js' });
+    // Browser globals expose window.Commands as an unqualified global too;
+    // mirror that binding in the lightweight vm harness.
+    context.Commands = context.window.Commands;
+  }
+  if (options.loadKeybindings) {
+    vm.runInNewContext(fs.readFileSync(path.join(FRONTEND, 'keybindings.js'), 'utf8'), context, { filename: 'keybindings.js' });
+  }
 
   return {
     context,
@@ -218,8 +227,8 @@ function createHarness() {
 /* ── 组装页完整性 ── */
 
 function escapeForScriptTag(js) {
-  // 与 main.rs::escape_for_script_tag / build_test_page.py 同规则
-  return js.replace(/<\/script/g, '<\\/script');
+  // 与 main.rs::escape_for_script_tag / build_test_page.py 同规则；构建页统一使用 LF。
+  return js.replace(/\r\n/g, '\n').replace(/<\/script/g, '<\\/script');
 }
 
 function loadAssembledPage() {
@@ -276,27 +285,56 @@ test('mock 引导脚本先于全部产品脚本注入', (t) => {
   assert.equal(assembledPage.includes('</script>\n<script>'), true); // 标签边界正常
 });
 
+/* ── app.js / keybindings.js 冒烟 ── */
+
+test('完整脚本加载后 Ctrl+O 只执行一次 file.open', () => {
+  const h = createHarness({ loadCommands: true, loadKeybindings: true });
+  h.fireDocumentEvent('keydown', {
+    target: h.context.document.body,
+    key: 'o',
+    ctrlKey: true,
+    shiftKey: false,
+    preventDefault() {},
+  });
+  assert.deepEqual(
+    h.parseIpc().filter((message) => message.command === 'open_file'),
+    [{ command: 'open_file' }],
+  );
+});
+
+test('缺少 keybindings 时 Ctrl+O 保留 fallback 且不重复', () => {
+  const h = createHarness();
+  h.fireDocumentEvent('keydown', {
+    target: h.context.document.body,
+    key: 'o',
+    ctrlKey: true,
+    shiftKey: false,
+    preventDefault() {},
+  });
+  assert.deepEqual(
+    h.parseIpc().filter((message) => message.command === 'open_file'),
+    [{ command: 'open_file' }],
+  );
+});
+
 /* ── tabs.js 冒烟 ── */
 
-test('初始化：创建 Untitled tab 并向 Rust 发送 ready', () => {
+test('初始化：进入欢迎态、0 个 tab、向 Rust 发送 ready 与 set_title', () => {
   const h = createHarness();
   h.fireDOMContentLoaded();
   const active = h.context.TabManager.getActiveTab();
-  assert.ok(active, '初始化后应有活动 tab');
-  assert.equal(active.filename, '未命名');
-  assert.equal(active.mode, 'edit');
-  assert.equal(active.dirty, false);
+  assert.equal(active, null, '初始化时不自动创建 tab，处于欢迎态');
   const commands = h.parseIpc().map((m) => m.command);
   assert.ok(commands.includes('ready'), '应发送 ready 命令');
   assert.ok(commands.includes('set_title'), '应同步窗口标题');
+  const titleMsg = h.parseIpc().filter((m) => m.command === 'set_title').pop();
+  assert.equal(titleMsg.title, 'GlanceMD Ultra');
 });
 
-test('创建路径 tab：空 Untitled 被复用、路径归一、进入预览模式', () => {
+test('创建路径 tab：路径归一、进入预览模式', () => {
   const h = createHarness();
   h.fireDOMContentLoaded();
-  const initial = h.context.TabManager.getActiveTab();
   const tab = h.context.TabManager.createTab('D:\\docs\\readme.md', '# Hello');
-  assert.equal(tab, initial, '打开文件应复用空未命名 tab');
   assert.equal(tab.path, 'D:/docs/readme.md', '路径反斜杠应归一为斜杠');
   assert.equal(tab.filename, 'readme.md');
   assert.equal(tab.mode, 'preview');
@@ -325,10 +363,10 @@ test('tab 激活切换：编辑内容随 tab 保存与恢复', () => {
   assert.equal(h.context.TabManager.getActiveTab(), first);
   assert.equal(h.byId('editor').value, 'first content', '切回应恢复该 tab 内容');
 
-  // 渲染出的 tab 元素：Untitled + 2 个 tab，active 类在当前 tab 上；
+  // 渲染出的 tab 元素：2 个 tab，active 类在当前 tab 上；
   // 点击 second 的元素可切换回它并恢复其内容
   const bar = h.byId('tab-bar');
-  assert.equal(bar.children.length, 3, 'Untitled + 2 个 tab');
+  assert.equal(bar.children.length, 2, '2 个 tab');
   const firstElement = bar.children.find((el) => Number(el.dataset.tabId) === first.id);
   assert.equal(firstElement.className.includes('active'), true);
   const secondElement = bar.children.find((el) => Number(el.dataset.tabId) === second.id);
@@ -340,6 +378,7 @@ test('tab 激活切换：编辑内容随 tab 保存与恢复', () => {
 test('dirty 标记：驱动 set_dirty_state、标题星号与 tab 圆点', () => {
   const h = createHarness();
   h.fireDOMContentLoaded();
+  h.context.TabManager.createTab(null, 'test');
   h.context.TabManager.markDirty();
   const active = h.context.TabManager.getActiveTab();
   assert.equal(active.dirty, true);
@@ -365,14 +404,13 @@ test('dirty 标记：驱动 set_dirty_state、标题星号与 tab 圆点', () =>
 test('同一路径重复打开复用既有 tab（分隔符与大小写归一）', () => {
   const h = createHarness();
   h.fireDOMContentLoaded();
-  h.context.TabManager.createTab(null, '占位'); // 让空 Untitled 不拦截
   const a = h.context.TabManager.createTab('D:/docs/a.md', 'A');
   const again = h.context.TabManager.createTab('D:\\DOCS\\a.md', 'A2');
   assert.equal(again, a, '同一路径应复用既有 tab');
   assert.equal(a.content, 'A', '复用不应覆盖原内容');
 });
 
-test('关闭当前 tab 自动切换相邻 tab；关闭未保存 tab 需确认', () => {
+test('关闭当前 tab 自动切换相邻 tab；关闭未保存 tab 需确认；全部关完进入欢迎态', () => {
   const h = createHarness();
   h.fireDOMContentLoaded();
   const a = h.context.TabManager.createTab(null, 'A');
@@ -388,8 +426,29 @@ test('关闭当前 tab 自动切换相邻 tab；关闭未保存 tab 需确认', 
   h.context.confirm = () => true;
   h.context.TabManager.closeTab(a.id);
   const active = h.context.TabManager.getActiveTab();
-  assert.equal(active.filename, '未命名', '最后一个 tab 关闭后回到未命名');
-  assert.equal(active.mode, 'edit');
+  assert.equal(active, null, '最后一个 tab 关闭后回到欢迎态 (0 tabs)');
+  const titleMsg = h.parseIpc().filter((m) => m.command === 'set_title').pop();
+  assert.equal(titleMsg.title, 'GlanceMD Ultra');
+});
+
+test('关闭预览模式中的最后一个文件 tab：恢复干净欢迎态并清空预览', () => {
+  const h = createHarness();
+  h.fireDOMContentLoaded();
+  h.context.window.__fromRust('file_opened', { path: 'D:/docs/article.md', content: '# Article' });
+  const tab = h.context.TabManager.getActiveTab();
+  assert.equal(tab.mode, 'preview');
+  h.byId('preview').innerHTML = '<h1>Article</h1>';
+  h.byId('preview-container').classList.add('active');
+  h.byId('editor-container').classList.remove('active');
+
+  h.context.TabManager.closeTab(tab.id);
+
+  assert.equal(h.context.TabManager.getActiveTab(), null);
+  assert.equal(h.byId('preview-container').classList.contains('active'), false);
+  assert.equal(h.byId('editor-container').classList.contains('active'), true);
+  assert.equal(h.byId('welcome-view').classList.contains('visible'), true);
+  assert.equal(h.byId('welcome-view').style.display, 'flex');
+  assert.equal(h.byId('preview').innerHTML, '');
 });
 
 /* ── tabs.js 右键菜单 ── */
@@ -441,11 +500,11 @@ function clickMenuItem(menu, action) {
 test('tab 右键弹出菜单：四项齐全、menuitem 语义、首尾 tab 对应侧禁用', () => {
   const h = createHarness();
   h.fireDOMContentLoaded();
-  const u = h.context.TabManager.getActiveTab();
   const a = h.context.TabManager.createTab(null, 'A');
   const b = h.context.TabManager.createTab(null, 'B');
+  const c = h.context.TabManager.createTab(null, 'C');
 
-  const flags = openTabContextMenu(h, tabElementOf(h, u.id));
+  const flags = openTabContextMenu(h, tabElementOf(h, a.id));
   assert.equal(flags.prevented, true, 'contextmenu 应 preventDefault 阻止原生菜单');
   assert.equal(flags.stopped, true, 'contextmenu 应 stopPropagation，避免冒泡到 document 关闭逻辑');
 
@@ -474,13 +533,13 @@ test('tab 右键弹出菜单：四项齐全、menuitem 语义、首尾 tab 对�
   // 末个 tab：右侧无目标 → 关闭右侧禁用
   h.fireDocumentEvent('keydown', { key: 'Escape', preventDefault() {} });
   assert.equal(findTabMenu(h), null, '换目标前菜单应可被 Esc 关闭');
-  openTabContextMenu(h, tabElementOf(h, b.id));
-  const menuB = findTabMenu(h);
-  assert.ok(menuB, '换目标右键应重新打开菜单');
-  assert.equal(menuItem(menuB, 'right').classList.contains('disabled'), true, '末 tab 的关闭右侧应禁用');
-  assert.equal(menuItem(menuB, 'right').getAttribute('aria-disabled'), 'true');
-  assert.equal(menuItem(menuB, 'left').classList.contains('disabled'), false);
-  assert.equal(menuItem(menuB, 'all').classList.contains('disabled'), false, '关闭所有始终可用');
+  openTabContextMenu(h, tabElementOf(h, c.id));
+  const menuC = findTabMenu(h);
+  assert.ok(menuC, '换目标右键应重新打开菜单');
+  assert.equal(menuItem(menuC, 'right').classList.contains('disabled'), true, '末 tab 的关闭右侧应禁用');
+  assert.equal(menuItem(menuC, 'right').getAttribute('aria-disabled'), 'true');
+  assert.equal(menuItem(menuC, 'left').classList.contains('disabled'), false);
+  assert.equal(menuItem(menuC, 'all').classList.contains('disabled'), false, '关闭所有始终可用');
 });
 
 test('右键菜单关闭左侧/右侧：只关对应集合、活动 tab 沿用相邻规则', () => {
@@ -491,11 +550,12 @@ test('右键菜单关闭左侧/右侧：只关对应集合、活动 tab 沿用�
     confirmCalls.push(msg);
     return true;
   };
+  const a = h.context.TabManager.createTab(null, 'A');
   const b = h.context.TabManager.createTab(null, 'B');
   const c = h.context.TabManager.createTab(null, 'C');
-  // tabs：[Untitled, B, C]，活动 C
+  // tabs：[A, B, C]，活动 C
 
-  // 在 B 上关闭左侧 → Untitled 被关；B、C 保留，活动保持 C
+  // 在 B 上关闭左侧 → A 被关；B、C 保留，活动保持 C
   openTabContextMenu(h, tabElementOf(h, b.id));
   clickMenuItem(findTabMenu(h), 'left');
   assert.deepEqual(tabIds(h), [b.id, c.id], '只应关闭目标左侧的 tab');
@@ -510,7 +570,7 @@ test('右键菜单关闭左侧/右侧：只关对应集合、活动 tab 沿用�
   assert.equal(h.context.TabManager.getActiveTab().id, b.id, '活动 tab 被关闭后切到相邻 tab');
 });
 
-test('右键菜单关闭所有：dirty 单次 confirm 且文案含数量，关完回到 Untitled', () => {
+test('右键菜单关闭所有：dirty 单次 confirm 且文案含数量，关完进入欢迎态', () => {
   const h = createHarness();
   h.fireDOMContentLoaded();
   const confirmCalls = [];
@@ -528,26 +588,24 @@ test('右键菜单关闭所有：dirty 单次 confirm 且文案含数量，关�
   assert.equal(confirmCalls.length, 1, '整批关闭只做一次确认');
   assert.match(confirmCalls[0], /有 2 个未保存的标签页，确定全部关闭？/);
   const active = h.context.TabManager.getActiveTab();
-  assert.equal(active.filename, '未命名', '全部关完后自动回到未命名');
-  assert.equal(active.mode, 'edit');
-  assert.equal(tabIds(h).length, 1, 'tab 栏仅剩新建的 Untitled');
+  assert.equal(active, null, '全部关完后回到欢迎态');
+  assert.equal(tabIds(h).length, 0, 'tab 栏无 tab');
   assert.equal(findTabMenu(h), null);
 });
 
 test('右键菜单取消确认整批保留；"关闭"项保留单 tab dirty 确认语义', () => {
   const h = createHarness();
   h.fireDOMContentLoaded();
-  const u = h.context.TabManager.getActiveTab();
-  // 用 forceFilename 命名，便于断言确认文案对应具体 tab（无路径 tab 默认都叫 Untitled）
   const a = h.context.TabManager.createTab(null, 'A', null, 'A.md');
   const b = h.context.TabManager.createTab(null, 'B', null, 'B.md');
-  h.context.TabManager.markDirty(a.id);
+  const c = h.context.TabManager.createTab(null, 'C', null, 'C.md');
+  h.context.TabManager.markDirty(b.id);
 
   // 取消确认：整批原样保留
   h.context.confirm = () => false;
   openTabContextMenu(h, tabElementOf(h, b.id));
   clickMenuItem(findTabMenu(h), 'all');
-  assert.deepEqual(tabIds(h), [u.id, a.id, b.id], '取消确认则整批保留');
+  assert.deepEqual(tabIds(h), [a.id, b.id, c.id], '取消确认则整批保留');
   assert.equal(findTabMenu(h), null, '取消后菜单仍应关闭');
 
   // "关闭"项走 closeTab：确认文案是该 tab 的未保存提示，关闭后活动切相邻
@@ -556,12 +614,12 @@ test('右键菜单取消确认整批保留；"关闭"项保留单 tab dirty 确�
     closeCalls.push(msg);
     return true;
   };
-  openTabContextMenu(h, tabElementOf(h, a.id));
+  openTabContextMenu(h, tabElementOf(h, b.id));
   clickMenuItem(findTabMenu(h), 'close');
   assert.equal(closeCalls.length, 1, '关闭 dirty tab 应确认一次');
-  assert.match(closeCalls[0], /“A\.md” 有未保存的修改，确定关闭？/);
-  assert.deepEqual(tabIds(h), [u.id, b.id]);
-  assert.equal(h.context.TabManager.getActiveTab().id, b.id, '关闭非活动 tab 不改变活动 tab');
+  assert.match(closeCalls[0], /“B\.md” 有未保存的修改，确定关闭？/);
+  assert.deepEqual(tabIds(h), [a.id, c.id]);
+  assert.equal(h.context.TabManager.getActiveTab().id, c.id, '关闭非活动 tab 不改变活动 tab');
 });
 
 test('菜单开着时：菜单外点击 / Esc / 其他右键均关闭菜单', () => {
@@ -585,7 +643,7 @@ test('菜单开着时：菜单外点击 / Esc / 其他右键均关闭菜单', ()
 
 /* ── app.js 冒烟 ── */
 
-test('主题切换：light/dark 往返并写入 localStorage', () => {
+test('主题切换：light/dark 往返并请求持久化到统一 settings', () => {
   const h = createHarness();
   h.fireDOMContentLoaded();
   assert.equal(h.documentElement.getAttribute('data-theme'), 'light', '默认 light');
@@ -600,20 +658,18 @@ test('主题切换：light/dark 往返并写入 localStorage', () => {
   assert.equal(h.byId('icon-sun').style.display, '');
   assert.equal(h.byId('icon-moon').style.display, 'none');
 
-  // localStorage 键名：兼容当前 'glancemd-theme' 与阶段 0 身份重命名后的
-  // 'glancemd-ultra-theme'（前缀由 A1 流统一替换，避免本套件误报）
   const themeKeys = [...h.storage.keys()].filter((k) => /^glancemd(-ultra)?-theme$/.test(k));
-  assert.equal(themeKeys.length, 1, '主题键应恰好写入一个');
-  assert.equal(h.storage.get(themeKeys[0]), 'light');
+  assert.equal(themeKeys.length, 0, '主题不再写入 localStorage');
+  const themeMessages = h.parseIpc().filter((m) => m.command === 'workspace.settings.set-theme');
+  assert.deepEqual(themeMessages.map((m) => m.theme), ['dark', 'light']);
 });
 
-test('初始化恢复已保存的主题偏好', () => {
+test('初始化忽略旧 localStorage 主题，等待 effective settings 成为事实源', () => {
   const h = createHarness();
-  // 预置新旧两种键名，无论产品当前使用哪种前缀都能命中
   h.storage.set('glancemd-theme', 'dark');
   h.storage.set('glancemd-ultra-theme', 'dark');
   h.fireDOMContentLoaded();
-  assert.equal(h.documentElement.getAttribute('data-theme'), 'dark');
+  assert.equal(h.documentElement.getAttribute('data-theme'), 'light');
 });
 
 test('IPC 事件桥：file_opened 建 tab 并记录最近文件，error 显示状态栏', () => {

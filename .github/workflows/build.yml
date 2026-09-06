@@ -50,6 +50,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: 设置 Playwright 冒烟环境（Windows）
+        if: runner.os == 'Windows'
+        working-directory: tests/e2e
+        shell: bash
+        run: |
+          npm ci
+          npx playwright install chromium
+
+      - name: 运行 Playwright 冒烟（Windows）
+        if: runner.os == 'Windows'
+        working-directory: tests/e2e
+        shell: bash
+        run: npm test
+
       - name: 安装 Linux 构建依赖
         if: runner.os == 'Linux'
         run: |

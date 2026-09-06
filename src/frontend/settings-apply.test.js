@@ -75,6 +75,8 @@ function load() {
   const byId = { editor, 'editor-gutter': gutter, 'editor-container': container };
 
   const documentElement = {
+    dataset: {},
+    setAttribute: (name, value) => { if (name === 'data-theme') documentElement.dataset.theme = String(value); },
     style: {
       setProperty: (name, value) => {
         vars[name] = String(value);
@@ -94,6 +96,7 @@ function load() {
     },
   };
   ctx.window = ctx;
+  ctx.window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
   ctx.window.ipc = { postMessage: (m) => ipcMessages.push(JSON.parse(m)) };
   ctx.Workspace = {
     on(event, handler) {
@@ -113,9 +116,23 @@ test('get() 未收到事件时返回内置默认值（与 Rust schema v1 Default
   const h = load();
   // JSON round-trip：vm 上下文与宿主的原型不同，deepStrictEqual 需同源对象
   assert.deepEqual(JSON.parse(JSON.stringify(h.ctx.SettingsApply.get())), {
+    version: 1,
+    appearance: { theme: 'light', sidebarFontSize: 14, language: 'zh-CN', outlineSide: 'right' },
+    files: {
+      visibleExts: ['md', 'markdown', 'txt', 'json', 'yaml', 'yml', 'toml', 'ini', 'csv'],
+      showHidden: false,
+      exclude: ['.git', 'node_modules', 'target', '.venv', 'dist', 'build', '.cache'],
+      watcherExclude: ['.git', 'node_modules', 'target', '.venv', 'dist', 'build', '.cache'],
+    },
+    watching: { enableWatcher: true, autoSave: 'off', autoSaveDelayMs: 1000 },
+    search: {
+      exclude: ['.git', 'node_modules', 'target', '.venv', 'dist', 'build', '.cache'],
+      maxFileSizeMB: 5,
+      maxResults: 2000,
+    },
     editor: { fontSize: 14, tabSize: 4, wordWrap: true, lineNumbers: true, largeFileMB: 5 },
-    search: { maxFileSizeMB: 5, maxResults: 2000 },
-    appearance: { sidebarFontSize: 14 },
+    keybindings: { overrides: {} },
+    recovery: { confirmCloseDirty: true, crashRecovery: true, createProjectSettings: false },
   });
 });
 
@@ -141,7 +158,7 @@ test('装载即发一次 get-effective 并订阅 settings-effective，事件驱�
   assert.equal(h.vars['--editor-font-size'], '20px');
 });
 
-test('apply 写入编辑器字号 / Tab 宽度 / 侧栏字号 CSS 变量，非法值回退默认', () => {
+test('apply 写入编辑器字号 / Tab 宽度 / 侧栏派生变量，非法值回退默认', () => {
   const h = load();
   h.ctx.SettingsApply.apply({
     editor: { fontSize: 16, tabSize: 2 },
@@ -150,11 +167,34 @@ test('apply 写入编辑器字号 / Tab 宽度 / 侧栏字号 CSS 变量，非�
   assert.equal(h.vars['--editor-font-size'], '16px');
   assert.equal(h.vars['--editor-tab-size'], '2');
   assert.equal(h.vars['--panel-font-size'], '15px');
+  assert.equal(h.vars['--tree-font-size'], '15px');
+  assert.equal(h.vars['--tree-icon-size'], '21px');
+  assert.equal(h.vars['--tree-caret-size'], '15px');
+  assert.equal(h.vars['--tree-row-height'], '33px');
+  assert.equal(h.vars['--tree-gap'], '9px');
+  assert.equal(h.vars['--tree-indent'], '17px');
 
-  h.ctx.SettingsApply.apply({ editor: { fontSize: 'abc' }, appearance: {} });
+  h.ctx.SettingsApply.apply({ editor: { fontSize: 'abc' }, appearance: { sidebarFontSize: 99 } });
   assert.equal(h.vars['--editor-font-size'], '14px', '非法字号回退 14');
   assert.equal(h.vars['--editor-tab-size'], '4', '缺省 Tab 宽度回退 4');
-  assert.equal(h.vars['--panel-font-size'], '14px', '缺省侧栏字号回退 14');
+  assert.equal(h.vars['--panel-font-size'], '18px', '侧栏字号上限 18');
+  assert.equal(h.vars['--tree-font-size'], '18px');
+});
+
+test('主题 effective：light/dark 直接应用，system 解析系统并监听变化', () => {
+  const h = load();
+  h.ctx.SettingsApply.apply({ appearance: { theme: 'light' } });
+  assert.equal(h.ctx.document.documentElement.dataset.theme, 'light');
+  h.ctx.SettingsApply.apply({ appearance: { theme: 'system' } });
+  assert.equal(h.ctx.document.documentElement.dataset.theme, 'dark');
+});
+
+test('settings-changed 与 workspace-opened 重新请求 effective', () => {
+  const h = load();
+  const before = h.ipcMessages.length;
+  h.subs['workspace:settings-changed'][0]({});
+  h.subs['workspace:opened'][0]({});
+  assert.equal(h.ipcMessages.length, before + 2);
 });
 
 test('apply wordWrap 切换 textarea wrap 属性且 value 不丢，wrap-off 类随动', () => {

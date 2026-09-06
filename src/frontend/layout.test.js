@@ -4,12 +4,13 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 
-// layout.js 单测（node:test + vm，零依赖）：折叠往返、持久化键名、restore、
-// 拖宽钳制、reset、窄视口自动折叠。stub 风格照 smoke.test.js 的最小 DOM。
+// layout.js 单测（node:test + vm，零依赖）：树与 Outline 折叠往返、
+// Outline 左右侧停靠与拖宽坐标计算、持久化键名、restore、拖宽钳制、reset。
 const SOURCE = fs.readFileSync(path.join(__dirname, 'layout.js'), 'utf8');
 
-function makeElement(id) {
+function makeElement(id, getContext) {
   const classes = new Set();
+  const attributes = new Map();
   return {
     id,
     style: {},
@@ -25,19 +26,61 @@ function makeElement(id) {
       },
       contains(name) { return classes.has(name); },
     },
+    setAttribute(name, value) { attributes.set(name, String(value)); },
+    getAttribute(name) { return attributes.has(name) ? attributes.get(name) : null; },
+    removeAttribute(name) { attributes.delete(name); },
     addEventListener(type, handler) {
       (this.listeners[type] = this.listeners[type] || []).push(handler);
     },
-    // #content 的 rect：宽 1000，右缘 x=1000（拖宽计算的基准）
+    // 元素真实边界：支持基于当前状态的动态边界模拟（如 #panel-outline 在 left/right 下的真实 left/right）
     getBoundingClientRect() {
-      return { left: 0, right: 1000, top: 0, bottom: 0, width: 1000, height: 500 };
+      if (getContext) {
+        const rect = getContext(id, this);
+        if (rect) return rect;
+      }
+      return { left: 0, right: 1000, top: 0, bottom: 500, width: 1000, height: 500 };
     },
   };
 }
 
-function loadLayout({ storage = new Map(), matchMedia } = {}) {
+function loadLayout({ storage = new Map() } = {}) {
   const ids = {};
-  const byId = (id) => (ids[id] = ids[id] || makeElement(id));
+  const docElement = makeElement('html');
+  const bodyElement = makeElement('body');
+  const getElementRect = (id, el) => {
+    if (id === 'content') {
+      return { left: 0, right: 1000, top: 0, bottom: 500, width: 1000, height: 500 };
+    }
+    if (id === 'panel-tree') {
+      const isCollapsed = el.classList.contains('collapsed');
+      const w = isCollapsed ? 36 : (parseInt(el.style.width, 10) || 264);
+      return { left: 0, right: w, top: 0, bottom: 500, width: w, height: 500 };
+    }
+    if (id === 'panel-tree-resizer') {
+      const treeEl = ids['panel-tree'];
+      const isCollapsed = treeEl && treeEl.classList.contains('collapsed');
+      const treeW = isCollapsed ? 36 : (parseInt(treeEl?.style?.width, 10) || 264);
+      return { left: treeW, right: treeW + 5, top: 0, bottom: 500, width: 5, height: 500 };
+    }
+    if (id === 'panel-outline') {
+      const contentEl = ids['content'];
+      const isLeft = docElement.getAttribute('data-outline-side') === 'left' ||
+                     (contentEl && contentEl.getAttribute('data-outline-side') === 'left');
+      const outlineW = parseInt(el.style.width, 10) || 264;
+      if (isLeft) {
+        const treeEl = ids['panel-tree'];
+        const isCollapsed = treeEl && treeEl.classList.contains('collapsed');
+        const treeW = isCollapsed ? 36 : (parseInt(treeEl?.style?.width, 10) || 264);
+        const resizerW = isCollapsed ? 0 : 5;
+        const left = treeW + resizerW;
+        return { left, right: left + outlineW, top: 0, bottom: 500, width: outlineW, height: 500 };
+      } else {
+        return { left: 1000 - outlineW, right: 1000, top: 0, bottom: 500, width: outlineW, height: 500 };
+      }
+    }
+    return null;
+  };
+  const byId = (id) => (ids[id] = ids[id] || makeElement(id, getElementRect));
   const docHandlers = {};
   const windowObj = {
     localStorage: {
@@ -45,13 +88,14 @@ function loadLayout({ storage = new Map(), matchMedia } = {}) {
       setItem: (key, value) => storage.set(key, String(value)),
       removeItem: (key) => storage.delete(key),
     },
+    addEventListener() {},
   };
-  if (matchMedia) windowObj.matchMedia = matchMedia;
   const context = {
     window: windowObj,
     document: {
+      documentElement: docElement,
+      body: bodyElement,
       getElementById: byId,
-      body: makeElement('body'),
       addEventListener(type, handler) {
         (docHandlers[type] = docHandlers[type] || []).push(handler);
       },
@@ -61,7 +105,9 @@ function loadLayout({ storage = new Map(), matchMedia } = {}) {
   vm.runInNewContext(SOURCE, context, { filename: 'layout.js' });
   return {
     LayoutUI: context.window.LayoutUI,
-    byId: ids, // 索引访问已创建的元素（init 时惰性填充）
+    byId: ids,
+    docElement,
+    bodyElement,
     storage,
     fireDocument(type, event) {
       (docHandlers[type] || []).forEach((handler) => handler(event));
@@ -75,7 +121,7 @@ function pointerDown(h, resizerId) {
   );
 }
 
-test('折叠往返：collapsed 类、手柄同步隐藏与展开恢复', () => {
+test('树面板折叠往返：collapsed 类、手柄同步隐藏与展开恢复', () => {
   const h = loadLayout();
   assert.equal(h.LayoutUI.isCollapsed('tree'), false);
 
@@ -90,42 +136,83 @@ test('折叠往返：collapsed 类、手柄同步隐藏与展开恢复', () => {
   assert.equal(h.byId['panel-tree-resizer'].style.display, '', '展开后手柄恢复');
 });
 
-test('持久化键名：glancemd-ultra-layout-{tree,outline}-{width,collapsed}', () => {
+test('持久化键名：glancemd-ultra-layout-tree-{width,collapsed}、glancemd-ultra-layout-outline-width 与 glancemd-ultra-outline-open', () => {
   const h = loadLayout();
   h.LayoutUI.collapse('tree');
   h.LayoutUI.toggle('outline');
 
   assert.equal(h.storage.get('glancemd-ultra-layout-tree-collapsed'), '1');
-  assert.equal(h.storage.get('glancemd-ultra-layout-outline-collapsed'), '1');
-  // 未拖宽不写宽度键，避免把 CSS 默认值固化进存储
+  assert.equal(h.storage.get('glancemd-ultra-outline-open'), '1');
   assert.equal(h.storage.has('glancemd-ultra-layout-tree-width'), false);
   assert.equal(h.storage.has('glancemd-ultra-layout-outline-width'), false);
 
+  // 拖动 outline 手柄后持久化 outline 宽度
+  pointerDown(h, 'panel-outline-resizer');
+  h.fireDocument('pointermove', { clientX: 700 });
+  h.fireDocument('pointerup', {});
+  assert.equal(h.storage.get('glancemd-ultra-layout-outline-width'), '300');
+
+  h.LayoutUI.collapse('outline');
+  assert.equal(h.storage.get('glancemd-ultra-outline-open'), '0');
+
   h.LayoutUI.expand('outline');
-  assert.equal(h.storage.get('glancemd-ultra-layout-outline-collapsed'), '0');
+  assert.equal(h.storage.get('glancemd-ultra-outline-open'), '1');
 });
 
-test('拖宽：pointermove 边界钳制 200–400px，pointerup 持久化', () => {
+test('树拖宽：pointermove 自由拖动并受编辑器最小宽度保护钳制，pointerup 持久化', () => {
   const h = loadLayout();
   pointerDown(h, 'panel-tree-resizer');
 
   h.fireDocument('pointermove', { clientX: 5000 });
-  assert.equal(h.byId['panel-tree'].style.width, '400px', '超上限钳制 400');
+  assert.equal(h.byId['panel-tree'].style.width, '920px', '1000px 总宽保留 80 编辑器后最大 920');
   h.fireDocument('pointermove', { clientX: -80 });
-  assert.equal(h.byId['panel-tree'].style.width, '200px', '超下限钳制 200');
+  assert.equal(h.byId['panel-tree'].style.width, '180px', '超下限钳制 180');
   h.fireDocument('pointermove', { clientX: 316.4 });
   assert.equal(h.byId['panel-tree'].style.width, '316px', '正常值取整');
   h.fireDocument('pointerup', {});
   assert.equal(h.storage.get('glancemd-ultra-layout-tree-width'), '316');
+});
 
-  // outline：面板在手柄右侧，宽度 = 内容区右缘 - 鼠标 X
+test('Outline 拖宽（默认右侧）：向左拖动增大宽度，受保护钳制，pointerup 持久化', () => {
+  const h = loadLayout();
+  h.LayoutUI.expand('outline');
   pointerDown(h, 'panel-outline-resizer');
-  h.fireDocument('pointermove', { clientX: 640 });
-  assert.equal(h.byId['panel-outline'].style.width, '360px');
-  h.fireDocument('pointermove', { clientX: 999 });
-  assert.equal(h.byId['panel-outline'].style.width, '200px', 'outline 同样受下限钳制');
+
+  // content right=1000, clientX=700 -> width=300
+  h.fireDocument('pointermove', { clientX: 700 });
+  assert.equal(h.byId['panel-outline'].style.width, '300px');
+
+  // clientX=-500 -> 1000 - (-500) = 1500, clamped by total - tree(264) - editor(80) = 656
+  h.fireDocument('pointermove', { clientX: -500 });
+  assert.equal(h.byId['panel-outline'].style.width, '656px');
+
+  // clientX=950 -> 1000 - 950 = 50 -> clamped to MIN_WIDTH(180)
+  h.fireDocument('pointermove', { clientX: 950 });
+  assert.equal(h.byId['panel-outline'].style.width, '180px');
+
   h.fireDocument('pointerup', {});
-  assert.equal(h.storage.get('glancemd-ultra-layout-outline-width'), '200');
+  assert.equal(h.storage.get('glancemd-ultra-layout-outline-width'), '180');
+});
+
+test('Outline 拖宽（left 模式）：outlineSide=left 时位于树右侧，向右拖增宽，pointerup 持久化', () => {
+  const h = loadLayout();
+  h.LayoutUI.setOutlineSide('left');
+  h.LayoutUI.expand('outline');
+
+  // 树宽 264px + 树手柄 5px = 269px，outline 位于树右侧 (left=269)
+  assert.equal(h.byId['panel-outline'].getBoundingClientRect().left, 269);
+  pointerDown(h, 'panel-outline-resizer');
+
+  // 手柄拖至 x=569 -> outline 宽 = 569 - 269 = 300px
+  h.fireDocument('pointermove', { clientX: 569 });
+  assert.equal(h.byId['panel-outline'].style.width, '300px');
+
+  // 手柄拖至 x=200 -> 200 - 269 = -69 -> clamped to 180
+  h.fireDocument('pointermove', { clientX: 200 });
+  assert.equal(h.byId['panel-outline'].style.width, '180px');
+
+  h.fireDocument('pointerup', {});
+  assert.equal(h.storage.get('glancemd-ultra-layout-outline-width'), '180');
 });
 
 test('拖宽结束才持久化：移动中途不写 localStorage', () => {
@@ -135,82 +222,141 @@ test('拖宽结束才持久化：移动中途不写 localStorage', () => {
   assert.equal(h.storage.has('glancemd-ultra-layout-tree-width'), false);
   h.fireDocument('pointerup', {});
   assert.equal(h.storage.has('glancemd-ultra-layout-tree-width'), true);
+
+  pointerDown(h, 'panel-outline-resizer');
+  h.fireDocument('pointermove', { clientX: 700 });
+  assert.equal(h.storage.has('glancemd-ultra-layout-outline-width'), false);
+  h.fireDocument('pointerup', {});
+  assert.equal(h.storage.has('glancemd-ultra-layout-outline-width'), true);
 });
 
-test('restore：启动恢复持久化的宽度与折叠状态，越界与脏值回退', () => {
+test('restore：启动恢复持久化的树宽度/折叠状态、大纲宽度与开启状态，越界与脏值回退', () => {
   const storage = new Map([
     ['glancemd-ultra-layout-tree-width', '320'],
     ['glancemd-ultra-layout-tree-collapsed', '1'],
-    ['glancemd-ultra-layout-outline-width', '9999'], // 越上限 → 钳制 400
-    ['glancemd-ultra-layout-outline-collapsed', '0'],
+    ['glancemd-ultra-layout-outline-width', '280'],
+    ['glancemd-ultra-outline-open', '1'],
   ]);
   const h = loadLayout({ storage });
 
   assert.equal(h.byId['panel-tree'].style.width, '320px');
   assert.equal(h.byId['panel-tree'].classList.contains('collapsed'), true);
-  assert.equal(h.byId['panel-outline'].style.width, '400px');
-  assert.equal(h.byId['panel-outline'].classList.contains('collapsed'), false);
+  assert.equal(h.byId['panel-outline'].style.width, '280px');
+  assert.equal(h.LayoutUI.isCollapsed('outline'), false);
+  assert.equal(h.byId['panel-outline'].classList.contains('open'), true);
+  assert.equal(h.byId['panel-outline-resizer'].style.display, '');
+  assert.equal(h.byId['btn-toc'].classList.contains('active'), true);
 
-  // 脏值（非数字）→ 默认 240
+  // 脏值（非数字）→ 默认 264
   const h2 = loadLayout({
-    storage: new Map([['glancemd-ultra-layout-tree-width', 'abc']]),
+    storage: new Map([
+      ['glancemd-ultra-layout-tree-width', 'abc'],
+      ['glancemd-ultra-layout-outline-width', 'xyz'],
+    ]),
   });
-  assert.equal(h2.byId['panel-tree'].style.width, '240px');
+  assert.equal(h2.byId['panel-tree'].style.width, '264px');
+  assert.equal(h2.byId['panel-outline'].style.width, '264px');
 });
 
-test('reset：清除持久化并恢复默认宽度与展开态', () => {
+test('reset：清除持久化并恢复树与大纲默认宽度、展开及大纲关闭态', () => {
   const storage = new Map([
     ['glancemd-ultra-layout-tree-width', '380'],
     ['glancemd-ultra-layout-tree-collapsed', '1'],
+    ['glancemd-ultra-layout-outline-width', '350'],
+    ['glancemd-ultra-outline-open', '1'],
   ]);
   const h = loadLayout({ storage });
   assert.equal(h.byId['panel-tree'].classList.contains('collapsed'), true);
+  assert.equal(h.byId['panel-outline'].classList.contains('open'), true);
 
   h.LayoutUI.reset();
-  assert.equal(h.storage.size, 0, '四个布局键应全部清除');
-  assert.equal(h.byId['panel-tree'].style.width, '240px');
+  assert.equal(h.storage.size, 0, '布局相关键应全部清除');
+  assert.equal(h.byId['panel-tree'].style.width, '264px');
+  assert.equal(h.byId['panel-outline'].style.width, '264px');
   assert.equal(h.byId['panel-tree'].classList.contains('collapsed'), false);
-  assert.equal(h.byId['panel-outline'].style.width, '240px');
+  assert.equal(h.byId['panel-outline'].classList.contains('open'), false);
+  assert.equal(h.byId['panel-outline-resizer'].style.display, 'none');
+  assert.equal(h.LayoutUI.isCollapsed('outline'), true);
 });
 
-test('窄视口（≤1024px）自动折叠 Outline，切回宽视口恢复且不写持久化', () => {
-  const mql = { matches: false, listeners: [] };
-  mql.addEventListener = function(type, fn) {
-    if (type === 'change') this.listeners.push(fn);
-  };
-  const h = loadLayout({ matchMedia: () => mql });
-  assert.equal(h.byId['panel-outline'].classList.contains('collapsed'), false);
+test('Outline 开关：toggle / collapse / expand 控制 .open 类、手柄显隐、isCollapsed 语义与 #btn-toc 激活态', () => {
+  const h = loadLayout();
+  // 默认关闭
+  assert.equal(h.LayoutUI.isCollapsed('outline'), true);
+  assert.equal(h.byId['panel-outline'].classList.contains('open'), false);
+  assert.equal(h.byId['panel-outline-resizer'].style.display, 'none');
+  assert.equal(h.byId['btn-toc'].classList.contains('active'), false);
 
-  mql.matches = true;
-  mql.listeners.forEach((fn) => fn());
-  assert.equal(h.byId['panel-outline'].classList.contains('collapsed'), true, '窄视口自动折叠');
-  assert.equal(
-    h.storage.has('glancemd-ultra-layout-outline-collapsed'),
-    false,
-    '自动折叠不写持久化（只记用户手动操作）',
-  );
+  // toggle 打开
+  h.LayoutUI.toggle('outline');
+  assert.equal(h.LayoutUI.isCollapsed('outline'), false);
+  assert.equal(h.byId['panel-outline'].classList.contains('open'), true);
+  assert.equal(h.byId['panel-outline-resizer'].style.display, '');
+  assert.equal(h.byId['btn-toc'].classList.contains('active'), true);
+  assert.equal(h.storage.get('glancemd-ultra-outline-open'), '1');
 
-  mql.matches = false;
-  mql.listeners.forEach((fn) => fn());
-  assert.equal(h.byId['panel-outline'].classList.contains('collapsed'), false, '宽视口恢复');
+  // collapse 关闭
+  h.LayoutUI.collapse('outline');
+  assert.equal(h.LayoutUI.isCollapsed('outline'), true);
+  assert.equal(h.byId['panel-outline'].classList.contains('open'), false);
+  assert.equal(h.byId['panel-outline-resizer'].style.display, 'none');
+  assert.equal(h.byId['btn-toc'].classList.contains('active'), false);
+  assert.equal(h.storage.get('glancemd-ultra-outline-open'), '0');
+
+  // expand 打开
+  h.LayoutUI.expand('outline');
+  assert.equal(h.LayoutUI.isCollapsed('outline'), false);
+  assert.equal(h.byId['panel-outline'].classList.contains('open'), true);
+  assert.equal(h.byId['panel-outline-resizer'].style.display, '');
+  assert.equal(h.byId['btn-toc'].classList.contains('active'), true);
+  assert.equal(h.storage.get('glancemd-ultra-outline-open'), '1');
 });
 
-test('窄视口下手动展开后，切回宽视口不反向折叠', () => {
-  const mql = { matches: true, listeners: [] };
-  mql.addEventListener = function(type, fn) {
-    if (type === 'change') this.listeners.push(fn);
-  };
-  const h = loadLayout({ matchMedia: () => mql });
-  assert.equal(h.byId['panel-outline'].classList.contains('collapsed'), true);
+test('setOutlineSide：设置 content 与 documentElement 的 data-outline-side 属性且幂等', () => {
+  const h = loadLayout();
+  // 默认 right
+  assert.equal(h.byId['content'].getAttribute('data-outline-side'), 'right');
+  assert.equal(h.docElement.getAttribute('data-outline-side'), 'right');
 
-  h.LayoutUI.expand('outline'); // 用户显式展开
-  assert.equal(h.byId['panel-outline'].classList.contains('collapsed'), false);
+  // 切到 left
+  h.LayoutUI.setOutlineSide('left');
+  assert.equal(h.byId['content'].getAttribute('data-outline-side'), 'left');
+  assert.equal(h.docElement.getAttribute('data-outline-side'), 'left');
 
-  mql.matches = false;
-  mql.listeners.forEach((fn) => fn());
-  assert.equal(
-    h.byId['panel-outline'].classList.contains('collapsed'),
-    false,
-    '手动展开应覆盖自动折叠记忆',
-  );
+  // 幂等重复设置
+  h.LayoutUI.setOutlineSide('left');
+  assert.equal(h.byId['content'].getAttribute('data-outline-side'), 'left');
+  assert.equal(h.docElement.getAttribute('data-outline-side'), 'left');
+
+  // 切回 right
+  h.LayoutUI.setOutlineSide('right');
+  assert.equal(h.byId['content'].getAttribute('data-outline-side'), 'right');
+  assert.equal(h.docElement.getAttribute('data-outline-side'), 'right');
+
+  // 非法值安全回退 right
+  h.LayoutUI.setOutlineSide('invalid');
+  assert.equal(h.byId['content'].getAttribute('data-outline-side'), 'right');
+  assert.equal(h.docElement.getAttribute('data-outline-side'), 'right');
+});
+
+test('双击 resizer 恢复对应面板默认宽度', () => {
+  const h = loadLayout();
+  h.LayoutUI.expand('outline');
+  pointerDown(h, 'panel-tree-resizer');
+  h.fireDocument('pointermove', { clientX: 350 });
+  h.fireDocument('pointerup', {});
+  assert.equal(h.byId['panel-tree'].style.width, '350px');
+
+  // 双击 tree resizer 恢复默认
+  h.byId['panel-tree-resizer'].listeners.dblclick.forEach((fn) => fn());
+  assert.equal(h.byId['panel-tree'].style.width, '264px');
+
+  // 调整 outline 宽度后双击恢复
+  pointerDown(h, 'panel-outline-resizer');
+  h.fireDocument('pointermove', { clientX: 600 });
+  h.fireDocument('pointerup', {});
+  assert.equal(h.byId['panel-outline'].style.width, '400px');
+
+  h.byId['panel-outline-resizer'].listeners.dblclick.forEach((fn) => fn());
+  assert.equal(h.byId['panel-outline'].style.width, '264px');
 });

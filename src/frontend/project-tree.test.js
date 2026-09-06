@@ -828,6 +828,26 @@ test('剪切/复制/粘贴：内部剪贴板状态与 move/copy 命令', () => {
   assert.equal(h.findRow('docs/a.md') ? h.findRow('docs/a.md').classList.contains('st-cut') : false, false, 'move 完成后剪切态清除');
 });
 
+test('根目录强制重列不重复根级条目并清理 rowByRel', () => {
+  const h = loadTree();
+  h.open();
+  h.listed('', [{ name: 'raw.md', rel: 'raw.md', kind: 'file' }]);
+  h.listed('', [{ name: 'raw.md', rel: 'raw.md', kind: 'file' }]);
+  assert.deepEqual(h.rows().map((r) => r.dataset.rel), ['', 'raw.md']);
+  assert.equal(h.rows().filter((r) => r.dataset.rel === 'raw.md').length, 1);
+  assert.ok(h.findRow('raw.md'), 'rowByRel 应保留最新根级行');
+});
+
+test('settings-effective 相同过滤 payload 只触发一次根列表刷新', () => {
+  const h = loadTree();
+  h.open();
+  h.listed('', [{ name: 'raw.md', rel: 'raw.md', kind: 'file' }]);
+  const payload = { settings: { files: { visibleExts: ['md'], showHidden: false, exclude: ['.git'] } } };
+  h.fire('workspace:settings-effective', payload);
+  h.fire('workspace:settings-effective', payload);
+  assert.equal(h.byCommand('workspace.tree.list').filter((m) => m.path === '').length, 2);
+});
+
 test('workspace:file-changed 强制刷新父目录；项目外路径忽略', () => {
   const h = loadTree();
   h.open();

@@ -113,6 +113,7 @@ function makeElement(tag) {
 
 function loadHarness({ headings = [], withIntersection = false, seedPreview = true } = {}) {
   const observers = [];
+  const editorNavigationCalls = [];
   const intersections = [];
   const pendingTimers = [];
   const scrollCalls = [];
@@ -169,6 +170,11 @@ function loadHarness({ headings = [], withIntersection = false, seedPreview = tr
   }
 
   const windowObj = {
+    EditorNavigation: {
+      scrollToHeading(index, expected) {
+        editorNavigationCalls.push({ index, expected });
+      },
+    },
     // 定时器句柄用对象模拟，clearTimeout 真实移除（防抖合并断言依赖此语义）
     setTimeout: (fn, ms) => {
       const handle = { fn, ms };
@@ -206,6 +212,7 @@ function loadHarness({ headings = [], withIntersection = false, seedPreview = tr
     intersections,
     pendingTimers,
     scrollCalls,
+    editorNavigationCalls,
     preview() {
       return ids['preview'] || null;
     },
@@ -302,6 +309,10 @@ test('点击条目滚动预览到对应标题并即时高亮', () => {
   assert.equal(h.scrollCalls[0].opts.block, 'start');
   assert.equal(h.Outline.getActiveIndex(), 2);
   assert.equal(h.listItems()[2].classList.contains('active'), true);
+  assert.equal(h.editorNavigationCalls.length, 1);
+  assert.equal(h.editorNavigationCalls[0].index, 2);
+  assert.equal(h.editorNavigationCalls[0].expected.level, 2);
+  assert.equal(h.editorNavigationCalls[0].expected.text, '草稿与修订');
 });
 
 test('Outline.scrollTo：越界下标不滚动也不抛错', () => {

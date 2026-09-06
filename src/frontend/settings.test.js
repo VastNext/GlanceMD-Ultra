@@ -72,6 +72,7 @@ function makeElement(tag) {
     id: '',
     value: '',
     checked: false,
+    disabled: false,
     type: '',
     _text: '',
   };
@@ -150,6 +151,7 @@ function parseInto(parent, html) {
       else if (name === 'type') el.type = value;
       else if (name === 'value') el.value = value;
       else if (name === 'checked') el.checked = true;
+      else if (name === 'disabled') el.disabled = true;
       else if (name.indexOf('data-') === 0) el.dataset[dataKey(name)] = value;
     }
     stack[stack.length - 1].appendChild(el);
@@ -217,6 +219,8 @@ const GLOBAL_SETTINGS = {
     showHidden: false,
     exclude: ['.git'],
     watcherExclude: ['.git', 'node_modules'],
+    terminalPath: '',
+    terminalArgs: '',
   },
   watching: { autoSave: 'off', autoSaveDelayMs: 1000, enableWatcher: true },
   search: { exclude: ['.git'], maxFileSizeMB: 5, maxResults: 2000 },
@@ -255,7 +259,7 @@ test('open 创建面板并发送三条读命令，骨架含导航/主体/footer'
   assert.equal(panel.hidden, false);
   assert.deepEqual(
     msgs.map((x) => x.command),
-    ['workspace.settings.get-effective', 'workspace.settings.get-global', 'workspace.settings.load-project'],
+    ['workspace.settings.get-effective', 'workspace.settings.get-global', 'workspace.settings.load-project', 'workspace.terminal.scan'],
   );
   assert.ok(panel.querySelector('#settings-categories'), '分类导航存在');
   assert.ok(panel.querySelector('#settings-body'), '设置主体存在');
@@ -332,7 +336,7 @@ test('设置行结构：左标签+说明、右控件，项目覆盖键带徽标'
   h.ctx.SettingsUI.receive('workspace:settings-project', { patch: { files: { showHidden: true } } });
   panel.querySelector('#settings-categories').children[1].onclick(); // 文件
   const rows = panel.querySelectorAll('.setting-row');
-  assert.equal(rows.length, 4, '文件类 4 行');
+  assert.equal(rows.length, 5, '文件类 5 行');
   const hiddenRow = rows.find((r) => r.textContent.indexOf('显示隐藏文件') >= 0);
   assert.ok(hiddenRow, '有“显示隐藏文件”行');
   assert.match(hiddenRow.textContent, /在项目树中显示点开头的隐藏文件/, '行内含中文说明');
@@ -358,7 +362,7 @@ test('#settings-filter 过滤：命中英文 key 与中文标签', () => {
   );
   filter.value = '';
   filter.oninput();
-  assert.equal(panel.querySelectorAll('[data-setting]').length, 2, '清空后恢复全部（外观类 theme + sidebarFontSize）');
+  assert.equal(panel.querySelectorAll('[data-setting]').length, 4, '清空后恢复全部（外观类 theme + sidebarFontSize + language + outlineSide）');
   panel.querySelector('#settings-categories').children[4].onclick(); // 编辑器
   filter.value = '字号';
   filter.oninput();
@@ -415,6 +419,21 @@ test('settings.css 显式声明 [hidden] 关闭（防止 display:flex 覆盖）'
   assert.match(css, /\.settings-panel\[hidden\]\s*{\s*display:\s*none\s*!important/);
 });
 
+test('设置控件遵循明暗 token：原生 select 与输入件不写死白色/暗色表面', () => {
+  const css = fs.readFileSync(path.join(__dirname, 'settings.css'), 'utf8');
+  assert.match(css, /\.setting-control input\[type="text"\][\s\S]*background-color:\s*var\(--input-bg,\s*var\(--bg-overlay\)\)/);
+  assert.match(css, /\.setting-control input\[type="number"\][\s\S]*background-color:\s*var\(--input-bg,\s*var\(--bg-overlay\)\)/);
+  assert.match(css, /\.setting-control select[\s\S]*background-color:\s*var\(--input-bg,\s*var\(--bg-overlay\)\)/);
+  assert.doesNotMatch(css, /\.setting-control select[^{]*{[^}]*background(?:-color)?:\s*#(?:fff|ffffff|000|000000)/i);
+});
+
+test('设置 modal 的动态宽度与窄视口下限由 CSS 契约声明', () => {
+  const css = fs.readFileSync(path.join(__dirname, 'settings.css'), 'utf8');
+  assert.match(css, /(?:width|max-width):\s*min\([^;]+(?:vw|calc\([^;]+vw)/);
+  assert.match(css, /max-height:\s*min\([^;]+vh/);
+  assert.match(css, /min-width:\s*0/);
+});
+
 test('onchange 发送 set-global：data 为合并后的完整 global JSON 字符串', () => {
   const h = load();
   const msgs = [];
@@ -465,18 +484,18 @@ test('onchange 值转换：number 发数字、bool 发布尔、array 按逗号�
   assert.equal(parsed.editor.wordWrap, false, 'bool 发布尔');
 });
 
-test('theme 变更即时写 data-theme 与 localStorage[glancemd-ultra-theme]', () => {
+test('theme 变更即时预览解析后的主题且不再写 localStorage', () => {
   const h = load();
   h.ctx.SettingsUI.receive('workspace:settings-global', { settings: GLOBAL_SETTINGS });
   const theme = findBySetting(h.els['settings-panel'], 'theme');
   theme.value = 'system';
   theme.onchange();
-  assert.equal(h.docElement.dataset.theme, 'system');
-  assert.equal(h.storage.get('glancemd-ultra-theme'), 'system');
-  theme.value = 'dark';
+  assert.equal(h.docElement.dataset.theme, 'dark', '无 SettingsApply 时 system 安全回退暗色');
+  assert.equal(h.storage.has('glancemd-ultra-theme'), false, '主题事实源迁移到 settings.json');
+  theme.value = 'light';
   theme.onchange();
-  assert.equal(h.docElement.dataset.theme, 'dark');
-  assert.equal(h.storage.get('glancemd-ultra-theme'), 'dark');
+  assert.equal(h.docElement.dataset.theme, 'light');
+  assert.equal(h.storage.has('glancemd-ultra-theme'), false);
 });
 
 test('新增设置项渲染：watching.enableWatcher→switch、appearance.sidebarFontSize→number', () => {
@@ -627,4 +646,116 @@ test('录制 Backspace 直接恢复默认', () => {
   panel.querySelector('[data-kb-edit="file.open"]').onclick();
   fireRecordKey(h, 'Backspace');
   assert.equal(h.ctx.Keybindings.effective()['file.open'], 'Ctrl+O', 'Backspace 恢复默认');
+});
+
+/* ── 终端特例控件测试 ── */
+
+test('终端特例控件：扫描中显示扫描态，扫描完成后渲染自动+自定义选项，打开面板触发 scan 命令', () => {
+  const h = load();
+  const msgs = [];
+  h.ctx.ipc = { postMessage: (m) => msgs.push(JSON.parse(m)) };
+  h.ctx.SettingsUI.open();
+  const scanMsg = msgs.find((m) => m.command === 'workspace.terminal.scan');
+  assert.ok(scanMsg, '打开面板应触发 workspace.terminal.scan');
+
+  const panel = h.els['settings-panel'];
+  panel.querySelector('#settings-categories').children[1].onclick(); // 文件
+  const termSelect = panel.querySelector('#setting-terminal-select');
+  assert.ok(termSelect, '终端选择器存在');
+  assert.equal(termSelect.tagName, 'select');
+  assert.equal(termSelect.disabled, true, '扫描中 select 应为禁用态');
+  const scanningOpts = termSelect.children.filter((c) => c.tagName === 'option');
+  assert.ok(scanningOpts.some((o) => o.textContent.includes('正在扫描')));
+
+  // 扫描完成回执（空列表）
+  h.ctx.SettingsUI.receive('workspace:terminal-list', { terminals: [] });
+  const termSelectAfter = panel.querySelector('#setting-terminal-select');
+  assert.equal(termSelectAfter.disabled, false);
+  const opts = termSelectAfter.children.filter((c) => c.tagName === 'option');
+  assert.ok(opts.some((o) => o.value === '' && o.textContent.includes('自动')));
+  assert.ok(opts.some((o) => o.value === '__custom__' && o.textContent.includes('自定义')));
+});
+
+test('终端特例控件：workspace:terminal-list 回执原地刷新列表并保留当前值', () => {
+  const h = load();
+  h.ctx.SettingsUI.open();
+  h.ctx.SettingsUI.receive('workspace:settings-global', {
+    settings: Object.assign({}, GLOBAL_SETTINGS, {
+      files: Object.assign({}, GLOBAL_SETTINGS.files, { terminalPath: 'C:/Git/bin/bash.exe' }),
+    }),
+  });
+  const panel = h.els['settings-panel'];
+  panel.querySelector('#settings-categories').children[1].onclick(); // 文件
+
+  // 发送扫描结果（含当前选中的 bash.exe 与未选中的 powershell）
+  h.ctx.SettingsUI.receive('workspace:terminal-list', {
+    terminals: [
+      { id: 'powershell', name: 'PowerShell', path: 'C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe' },
+      { id: 'git-bash', name: 'Git Bash', path: 'C:/Git/bin/bash.exe' },
+    ],
+  });
+
+  const termSelect = panel.querySelector('#setting-terminal-select');
+  assert.equal(termSelect.value, 'C:/Git/bin/bash.exe', '应保留当前选中的 Git Bash');
+  const opts = termSelect.children.filter((c) => c.tagName === 'option');
+  assert.equal(opts.length, 4, '自动 + 2 个扫描终端 + 自定义');
+  const bashOpt = opts.find((o) => o.value === 'C:/Git/bin/bash.exe');
+  assert.ok(bashOpt);
+  assert.equal(bashOpt.textContent, 'Git Bash');
+  assert.equal(bashOpt.dataset.subtext, 'C:/Git/bin/bash.exe');
+});
+
+test('终端特例控件：选自定义出现输入框并正确提交 terminalPath 与 terminalArgs', () => {
+  const h = load();
+  const msgs = [];
+  h.ctx.ipc = { postMessage: (m) => msgs.push(JSON.parse(m)) };
+  h.ctx.SettingsUI.open();
+  h.ctx.SettingsUI.receive('workspace:settings-global', { settings: GLOBAL_SETTINGS });
+  const panel = h.els['settings-panel'];
+  panel.querySelector('#settings-categories').children[1].onclick(); // 文件
+
+  const termSelect = panel.querySelector('#setting-terminal-select');
+  termSelect.value = '__custom__';
+  termSelect.onchange();
+
+  const customInput = panel.querySelector('#setting-terminal-custom-path');
+  assert.ok(customInput, '选择自定义后应出现路径输入框');
+  const argsInput = panel.querySelector('#setting-terminal-args');
+  assert.ok(argsInput, '选择自定义后应出现参数输入框');
+
+  customInput.value = 'D:/Tools/alacritty.exe';
+  customInput.onchange();
+
+  const lastMsg = msgs[msgs.length - 1];
+  assert.equal(lastMsg.command, 'workspace.settings.set-global');
+  const parsed = JSON.parse(lastMsg.data);
+  assert.equal(parsed.files.terminalPath, 'D:/Tools/alacritty.exe');
+
+  argsInput.value = '--working-directory {dir}';
+  argsInput.onchange();
+
+  const lastMsg2 = msgs[msgs.length - 1];
+  const parsed2 = JSON.parse(lastMsg2.data);
+  assert.equal(parsed2.files.terminalArgs, '--working-directory {dir}');
+});
+
+test('终端特例控件：当前值不在扫描列表中时自动追加“当前值”兜底', () => {
+  const h = load();
+  h.ctx.SettingsUI.open();
+  h.ctx.SettingsUI.receive('workspace:settings-global', {
+    settings: Object.assign({}, GLOBAL_SETTINGS, {
+      files: Object.assign({}, GLOBAL_SETTINGS.files, { terminalPath: '/usr/local/bin/custom-term' }),
+    }),
+  });
+  h.ctx.SettingsUI.receive('workspace:terminal-list', {
+    terminals: [{ id: 'cmd', name: 'Command Prompt', path: 'cmd.exe' }],
+  });
+  const panel = h.els['settings-panel'];
+  panel.querySelector('#settings-categories').children[1].onclick(); // 文件
+  const termSelect = panel.querySelector('#setting-terminal-select');
+  assert.equal(termSelect.value, '/usr/local/bin/custom-term');
+  const opts = termSelect.children.filter((c) => c.tagName === 'option');
+  const customCurrent = opts.find((o) => o.value === '/usr/local/bin/custom-term');
+  assert.ok(customCurrent, '应包含当前值兜底项');
+  assert.match(customCurrent.textContent, /当前值/);
 });
