@@ -838,23 +838,17 @@
   }
 
   // ── 快捷键专用列表 ──
-  function kbLabel(id) {
-    var c = window.Commands && typeof window.Commands.get === 'function' ? window.Commands.get(id) : null;
-    return (c && c.label) || id;
-  }
-
-  function kbOverrides() {
-    var kb = window.Keybindings;
-    if (kb && typeof kb.overrides === 'function') {
-      var m = kb.overrides();
-      return m && typeof m === 'object' ? m : {};
-    }
-    return {};
-  }
-
   function renderKbList(body, headerHTML, q) {
+    if (window.KeybindingsSettings && typeof window.KeybindingsSettings.mount === 'function') {
+      body.innerHTML = headerHTML + '<div id="settings-keybindings-mount"></div>';
+      var mountPoint = body.querySelector('#settings-keybindings-mount');
+      if (mountPoint) {
+        window.KeybindingsSettings.mount(mountPoint, { query: q });
+        return;
+      }
+    }
     var kb = window.Keybindings;
-    if (!kb || !kb.defaults || typeof kb.effective !== 'function') {
+    if (!kb || typeof kb.effective !== 'function') {
       body.innerHTML = headerHTML + '<p class="settings-empty">快捷键模块未加载</p>';
       return;
     }
@@ -862,7 +856,9 @@
     var eff = kb.effective();
     var ovr = kbOverrides();
     var rows = '';
-    Object.keys(kb.defaults).forEach(function (id) {
+    var keys = Object.keys(eff);
+    if (!keys.length && kb.defaults) keys = Object.keys(kb.defaults);
+    keys.forEach(function (id) {
       var label = kbLabel(id);
       if (!match(label) && !match(id) && !match(eff[id] || '')) return;
       var recording = state.kbRecording === id;

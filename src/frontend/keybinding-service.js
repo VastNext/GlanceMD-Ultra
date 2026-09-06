@@ -71,6 +71,9 @@
     try { if (root.localStorage) root.localStorage.setItem(STORAGE_KEY, JSON.stringify(this.overrides)); } catch (e) {}
     return this.getOverrides();
   };
+  BindingService.prototype.setOverrides = function (map) {
+    return this.saveOverrides(map);
+  };
   BindingService.prototype.clearOverrides = function () { return this.saveOverrides({}); };
   BindingService.prototype.reset = function (commandId, sequence) {
     if (!commandId) return this;

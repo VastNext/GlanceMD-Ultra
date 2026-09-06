@@ -1,16 +1,153 @@
-(function () {
+// 运行时快捷键分派单例 —— window.Keybindings 与 window.BindingService 实例集成
+(function (root) {
   'use strict';
-  var KEY='glancemd-ultra-keybindings', defaults={'file.open':'Ctrl+O','quickopen.toggle':'Ctrl+P','search.toggle':'Ctrl+Shift+F','palette.toggle':'Ctrl+Shift+P','settings.toggle':'Ctrl+`'}, overrides={};
-  function load(){try{overrides=JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){overrides={};}return overrides;}
-  function effective(){var x=Object.assign({},defaults,overrides);return x;}
-  // 冲突检测在 effective 级进行：defaults 与 overrides 合并后，任一组合键被两个
-  // 命令占用即冲突（否则覆盖键会静默顶掉默认绑定，如把 file.open 改成 Ctrl+P）。
-  function conflict(map){var eff=Object.assign({},defaults,map);var seen={};for(var k in eff){var v=eff[k];if(!v)continue;if(seen[v])return {key:v,commands:[seen[v],k]};seen[v]=k;}return null;}
-  function save(map){var c=conflict(map);if(c)throw new Error('快捷键冲突：'+c.key);overrides=map;try{localStorage.setItem(KEY,JSON.stringify(map));}catch(e){}return true;}
-  function normalize(e){var a=[];if(e.ctrlKey)a.push('Ctrl');if(e.altKey)a.push('Alt');if(e.shiftKey)a.push('Shift');if(e.metaKey)a.push('Meta');var k=e.key===' '?'Space':e.key.length===1?e.key.toUpperCase():e.key;return a.join('+')+(a.length?'+' :'')+k;}
-  // 输入框聚焦时仍放行的面板切换类命令（搜索/快开/面板/设置需要在编辑中可达）
-  var INPUT_ALLOWED={'quickopen.toggle':1,'search.toggle':1,'palette.toggle':1,'settings.toggle':1};
-  function dispatch(e){var inInput=e.target&&/INPUT|TEXTAREA|SELECT/.test(e.target.tagName);var key=normalize(e),map=effective();for(var id in map)if(map[id]===key&&window.Commands&&Commands.has&&Commands.has(id)){if(inInput&&!INPUT_ALLOWED[id])return null;e.preventDefault();Commands.run(id);return id;}return null;}
-  load();document.addEventListener('keydown',dispatch);
-  window.Keybindings={defaults:defaults,load:load,effective:effective,overrides:function(){return Object.assign({},overrides);},save:save,clear:function(){save({});},conflict:conflict,normalize:normalize,dispatch:dispatch,exportJSON:function(){return JSON.stringify(overrides,null,2);},importJSON:function(s){var x=JSON.parse(s);save(x);return x;}};
-})();
+
+  var KEY = 'glancemd-ultra-keybindings';
+  var SCHEME_KEY = 'glancemd-ultra-keyboard-scheme';
+
+  // 确保全局 ContextKeyService 存在
+  if (!root.contextKeys && root.ContextKeyService) {
+    root.contextKeys = new root.ContextKeyService();
+  }
+
+  // 命令桥接：BindingService 调用 commandId 时转调 window.Commands
+  var commandBridge = new Proxy({}, {
+    get: function(_, prop) {
+      return function(binding) {
+        if (root.Commands && typeof root.Commands.run === 'function') {
+          return root.Commands.run(prop, binding && binding.args);
+        }
+      };
+    },
+    has: function(_, prop) {
+      return Boolean(root.Commands && typeof root.Commands.has === 'function' && root.Commands.has(prop));
+    }
+  });
+
+  // 实例化全局 BindingService
+  var platformName = (typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform || '')) ? 'Mac' : 'Windows';
+  var service = root.BindingService && typeof root.BindingService === 'function'
+    ? new root.BindingService({
+        commands: commandBridge,
+        context: root.contextKeys,
+        platform: platformName,
+        scheme: loadSavedScheme()
+      })
+    : null;
+
+  function loadSavedScheme() {
+    try {
+      return localStorage.getItem(SCHEME_KEY) || 'ultra.eclipse';
+    } catch (e) {
+      return 'ultra.eclipse';
+    }
+  }
+
+  function loadOverrides() {
+    try {
+      return JSON.parse(localStorage.getItem(KEY) || '{}') || {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function syncOverrides() {
+    if (!service) return;
+    var raw = loadOverrides();
+    service.setOverrides(raw);
+  }
+
+  syncOverrides();
+
+  // 统一的全局 Keydown 分派
+  function dispatch(e) {
+    if (!service) return null;
+    // 快捷键录制器激活时不分发
+    if (root.contextKeys && root.contextKeys.get('keybindingRecording')) {
+      return null;
+    }
+    // 文本输入控件保护：仅放行显式声明了允许在输入框中触发的命令
+    var inInput = e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName);
+    if (inInput) {
+      if (root.contextKeys) root.contextKeys.set('inputFocus', true);
+    } else {
+      if (root.contextKeys) root.contextKeys.remove('inputFocus');
+    }
+
+    var result = service.dispatch(e);
+    if (result && result.status === 'matched') {
+      return result.binding ? result.binding.commandId : null;
+    }
+    return null;
+  }
+
+  document.addEventListener('keydown', dispatch);
+
+  // 向后兼容接口，供旧设置页与现有单元测试平滑调用
+  var facade = {
+    service: service,
+    get defaults() {
+      var scheme = service ? service.getScheme() : 'ultra.eclipse';
+      var rows = (root.DefaultKeybindings && root.DefaultKeybindings.schemes && root.DefaultKeybindings.schemes[scheme]) || [];
+      var map = {};
+      rows.forEach(function(b) { if (b.commandId && b.sequence) map[b.commandId] = b.sequence; });
+      return map;
+    },
+    load: loadOverrides,
+    effective: function() {
+      if (!service) return {};
+      var bindings = service.getBindings();
+      var out = {};
+      bindings.forEach(function(b) {
+        if (b.commandId && b.sequence) out[b.commandId] = b.sequence;
+      });
+      return out;
+    },
+    overrides: function() {
+      if (!service) return {};
+      var raw = service.getOverrides();
+      var out = {};
+      Object.keys(raw).forEach(function(id) {
+        var list = raw[id];
+        if (Array.isArray(list) && list.length && !list[0].removed) {
+          out[id] = list[0].sequence;
+        }
+      });
+      return out;
+    },
+    save: function(map) {
+      if (!service) return false;
+      service.saveOverrides(map || {});
+      return true;
+    },
+    clear: function() {
+      if (!service) return;
+      service.clearOverrides();
+    },
+    setScheme: function(id) {
+      if (!service) return;
+      service.setScheme(id);
+      try {
+        localStorage.setItem(SCHEME_KEY, id);
+      } catch (e) {}
+      // 触发全局 scheme 变更事件
+      try {
+        window.dispatchEvent(new CustomEvent('scheme-changed', { detail: { schemeId: id } }));
+      } catch (e) {}
+    },
+    getScheme: function() {
+      return service ? service.getScheme() : 'ultra.eclipse';
+    },
+    normalize: function(e) {
+      return root.KeybindingParser ? root.KeybindingParser.stroke(e) : '';
+    },
+    dispatch: dispatch
+  };
+
+  root.Keybindings = facade;
+  if (service) {
+    root.BindingServiceInstance = service;
+    // 同时把已构造的单例赋值给全局 BindingService 供 UI 模块直接消费
+    root.BindingService = service;
+  }
+})(typeof window !== 'undefined' ? window : globalThis);

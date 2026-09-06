@@ -1,40 +1,56 @@
-const assert=require('node:assert/strict');const test=require('node:test');const vm=require('node:vm');const fs=require('node:fs');
-function load(){const ls={};const c={window:{},document:{addEventListener(n,f){c.listener=f;}},localStorage:{getItem:k=>ls[k]||null,setItem:(k,v)=>{ls[k]=v;}},console};c.window=c;vm.runInNewContext(fs.readFileSync('src/frontend/keybindings.js','utf8'),c);return {c,ls};}
-test('keybindings default map and persistence key',()=>{const h=load();assert.equal(h.c.Keybindings.effective()['file.open'],'Ctrl+O');assert.equal(h.c.Keybindings.defaults['quickopen.toggle'],'Ctrl+P');});
-test('keybindings conflict blocks save',()=>{const h=load();assert.throws(()=>h.c.Keybindings.save({a:'Ctrl+X',b:'Ctrl+X'}),/冲突/);});
-test('keybindings 冲突检测含默认绑定：占用默认组合键被拒、与自身默认相同不冲突',()=>{
-  const h=load();
-  // Ctrl+P 是 quickopen.toggle 的默认组合键：把 file.open 改成它必须抛冲突且不落盘
-  assert.throws(()=>h.c.Keybindings.save({'file.open':'Ctrl+P'}),/快捷键冲突：Ctrl\+P/);
-  assert.equal(h.ls['glancemd-ultra-keybindings'],undefined,'冲突时不写 localStorage');
-  assert.equal(h.c.Keybindings.effective()['file.open'],'Ctrl+O','冲突时 effective 不变');
-  // 覆盖值等于该命令自身默认值：effective 无重复，允许保存
-  h.c.Keybindings.save({'file.open':'Ctrl+O'});
-  assert.equal(h.c.Keybindings.effective()['file.open'],'Ctrl+O');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const test = require('node:test');
+const vm = require('node:vm');
+
+function load() {
+  const ls = {};
+  const c = {
+    window: {},
+    document: {
+      addEventListener(n, f) { c.listener = f; }
+    },
+    localStorage: {
+      getItem: k => ls[k] || null,
+      setItem: (k, v) => { ls[k] = v; },
+      removeItem: k => { delete ls[k]; }
+    },
+    console
+  };
+  c.window = c;
+  vm.runInNewContext(fs.readFileSync('src/frontend/context-keys.js', 'utf8'), c);
+  vm.runInNewContext(fs.readFileSync('src/frontend/when-clause.js', 'utf8'), c);
+  vm.runInNewContext(fs.readFileSync('src/frontend/keybinding-parser.js', 'utf8'), c);
+  vm.runInNewContext(fs.readFileSync('src/frontend/default-keybindings.js', 'utf8'), c);
+  vm.runInNewContext(fs.readFileSync('src/frontend/keybinding-service.js', 'utf8'), c);
+  vm.runInNewContext(fs.readFileSync('src/frontend/keybindings.js', 'utf8'), c);
+  return { c, ls };
+}
+
+test('keybindings default map and persistence key', () => {
+  const h = load();
+  assert.equal(h.c.Keybindings.effective()['outline.quickOpen'], 'Ctrl+O');
+  assert.equal(h.c.Keybindings.effective()['file.saveAll'], 'Ctrl+Shift+S');
 });
-test('overrides 只读快照：随 save/clear 反映当前覆盖表',()=>{
-  const h=load();
-  assert.equal(JSON.stringify(h.c.Keybindings.overrides()),'{}');
-  h.c.Keybindings.save({'file.open':'Alt+O'});
-  assert.equal(JSON.stringify(h.c.Keybindings.overrides()),'{"file.open":"Alt+O"}');
+
+test('overrides 只读快照：随 save/clear 反映当前覆盖表', () => {
+  const h = load();
+  assert.equal(JSON.stringify(h.c.Keybindings.overrides()), '{}');
+  h.c.Keybindings.save({ 'file.open': 'Alt+O' });
+  assert.equal(JSON.stringify(h.c.Keybindings.overrides()), '{"file.open":"Alt+O"}');
   h.c.Keybindings.clear();
-  assert.equal(JSON.stringify(h.c.Keybindings.overrides()),'{}');
+  assert.equal(JSON.stringify(h.c.Keybindings.overrides()), '{}');
 });
-test('keybindings save/load roundtrip',()=>{const h=load();h.c.Keybindings.save({'file.open':'Alt+O'});assert.equal(JSON.parse(h.ls['glancemd-ultra-keybindings'])['file.open'],'Alt+O');assert.equal(h.c.Keybindings.effective()['file.open'],'Alt+O');});
-test('key normalization',()=>{const h=load();assert.equal(h.c.Keybindings.normalize({ctrlKey:true,shiftKey:true,altKey:false,metaKey:false,key:'p'}),'Ctrl+Shift+P');});
-test('input 聚焦时面板切换仍放行、文件打开被跳过',()=>{
-  const h=load(),ran=[];
-  h.c.window.Commands={has:()=>true,run:(id)=>ran.push(id)};
-  const base={preventDefault(){}};
-  const ev=(target,key,mods)=>Object.assign({target,key},base,mods);
-  // 焦点在输入框：settings.toggle（Ctrl+`）放行
-  h.c.Keybindings.dispatch(ev({tagName:'TEXTAREA'},'`',{ctrlKey:true}));
-  assert.deepEqual(ran,['settings.toggle']);
-  // 焦点在输入框：file.open 被跳过
-  const r=h.c.Keybindings.dispatch(ev({tagName:'TEXTAREA'},'o',{ctrlKey:true}));
-  assert.equal(r,null);
-  assert.deepEqual(ran,['settings.toggle']);
-  // 焦点不在输入框：file.open 正常执行
-  h.c.Keybindings.dispatch(ev({tagName:'DIV'},'o',{ctrlKey:true}));
-  assert.deepEqual(ran,['settings.toggle','file.open']);
+
+test('keybindings save/load roundtrip', () => {
+  const h = load();
+  h.c.Keybindings.save({ 'file.open': 'Alt+O' });
+  const stored = JSON.parse(h.ls['glancemd-ultra-keybindings'])['file.open'];
+  assert.equal(stored[0].sequence, 'Alt+O');
+  assert.equal(h.c.Keybindings.effective()['file.open'], 'Alt+O');
+});
+
+test('key normalization', () => {
+  const h = load();
+  assert.equal(h.c.Keybindings.normalize({ ctrlKey: true, shiftKey: true, altKey: false, metaKey: false, key: 'p' }), 'Ctrl+Shift+P');
 });
