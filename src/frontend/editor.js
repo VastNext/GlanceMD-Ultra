@@ -153,30 +153,168 @@
     scheduleAutoSave();
   });
 
-  editor.addEventListener('blur', function() {
-    var watching = effectiveSettings().watching || {};
-    if (watching.autoSave === 'onFocusLost') {
-      var tab = TabManager.getActiveTab();
-      if (tab && tab.dirty && typeof doSave === 'function') doSave();
-    }
-  });
+  /* ══════════ Vim Mode 桥接与输入代理 ══════════ */
+  var vimEngine = null;
+  var vimEnabled = false;
 
-  // Tab key inserts spaces (but not Ctrl+Tab which switches tabs)
-  editor.addEventListener('keydown', function(e) {
-    if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey) {
-      e.preventDefault();
-      // Tab 宽度读设置生效层（editor.tabSize，settings-apply.js 维护），缺省 4
-      var sa = window.SettingsApply;
-      var tabSize = (sa && typeof sa.get === 'function' && sa.get().editor.tabSize) || 4;
-      if (!isFinite(tabSize) || tabSize < 1) tabSize = 4;
-      var spaces = new Array(tabSize + 1).join(' ');
-      var start = editor.selectionStart;
-      var end = editor.selectionEnd;
-      editor.value = editor.value.substring(0, start) + spaces + editor.value.substring(end);
-      editor.selectionStart = editor.selectionEnd = start + tabSize;
-      editor.dispatchEvent(new Event('input'));
-      TabManager.markDirty();
-      if (typeof splitMode !== 'undefined' && splitMode) updateSplitPreview();
+  function isVimAllowed() {
+    var sa = window.SettingsApply;
+    try {
+      var s = sa && typeof sa.get === 'function' ? sa.get() : {};
+      return Boolean(s.editor && s.editor.vim && s.editor.vim.enabled);
+    } catch (e) {
+      return false;
     }
-  });
+  }
+
+  function ensureVimEngine() {
+    if (!editor || !window.VimEngine) return null;
+    if (!vimEngine) {
+      vimEngine = new window.VimEngine({
+        textarea: editor,
+        commandRunner: function(name, opts) {
+          if (window.Commands && typeof window.Commands.run === 'function') {
+            if (name === 'w') window.Commands.run('file.save');
+            else if (name === 'wa') window.Commands.run('file.saveAll');
+            else if (name === 'q') window.Commands.run('file.close');
+            else if (name === 'q!') window.Commands.run('file.close');
+            else if (name === 'wq' || name === 'x') {
+              window.Commands.run('file.save');
+              window.Commands.run('file.close');
+            }
+            else if (name === 'bn') window.Commands.run('tab.next');
+            else if (name === 'bp') window.Commands.run('tab.previous');
+            else if (name === 'e') window.Commands.run('file.revert');
+            else if (name === 'set' && opts && opts.args) {
+              if (opts.args === 'wrap' && window.Commands.has('editor.toggleWrap')) window.Commands.run('editor.toggleWrap');
+            }
+          }
+        }
+      });
+    }
+    return vimEngine;
+  }
+
+  function syncVimContext() {
+    if (!window.contextKeys) return;
+    if (!vimEnabled || !vimEngine) {
+      window.contextKeys.remove('vim.normal');
+      window.contextKeys.remove('vim.insert');
+      window.contextKeys.remove('vim.visual');
+      window.contextKeys.remove('vim.commandLine');
+      return;
+    }
+    var m = vimEngine.mode || 'Normal';
+    window.contextKeys.set('vim.normal', m === 'Normal');
+    window.contextKeys.set('vim.insert', m === 'Insert');
+    window.contextKeys.set('vim.visual', m.indexOf('Visual') === 0);
+    window.contextKeys.set('vim.commandLine', m === 'CommandLine');
+  }
+
+  function updateVimUi() {
+    if (window.VimUI && typeof window.VimUI.update === 'function') {
+      if (vimEnabled && vimEngine) {
+        window.VimUI.update(vimEngine.getState());
+      } else if (window.VimUI.unmount) {
+        window.VimUI.unmount();
+      }
+    }
+    syncVimContext();
+  }
+
+  function toggleVimMode(force) {
+    var next = force !== undefined ? Boolean(force) : !vimEnabled;
+    vimEnabled = next;
+    var eng = ensureVimEngine();
+    if (vimEnabled && eng) {
+      eng.mode = 'Normal';
+      eng.pending = '';
+      eng.count = '';
+      if (window.VimUI && typeof window.VimUI.mount === 'function') {
+        window.VimUI.mount({ target: editor });
+      }
+    }
+    updateVimUi();
+    return vimEnabled;
+  }
+
+  function initVimCommands() {
+    if (!window.Commands || typeof window.Commands.register !== 'function') return;
+    if (!window.Commands.has('editor.vim.toggle')) {
+      window.Commands.register('editor.vim.toggle', {
+        label: '切换 Vim 模式',
+        category: 'Editor',
+        run: function() { toggleVimMode(); }
+      });
+    }
+  }
+
+  if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    document.addEventListener('DOMContentLoaded', function() {
+      initVimCommands();
+      if (isVimAllowed()) {
+        toggleVimMode(true);
+      }
+    });
+  } else {
+    initVimCommands();
+  }
+
+  if (editor && typeof editor.addEventListener === 'function') {
+    editor.addEventListener('focus', function() {
+      if (window.contextKeys) window.contextKeys.set('editorTextFocus', true);
+      if (vimEnabled) {
+        ensureVimEngine();
+        updateVimUi();
+      }
+    });
+
+    editor.addEventListener('blur', function() {
+      if (window.contextKeys) window.contextKeys.remove('editorTextFocus');
+      var watching = effectiveSettings().watching || {};
+      if (watching.autoSave === 'onFocusLost') {
+        var tab = TabManager.getActiveTab();
+        if (tab && tab.dirty && typeof doSave === 'function') doSave();
+      }
+    });
+
+    // Tab key inserts spaces (but not Ctrl+Tab which switches tabs)
+    editor.addEventListener('keydown', function(e) {
+      if (vimEnabled && vimEngine) {
+        // 正在 IME 输入法组合时不截获
+        if (e.isComposing || vimEngine.composing) return;
+        var res = vimEngine.handleKey(e.key, e);
+        if (res && res.handled) {
+          e.preventDefault();
+          e.stopPropagation();
+          updateVimUi();
+          TabManager.markDirty();
+          if (typeof splitMode !== 'undefined' && splitMode) updateSplitPreview();
+          return;
+        }
+      }
+
+      if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        // Tab 宽度读设置生效层（editor.tabSize，settings-apply.js 维护），缺省 4
+        var sa = window.SettingsApply;
+        var tabSize = (sa && typeof sa.get === 'function' && sa.get().editor.tabSize) || 4;
+        if (!isFinite(tabSize) || tabSize < 1) tabSize = 4;
+        var spaces = new Array(tabSize + 1).join(' ');
+        var start = editor.selectionStart;
+        var end = editor.selectionEnd;
+        editor.value = editor.value.substring(0, start) + spaces + editor.value.substring(end);
+        editor.selectionStart = editor.selectionEnd = start + tabSize;
+        editor.dispatchEvent(new Event('input'));
+        TabManager.markDirty();
+        if (typeof splitMode !== 'undefined' && splitMode) updateSplitPreview();
+      }
+    });
+  }
+
+  window.EditorVim = {
+    toggle: toggleVimMode,
+    isEnabled: function() { return vimEnabled; },
+    getEngine: function() { return vimEngine; }
+  };
 })();

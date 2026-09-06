@@ -45,6 +45,8 @@ SCRIPT_ORDER = (
     "preview.js",
     "tabs.js",
     "editor.js",
+    "vim-engine.js",
+    "vim-ui.js",
     "app.js",
     "commands.js",
     "context-keys.js",
@@ -75,6 +77,7 @@ def escape_for_script_tag(js: str) -> str:
 
 # 与 main.rs::build_html 的 CSS 拼接顺序严格一致（style.css 之后）
 PANEL_CSS_ORDER = (
+    "vim-ui.css",
     "outline.css",
     "project-tree.css",
     "search-panel.css",

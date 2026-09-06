@@ -36,6 +36,8 @@ const STYLE_CSS: &str = include_str!("frontend/style.css");
 const I18N_JS: &str = include_str!("frontend/i18n.js");
 const APP_JS: &str = include_str!("frontend/app.js");
 const EDITOR_JS: &str = include_str!("frontend/editor.js");
+const VIM_ENGINE_JS: &str = include_str!("frontend/vim-engine.js");
+const VIM_UI_JS: &str = include_str!("frontend/vim-ui.js");
 const PREVIEW_JS: &str = include_str!("frontend/preview.js");
 const TABS_JS: &str = include_str!("frontend/tabs.js");
 const MARKED_JS: &str = include_str!("frontend/marked.min.js");
@@ -604,13 +606,15 @@ fn escape_for_script_tag(js: &str) -> String {
 fn build_html() -> String {
     // i18n.js 必须最前：后续模块（tabs/project-tree/recovery…）执行时即用 I18n.t
     let scripts = format!(
-        "<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>",
+        "<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>",
         escape_for_script_tag(I18N_JS),
         escape_for_script_tag(HLJS),
         escape_for_script_tag(MARKED_JS),
         escape_for_script_tag(PREVIEW_JS),
         escape_for_script_tag(TABS_JS),
         escape_for_script_tag(EDITOR_JS),
+        escape_for_script_tag(VIM_ENGINE_JS),
+        escape_for_script_tag(VIM_UI_JS),
         escape_for_script_tag(APP_JS),
     );
 
@@ -664,6 +668,8 @@ fn build_html() -> String {
     // 面板样式拼在 style.css 之后（同特异性下后写的规则生效；各面板 css 内
     // 使用 style.css 的既有 token，明暗两套均已在 shell 或面板文件内定义）
     const PANEL_CSS: &str = concat!(
+        "\n/* ── vim-ui.css ── */\n",
+        include_str!("frontend/vim-ui.css"),
         "\n/* ── outline.css ── */\n",
         include_str!("frontend/outline.css"),
         "\n/* ── project-tree.css ── */\n",
