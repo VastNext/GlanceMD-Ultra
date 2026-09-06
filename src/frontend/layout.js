@@ -1,154 +1,250 @@
-// 工作区三栏骨架：面板折叠 / 拖宽 / 持久化 —— window.LayoutUI
-// 阶段 1，布局与视觉对照 docs/design/01-project-tree.html（样式见 style.css
-// 的 WORKSPACE LAYOUT section）；DOM 契约：#panel-tree / #panel-outline /
-// .panel-resizer，持久化键 glancemd-ultra-layout-*（阶段 0 身份前缀约定）。
-// 面板内容本身由后续模块挂载（#project-tree-root ← project-tree.js）。
+// 工作区三栏骨架：项目树与 Outline 折叠/拖宽/左右侧停靠与持久化 —— window.LayoutUI
 (function() {
   'use strict';
 
   var PANELS = ['tree', 'outline'];
-
-  /* ── 布局规格（与 style.css WORKSPACE LAYOUT section 保持一致）── */
-  var DEFAULT_WIDTH = 240;
-  var MIN_WIDTH = 200;
-  var MAX_WIDTH = 400;
-  // 与 style.css 的窄视口媒体查询同一条件：≤1024px 时 Outline 自动折叠
-  var NARROW_QUERY = '(max-width: 1024px)';
-
-  /* ── 持久化键（glancemd-ultra- 前缀）── */
+  var DEFAULTS = { tree: 264, outline: 264 };
+  var MIN_WIDTH = { tree: 180, outline: 180 };
+  var EDITOR_MIN = 80;
   var KEYS = {
-    tree: {
-      width: 'glancemd-ultra-layout-tree-width',
-      collapsed: 'glancemd-ultra-layout-tree-collapsed',
-    },
-    outline: {
-      width: 'glancemd-ultra-layout-outline-width',
-      collapsed: 'glancemd-ultra-layout-outline-collapsed',
-    },
+    tree: { width: 'glancemd-ultra-layout-tree-width', collapsed: 'glancemd-ultra-layout-tree-collapsed' },
+    outline: { width: 'glancemd-ultra-layout-outline-width' }
   };
-
-  var els = {
-    tree: null,
-    outline: null,
-    treeResizer: null,
-    outlineResizer: null,
-    content: null,
-  };
-
-  var widths = { tree: DEFAULT_WIDTH, outline: DEFAULT_WIDTH };
-  var collapsed = { tree: false, outline: false };
-  // 窄视口下的自动折叠标记：持久化只记用户手动操作，宽视口仅恢复"自动"折叠
-  var autoCollapsed = { tree: false, outline: false };
+  var KEY_OUTLINE_OPEN = 'glancemd-ultra-outline-open';
+  var els = { tree: null, outline: null, treeResizer: null, outlineResizer: null, content: null };
+  var widths = { tree: DEFAULTS.tree, outline: DEFAULTS.outline };
+  var collapsed = { tree: false };
+  var autoCollapsed = { tree: false };
+  var outlineOpen = false;
   var dragPanel = null;
-  var media = null;
+  var outlineSide = 'right';
 
-  /* ── localStorage 包装：file:// / 隐私模式下可能抛错，与既有模块一致吞掉 ── */
-  function storageGet(key) {
-    try { return window.localStorage.getItem(key); } catch (e) { return null; }
-  }
-  function storageSet(key, value) {
-    try { window.localStorage.setItem(key, value); } catch (e) {}
-  }
-  function storageRemove(key) {
-    try { window.localStorage.removeItem(key); } catch (e) {}
-  }
+  function storageGet(key) { try { return window.localStorage.getItem(key); } catch (e) { return null; } }
+  function storageSet(key, value) { try { window.localStorage.setItem(key, value); } catch (e) {} }
+  function storageRemove(key) { try { window.localStorage.removeItem(key); } catch (e) {} }
 
-  function clampWidth(w) {
-    return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, w));
+  function contentWidth() {
+    if (!els.content || !els.content.getBoundingClientRect) return Infinity;
+    var r = els.content.getBoundingClientRect();
+    return Number(r.width) || Math.max(0, (r.right || 0) - (r.left || 0));
   }
 
-  function parseWidth(raw) {
-    var w = parseInt(raw, 10);
-    if (isNaN(w)) return DEFAULT_WIDTH;
-    return clampWidth(w);
+  function clampWidth(panel, w) {
+    var n = parseInt(w, 10);
+    if (isNaN(n)) n = DEFAULTS[panel] || 264;
+    var min = MIN_WIDTH[panel] || 180;
+    var available = contentWidth();
+    var other = 0;
+    if (panel === 'tree') {
+      other = outlineOpen ? widths.outline : 0;
+    } else if (panel === 'outline') {
+      other = collapsed.tree ? 36 : widths.tree;
+    }
+    var roomMax = isFinite(available) ? available - other - EDITOR_MIN : Infinity;
+    if (roomMax < min) return min;
+    return Math.min(roomMax, Math.max(min, n));
   }
 
   function resizerFor(panel) {
-    return panel === 'tree' ? els.treeResizer : els.outlineResizer;
+    return panel === 'tree' ? els.treeResizer : (panel === 'outline' ? els.outlineResizer : null);
   }
 
   function applyWidth(panel) {
-    if (els[panel]) els[panel].style.width = Math.round(widths[panel]) + 'px';
+    if (panel === 'tree' && els.tree) {
+      els.tree.style.width = Math.round(widths.tree) + 'px';
+    } else if (panel === 'outline' && els.outline) {
+      els.outline.style.width = Math.round(widths.outline) + 'px';
+    }
   }
 
   function applyCollapsed(panel) {
-    if (els[panel]) els[panel].classList.toggle('collapsed', collapsed[panel]);
-    // 折叠后手柄失去意义，同步隐藏；展开恢复由 CSS（媒体查询）兜底窄视口
-    var resizer = resizerFor(panel);
-    if (resizer) resizer.style.display = collapsed[panel] ? 'none' : '';
+    if (panel === 'tree' && els.tree) {
+      els.tree.classList.toggle('collapsed', collapsed.tree);
+      if (els.treeResizer) els.treeResizer.style.display = collapsed.tree ? 'none' : '';
+    } else if (panel === 'outline') {
+      applyOutlineOpen();
+    }
   }
 
-  /* persist=false 用于窄视口自动折叠：不写持久化，宽视口可精确还原 */
+  function applyOutlineOpen() {
+    if (els.outline) {
+      els.outline.classList.toggle('open', outlineOpen);
+    }
+    if (els.outlineResizer) {
+      els.outlineResizer.style.display = outlineOpen ? '' : 'none';
+    }
+    var btnToc = document.getElementById('btn-toc');
+    if (btnToc) {
+      btnToc.classList.toggle('active', outlineOpen);
+    }
+  }
+
+  function setOutlineOpen(open, persist) {
+    outlineOpen = Boolean(open);
+    applyOutlineOpen();
+    if (persist !== false) {
+      storageSet(KEY_OUTLINE_OPEN, outlineOpen ? '1' : '0');
+    }
+    constrainLayout();
+  }
+
   function setPanelCollapsed(panel, value, persist) {
-    if (collapsed[panel] === value) return;
-    collapsed[panel] = value;
-    applyCollapsed(panel);
-    if (persist) storageSet(KEYS[panel].collapsed, value ? '1' : '0');
+    if (panel === 'outline') {
+      setOutlineOpen(!value, persist);
+      return;
+    }
+    if (collapsed.tree === value) return;
+    collapsed.tree = value;
+    applyCollapsed('tree');
+    if (persist) storageSet(KEYS.tree.collapsed, value ? '1' : '0');
+    constrainLayout();
   }
 
   function isCollapsed(panel) {
-    return collapsed[panel];
+    if (panel === 'outline') return !outlineOpen;
+    return Boolean(collapsed[panel]);
   }
 
   function toggle(panel) {
-    setPanelCollapsed(panel, !collapsed[panel], true);
+    if (panel === 'outline') {
+      setOutlineOpen(!outlineOpen, true);
+      return;
+    }
+    setPanelCollapsed('tree', !collapsed.tree, true);
   }
 
   function collapse(panel) {
-    setPanelCollapsed(panel, true, true);
+    if (panel === 'outline') {
+      setOutlineOpen(false, true);
+      return;
+    }
+    setPanelCollapsed('tree', true, true);
   }
 
   function expand(panel) {
-    // 用户显式展开：撤销窄视口自动折叠标记，切回宽视口时不反向折叠
-    autoCollapsed[panel] = false;
-    setPanelCollapsed(panel, false, true);
+    if (panel === 'outline') {
+      setOutlineOpen(true, true);
+      return;
+    }
+    autoCollapsed.tree = false;
+    setPanelCollapsed('tree', false, true);
+    constrainLayout();
   }
 
+  function constrainLayout() {
+    var available = contentWidth();
+    if (!isFinite(available)) {
+      applyWidth('tree');
+      applyWidth('outline');
+      return;
+    }
+    // Preserve minimal editor width
+    var treeW = collapsed.tree ? 36 : widths.tree;
+    var outlineW = outlineOpen ? widths.outline : 0;
+    if (available - (treeW + outlineW) < EDITOR_MIN) {
+      if (!collapsed.tree && available - (36 + outlineW) >= EDITOR_MIN) {
+        // Can shrink tree
+        widths.tree = clampWidth('tree', widths.tree);
+        applyWidth('tree');
+      } else if (!collapsed.tree) {
+        autoCollapsed.tree = true;
+        collapsed.tree = true;
+        applyCollapsed('tree');
+      }
+      if (outlineOpen) {
+        widths.outline = clampWidth('outline', widths.outline);
+        applyWidth('outline');
+      }
+    } else {
+      if (!collapsed.tree) {
+        widths.tree = clampWidth('tree', widths.tree);
+        applyWidth('tree');
+      }
+      if (outlineOpen) {
+        widths.outline = clampWidth('outline', widths.outline);
+        applyWidth('outline');
+      }
+    }
+  }
+
+  function parseWidth(panel, raw) { return clampWidth(panel, raw); }
+
   function restore() {
-    PANELS.forEach(function(panel) {
-      widths[panel] = parseWidth(storageGet(KEYS[panel].width));
-      collapsed[panel] = storageGet(KEYS[panel].collapsed) === '1';
-      applyWidth(panel);
-      applyCollapsed(panel);
-    });
+    widths.tree = parseWidth('tree', storageGet(KEYS.tree.width));
+    widths.outline = parseWidth('outline', storageGet(KEYS.outline.width));
+    collapsed.tree = storageGet(KEYS.tree.collapsed) === '1';
+    applyWidth('tree');
+    applyWidth('outline');
+    applyCollapsed('tree');
+    outlineOpen = storageGet(KEY_OUTLINE_OPEN) === '1';
+    applyOutlineOpen();
+    setOutlineSide(outlineSide || 'right');
+    constrainLayout();
+  }
+
+  function resetPanel(panel) {
+    if (panel === 'tree') {
+      storageRemove(KEYS.tree.width);
+      widths.tree = DEFAULTS.tree;
+      applyWidth('tree');
+      constrainLayout();
+    } else if (panel === 'outline') {
+      storageRemove(KEYS.outline.width);
+      widths.outline = DEFAULTS.outline;
+      applyWidth('outline');
+      constrainLayout();
+    }
   }
 
   function reset() {
-    PANELS.forEach(function(panel) {
-      storageRemove(KEYS[panel].width);
-      storageRemove(KEYS[panel].collapsed);
-      widths[panel] = DEFAULT_WIDTH;
-      collapsed[panel] = false;
-      applyWidth(panel);
-      applyCollapsed(panel);
-    });
+    storageRemove(KEYS.tree.width);
+    storageRemove(KEYS.tree.collapsed);
+    storageRemove(KEYS.outline.width);
+    storageRemove(KEY_OUTLINE_OPEN);
+    widths.tree = DEFAULTS.tree;
+    widths.outline = DEFAULTS.outline;
+    collapsed.tree = false;
     autoCollapsed.tree = false;
-    autoCollapsed.outline = false;
+    outlineOpen = false;
+    applyWidth('tree');
+    applyWidth('outline');
+    applyCollapsed('tree');
+    applyOutlineOpen();
+    constrainLayout();
   }
 
-  /* ── 拖宽：pointer 事件 + 边界钳制（200–400px），pointerup 持久化 ── */
   function onResizerPointerDown(panel) {
     return function(e) {
       if (e.button !== undefined && e.button !== 0) return;
       if (e.preventDefault) e.preventDefault();
       dragPanel = panel;
       document.body.classList.add('panel-resizing');
-      var resizer = resizerFor(panel);
-      if (resizer) resizer.classList.add('dragging');
+      var r = resizerFor(panel);
+      if (r) r.classList.add('dragging');
     };
   }
 
   function onDocumentPointerMove(e) {
     if (!dragPanel) return;
-    var rect = els.content
-      ? els.content.getBoundingClientRect()
-      : { left: 0, right: 0 };
-    // tree 手柄在面板右侧：向右拖增宽；outline 手柄在面板左侧：向左拖增宽
-    var raw = dragPanel === 'tree'
-      ? e.clientX - rect.left
-      : rect.right - e.clientX;
-    widths[dragPanel] = clampWidth(raw);
-    applyWidth(dragPanel);
+    var rect = els.content && els.content.getBoundingClientRect ? els.content.getBoundingClientRect() : { left: 0, right: 1000 };
+    if (dragPanel === 'tree') {
+      var treeRect = els.tree && els.tree.getBoundingClientRect ? els.tree.getBoundingClientRect() : null;
+      var raw = e.clientX - (treeRect ? treeRect.left : (rect ? rect.left : 0));
+      widths.tree = clampWidth('tree', raw);
+      applyWidth('tree');
+    } else if (dragPanel === 'outline') {
+      var outlineRect = els.outline && els.outline.getBoundingClientRect ? els.outline.getBoundingClientRect() : null;
+      var rawOutline;
+      if (outlineSide === 'left') {
+        var startX = outlineRect ? outlineRect.left : ((rect ? rect.left : 0) + (collapsed.tree ? 36 : widths.tree) + (collapsed.tree ? 0 : 5));
+        rawOutline = e.clientX - startX;
+      } else {
+        var endX = outlineRect ? outlineRect.right : (rect ? rect.right : 1000);
+        rawOutline = endX - e.clientX;
+      }
+      widths.outline = clampWidth('outline', rawOutline);
+      applyWidth('outline');
+    }
   }
 
   function onDocumentPointerUp() {
@@ -156,45 +252,46 @@
     var panel = dragPanel;
     dragPanel = null;
     document.body.classList.remove('panel-resizing');
-    var resizer = resizerFor(panel);
-    if (resizer) resizer.classList.remove('dragging');
-    storageSet(KEYS[panel].width, String(Math.round(widths[panel])));
-  }
-
-  /* ── 窄视口（≤1024px）：Outline 自动折叠；切回宽视口恢复（设计稿 01 窄屏变体）── */
-  function applyNarrowMode() {
-    if (!media) return;
-    if (media.matches) {
-      if (!collapsed.outline) {
-        autoCollapsed.outline = true;
-        setPanelCollapsed('outline', true, false);
-      }
-    } else if (autoCollapsed.outline) {
-      autoCollapsed.outline = false;
-      setPanelCollapsed('outline', false, false);
+    var r = resizerFor(panel);
+    if (r) r.classList.remove('dragging');
+    if (panel === 'tree') {
+      widths.tree = clampWidth('tree', widths.tree);
+      applyWidth('tree');
+      storageSet(KEYS.tree.width, String(Math.round(widths.tree)));
+      constrainLayout();
+    } else if (panel === 'outline') {
+      widths.outline = clampWidth('outline', widths.outline);
+      applyWidth('outline');
+      storageSet(KEYS.outline.width, String(Math.round(widths.outline)));
+      constrainLayout();
     }
   }
 
-  function setupNarrowWatcher() {
-    if (typeof window.matchMedia !== 'function') return;
-    try { media = window.matchMedia(NARROW_QUERY); } catch (e) { return; }
-    if (!media) return;
-    var handler = function() { applyNarrowMode(); };
-    if (typeof media.addEventListener === 'function') {
-      media.addEventListener('change', handler);
-    } else if (typeof media.addListener === 'function') {
-      media.addListener(handler);
+  function setOutlineSide(side) {
+    var next = side === 'left' || side === 'right' ? side : 'right';
+    var changed = outlineSide !== next;
+    outlineSide = next;
+    if (els.content && els.content.setAttribute) {
+      els.content.setAttribute('data-outline-side', next);
     }
-    applyNarrowMode();
+    if (document.documentElement && document.documentElement.setAttribute) {
+      document.documentElement.setAttribute('data-outline-side', next);
+    }
+    if (changed) {
+      constrainLayout();
+    }
   }
 
   function bindPanel(panel) {
-    var collapseBtn = document.getElementById('panel-' + panel + '-collapse');
-    var expandBtn = document.getElementById('panel-' + panel + '-expand');
-    var resizer = resizerFor(panel);
-    if (collapseBtn) collapseBtn.addEventListener('click', function() { collapse(panel); });
-    if (expandBtn) expandBtn.addEventListener('click', function() { expand(panel); });
-    if (resizer) resizer.addEventListener('pointerdown', onResizerPointerDown(panel));
+    var c = document.getElementById('panel-' + panel + '-collapse');
+    var x = document.getElementById('panel-' + panel + '-expand');
+    var r = resizerFor(panel);
+    if (c) c.addEventListener('click', function() { collapse(panel); });
+    if (x) x.addEventListener('click', function() { expand(panel); });
+    if (r) {
+      r.addEventListener('pointerdown', onResizerPointerDown(panel));
+      r.addEventListener('dblclick', function() { resetPanel(panel); });
+    }
   }
 
   function init() {
@@ -204,14 +301,13 @@
     els.outlineResizer = document.getElementById('panel-outline-resizer');
     els.content = document.getElementById('content');
     if (!els.tree || !els.outline) return;
-
     bindPanel('tree');
     bindPanel('outline');
     document.addEventListener('pointermove', onDocumentPointerMove);
     document.addEventListener('pointerup', onDocumentPointerUp);
     document.addEventListener('pointercancel', onDocumentPointerUp);
     restore();
-    setupNarrowWatcher();
+    if (window.addEventListener) window.addEventListener('resize', constrainLayout);
   }
 
   window.LayoutUI = {
@@ -221,7 +317,8 @@
     isCollapsed: isCollapsed,
     restore: restore,
     reset: reset,
+    resize: constrainLayout,
+    setOutlineSide: setOutlineSide
   };
-
   init();
 })();

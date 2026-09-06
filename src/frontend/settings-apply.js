@@ -28,16 +28,29 @@
     return;
   }
 
-  // 内置默认值：与 Rust settings.rs schema v1 的 Default 一致（搜索类仅收录
-  // 前端消费的字段）。
+  // 内置默认值：与 Rust settings.rs schema v1 的 Default 一致。
   var DEFAULTS = {
+    appearance: { theme: 'light', sidebarFontSize: 14, language: 'zh-CN', outlineSide: 'right' },
+    files: {
+      visibleExts: ['md', 'markdown', 'txt', 'json', 'yaml', 'yml', 'toml', 'ini', 'csv'],
+      showHidden: false,
+      exclude: ['.git', 'node_modules', 'target', '.venv', 'dist', 'build', '.cache'],
+      watcherExclude: ['.git', 'node_modules', 'target', '.venv', 'dist', 'build', '.cache']
+    },
+    watching: { enableWatcher: true, autoSave: 'off', autoSaveDelayMs: 1000 },
+    search: {
+      exclude: ['.git', 'node_modules', 'target', '.venv', 'dist', 'build', '.cache'],
+      maxFileSizeMB: 5,
+      maxResults: 2000
+    },
     editor: { fontSize: 14, tabSize: 4, wordWrap: true, lineNumbers: true, largeFileMB: 5 },
-    search: { maxFileSizeMB: 5, maxResults: 2000 },
-    appearance: { sidebarFontSize: 14 }
+    recovery: { confirmCloseDirty: true, crashRecovery: true, createProjectSettings: false }
   };
 
   // 最近一次 effective 设置（null = 尚未收到事件）。
   var latest = null;
+  var systemThemeMedia = null;
+  var systemThemeHandler = null;
 
   // 行号槽低频兜底轮询间隔（tab 切换等程序化写值无 input 事件时的同步兜底）。
   var POLL_INTERVAL_MS = 300;
@@ -61,6 +74,44 @@
   function boolOr(v, fallback) {
     return typeof v === 'boolean' ? v : fallback;
   }
+
+  function clampSidebarFontSize(v) {
+    return Math.min(18, Math.max(12, numOr(v, DEFAULTS.appearance.sidebarFontSize)));
+  }
+
+  function applyTheme(theme) {
+    var requested = theme === 'light' || theme === 'dark' || theme === 'system' ? theme : DEFAULTS.appearance.theme;
+    var resolved = requested;
+    if (requested === 'system') {
+      if (typeof window.matchMedia === 'function') {
+        try { resolved = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'; } catch (e) { resolved = 'dark'; }
+      } else resolved = 'dark';
+    }
+    var root = document.documentElement;
+    if (root) {
+      if (root.setAttribute) root.setAttribute('data-theme', resolved);
+      else if (root.dataset) root.dataset.theme = resolved;
+    }
+    if (requested === 'system' && typeof window.matchMedia === 'function') {
+      var media;
+      try { media = window.matchMedia('(prefers-color-scheme: light)'); } catch (e) { media = null; }
+      if (media && media !== systemThemeMedia) {
+        if (systemThemeMedia && systemThemeHandler) {
+          if (systemThemeMedia.removeEventListener) systemThemeMedia.removeEventListener('change', systemThemeHandler);
+          else if (systemThemeMedia.removeListener) systemThemeMedia.removeListener(systemThemeHandler);
+        }
+        systemThemeMedia = media;
+        systemThemeHandler = function() { if (latest && latest.appearance && latest.appearance.theme === 'system') applyTheme('system'); };
+        if (media.addEventListener) media.addEventListener('change', systemThemeHandler); else if (media.addListener) media.addListener(systemThemeHandler);
+      }
+    } else if (systemThemeMedia && systemThemeHandler) {
+      if (systemThemeMedia.removeEventListener) systemThemeMedia.removeEventListener('change', systemThemeHandler);
+      else if (systemThemeMedia.removeListener) systemThemeMedia.removeListener(systemThemeHandler);
+      systemThemeMedia = null; systemThemeHandler = null;
+    }
+  }
+
+  function requestEffective() { send({ command: 'workspace.settings.get-effective' }); }
 
   function setVar(name, value) {
     var root = document.documentElement;
@@ -165,7 +216,17 @@
     var fontSize = numOr(ed.fontSize, DEFAULTS.editor.fontSize);
     setVar('--editor-font-size', fontSize + 'px');
     setVar('--editor-tab-size', String(numOr(ed.tabSize, DEFAULTS.editor.tabSize)));
-    setVar('--panel-font-size', numOr(ap.sidebarFontSize, DEFAULTS.appearance.sidebarFontSize) + 'px');
+    var sidebarFontSize = clampSidebarFontSize(ap.sidebarFontSize);
+    setVar('--panel-font-size', sidebarFontSize + 'px');
+    setVar('--tree-font-size', sidebarFontSize + 'px');
+    setVar('--tree-icon-size', Math.round(sidebarFontSize * 1.42) + 'px');
+    setVar('--tree-caret-size', Math.round(sidebarFontSize * 1.0) + 'px');
+    setVar('--tree-row-height', Math.round(sidebarFontSize * 2.2) + 'px');
+    setVar('--tree-gap', Math.round(sidebarFontSize * 0.6) + 'px');
+    setVar('--tree-indent', Math.round(sidebarFontSize * 1.14) + 'px');
+    applyTheme(ap.theme);
+    var outlineSide = ap.outlineSide === 'left' || ap.outlineSide === 'right' ? ap.outlineSide : DEFAULTS.appearance.outlineSide;
+    if (window.LayoutUI && typeof window.LayoutUI.setOutlineSide === 'function') window.LayoutUI.setOutlineSide(outlineSide);
 
     applyWordWrap(boolOr(ed.wordWrap, DEFAULTS.editor.wordWrap));
     applyLineNumbers(boolOr(ed.lineNumbers, DEFAULTS.editor.lineNumbers));
@@ -184,19 +245,26 @@
   function get() {
     var s = latest || {};
     return {
-      editor: Object.assign({}, DEFAULTS.editor, s.editor),
+      version: Number(s.version) || 1,
+      appearance: Object.assign({}, DEFAULTS.appearance, s.appearance),
+      files: Object.assign({}, DEFAULTS.files, s.files),
+      watching: Object.assign({}, DEFAULTS.watching, s.watching),
       search: Object.assign({}, DEFAULTS.search, s.search),
-      appearance: Object.assign({}, DEFAULTS.appearance, s.appearance)
+      editor: Object.assign({}, DEFAULTS.editor, s.editor),
+      keybindings: Object.assign({ overrides: {} }, s.keybindings),
+      recovery: Object.assign({}, DEFAULTS.recovery, s.recovery)
     };
   }
 
   // 开机即生效：拉一次有效设置并订阅后续变更。
   function init() {
-    send({ command: 'workspace.settings.get-effective' });
+    requestEffective();
     if (window.Workspace && typeof window.Workspace.on === 'function') {
       window.Workspace.on('workspace:settings-effective', function (d) {
         apply(d && d.settings);
       });
+      window.Workspace.on('workspace:settings-changed', requestEffective);
+      window.Workspace.on('workspace:opened', requestEffective);
     }
     if (typeof window.setInterval === 'function') {
       window.setInterval(function () {
@@ -217,8 +285,10 @@
 
   window.SettingsApply = {
     apply: apply,
+    applyTheme: applyTheme,
     get: get,
     init: init,
+    requestEffective: requestEffective,
     syncGutter: syncGutter
   };
 

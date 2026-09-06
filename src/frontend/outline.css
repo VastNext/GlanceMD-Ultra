@@ -14,9 +14,9 @@
 .outline-item {
   display: flex;
   align-items: baseline;
-  gap: 5px;
+  gap: var(--tree-gap, 8px);
   padding: 4px 12px;
-  font-size: 13px;
+  font-size: var(--tree-font-size, 14px);
   line-height: 1.45;
   color: var(--text-secondary);
   cursor: pointer;

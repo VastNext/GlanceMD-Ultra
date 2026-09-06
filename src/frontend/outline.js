@@ -24,7 +24,19 @@
 
   /* ══════════ 提取与渲染 ══════════ */
 
+  function largeFileAllowed() {
+    var sa = window.SettingsApply;
+    try {
+      var settings = sa && typeof sa.get === 'function' ? (sa.get() || {}) : {};
+      var mb = Number(settings.editor && settings.editor.largeFileMB);
+      var editor = document.getElementById('editor');
+      var size = editor && typeof editor.value === 'string' ? editor.value.length : 0;
+      return size <= (isFinite(mb) && mb > 0 ? mb : 5) * 1024 * 1024;
+    } catch (e) { return true; }
+  }
+
   function extractHeadings() {
+    if (!largeFileAllowed()) return [];
     if (!previewEl || typeof previewEl.querySelectorAll !== 'function') {
       return [];
     }
@@ -135,14 +147,29 @@
 
   function scrollToHeading(index) {
     var heading = headings[index];
-    if (!heading || !heading.el || typeof heading.el.scrollIntoView !== 'function') {
+    if (!heading) {
       return;
     }
+    // These are independent surfaces: a failure in one must not suppress the
+    // editor navigation or active-state update for the others.
     try {
-      heading.el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (heading.el && typeof heading.el.scrollIntoView === 'function') {
+        heading.el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    } catch (e) {
+      /* 预览滚动失败静默（如预览隐藏） */
+    }
+    try {
+      if (window.EditorNavigation && typeof window.EditorNavigation.scrollToHeading === 'function') {
+        window.EditorNavigation.scrollToHeading(index, { level: heading.level, text: heading.text });
+      }
+    } catch (e) {
+      /* 编辑器定位失败不影响预览与高亮 */
+    }
+    try {
       setActive(index); // 点击即时反馈； IntersectionObserver 可用时会接管后续高亮
     } catch (e) {
-      /* 滚动失败静默（如预览隐藏） */
+      /* 高亮失败不影响两侧滚动 */
     }
   }
 

@@ -15,6 +15,26 @@ var TabManager = (function() {
     return p.replace(/\\/g, '/');
   }
 
+  function effectiveSettings() {
+    var sa = window.SettingsApply;
+    try { return sa && typeof sa.get === 'function' ? (sa.get() || {}) : {}; } catch (e) { return {}; }
+  }
+
+  function shouldConfirmCloseDirty() {
+    var recovery = effectiveSettings().recovery || {};
+    return recovery.confirmCloseDirty !== false;
+  }
+
+  function largeFileLimitBytes() {
+    var ed = effectiveSettings().editor || {};
+    var mb = Number(ed.largeFileMB);
+    return isFinite(mb) && mb > 0 ? mb * 1024 * 1024 : 5 * 1024 * 1024;
+  }
+
+  function canRenderLive(content) {
+    return String(content || '').length <= largeFileLimitBytes();
+  }
+
   function createTab(path, content, forceMode, forceFilename) {
     if (path) {
       var existing = findTabByPath(path);
@@ -59,13 +79,23 @@ var TabManager = (function() {
     var idx = tabs.findIndex(function(t) { return t.id === id; });
     if (idx === -1) return;
     var tab = tabs[idx];
-    if (tab.dirty) {
+    if (tab.dirty && shouldConfirmCloseDirty()) {
       if (!confirm(t('tabs.closeConfirm', { name: tab.filename }))) return;
     }
     tabs.splice(idx, 1);
     syncDirtyState();
     if (tabs.length === 0) {
-      createTab(null, '');
+      activeTabId = null;
+      var editor = document.getElementById('editor');
+      if (editor) editor.value = '';
+      renderTabBar();
+      updateWindowTitle();
+      var statusFile = document.getElementById('status-file');
+      if (statusFile) statusFile.textContent = '';
+      if (typeof updateWordCount === 'function') updateWordCount();
+      if (typeof resetToWelcomeState === 'function') resetToWelcomeState();
+      else if (typeof updateWelcome === 'function') updateWelcome();
+      else if (typeof showRecentPanel === 'function') showRecentPanel();
       return;
     }
     if (activeTabId === id) {
@@ -79,21 +109,31 @@ var TabManager = (function() {
   /* ── 批量关闭 ──
      整批只做一次 dirty 确认（文案含数量），不走逐个 closeTab 的确认；
      关闭后活动 tab 沿用 closeTab 的相邻规则：以被移除的最左下标为锚，
-     取移除后占据该位置的 tab（min(锚下标, 末位)）；全部关完回到 Untitled */
+     取移除后占据该位置的 tab（min(锚下标, 末位)）；全部关完进入欢迎态 */
   function closeTabs(ids) {
     var idSet = {};
     (ids || []).forEach(function(id) { idSet[id] = true; });
     var targets = tabs.filter(function(t) { return idSet[t.id]; });
     if (targets.length === 0) return;
     var dirtyCount = targets.filter(function(t) { return t.dirty; }).length;
-    if (dirtyCount > 0) {
+    if (dirtyCount > 0 && shouldConfirmCloseDirty()) {
       if (!confirm(t('tabs.closeBatchConfirm', { n: dirtyCount }))) return;
     }
     var anchorIdx = tabs.indexOf(targets[0]);
     tabs = tabs.filter(function(t) { return !idSet[t.id]; });
     syncDirtyState();
     if (tabs.length === 0) {
-      createTab(null, '');
+      activeTabId = null;
+      var editor = document.getElementById('editor');
+      if (editor) editor.value = '';
+      renderTabBar();
+      updateWindowTitle();
+      var statusFile = document.getElementById('status-file');
+      if (statusFile) statusFile.textContent = '';
+      if (typeof updateWordCount === 'function') updateWordCount();
+      if (typeof resetToWelcomeState === 'function') resetToWelcomeState();
+      else if (typeof updateWelcome === 'function') updateWelcome();
+      else if (typeof showRecentPanel === 'function') showRecentPanel();
       return;
     }
     if (!getActiveTab() || idSet[activeTabId]) {
@@ -143,7 +183,10 @@ var TabManager = (function() {
       editor.selectionStart = tab.cursorStart;
       editor.selectionEnd = tab.cursorEnd;
       editor.focus();
-      if (tab.parsedHtml) {
+      if (!canRenderLive(tab.content)) {
+        document.getElementById('preview').textContent = t('tabs.largeFilePreviewDisabled');
+        tab.parsedHtml = null;
+      } else if (tab.parsedHtml) {
         document.getElementById('preview').innerHTML = tab.parsedHtml;
       } else {
         var html = marked.parse(tab.content);
@@ -161,23 +204,28 @@ var TabManager = (function() {
         editor.selectionEnd = tab.cursorEnd;
         editor.focus();
       } else {
-        if (tab.parsedHtml) {
+        if (!canRenderLive(tab.content)) {
+          document.getElementById('preview').textContent = t('tabs.largeFilePreviewDisabled');
+          tab.parsedHtml = null;
+        } else if (tab.parsedHtml) {
           document.getElementById('preview').innerHTML = tab.parsedHtml;
         } else {
           var html = marked.parse(tab.content);
           document.getElementById('preview').innerHTML = html;
           tab.parsedHtml = html;
         }
-        if (typeof resolveLocalImages === 'function') resolveLocalImages();
+        if (typeof resolveLocalImages === 'function' && canRenderLive(tab.content)) resolveLocalImages();
         setTimeout(function() {
           document.getElementById('preview-container').scrollTop = tab.scrollTop;
         }, 0);
       }
     }
 
-    document.getElementById('status-file').textContent = tab.filename;
+    var statusFile = document.getElementById('status-file');
+    if (statusFile) statusFile.textContent = tab.filename;
     if (typeof updateWordCount === 'function') updateWordCount();
-    if (typeof showRecentPanel === 'function') showRecentPanel();
+    if (typeof updateWelcome === 'function') updateWelcome();
+    else if (typeof showRecentPanel === 'function') showRecentPanel();
     if (typeof tocOpen !== 'undefined' && tocOpen && typeof updateTOC === 'function') updateTOC();
   }
 
@@ -203,20 +251,26 @@ var TabManager = (function() {
 
   function updateWindowTitle() {
     var tab = getActiveTab();
-    if (!tab) return;
+    if (!tab) {
+      sendToRust('set_title', { title: 'GlanceMD Ultra' });
+      if (typeof setTitle === 'function') setTitle('GlanceMD Ultra');
+      return;
+    }
     var title = 'GlanceMD Ultra - ' + tab.filename;
     if (tab.dirty) title += ' *';
     sendToRust('set_title', { title: title });
-    setTitle(tab.filename + (tab.dirty ? ' *' : ''));
+    if (typeof setTitle === 'function') setTitle(tab.filename + (tab.dirty ? ' *' : ''));
   }
 
   function renderTabBar() {
     var bar = document.getElementById('tab-bar');
     var wrap = document.getElementById('tab-bar-wrap');
-    var show = true;
-    wrap.style.display = '';
+    var show = tabs.length > 0;
+    if (wrap) wrap.style.display = show ? '' : 'none';
     document.body.classList.toggle('has-tabs', show);
+    if (!bar) return;
     bar.innerHTML = '';
+    if (!show) return;
     tabs.forEach(function(tab) {
       bar.appendChild(createTabElement(tab));
     });
@@ -602,6 +656,7 @@ var TabManager = (function() {
     getActiveTab: getActiveTab,
     hasAnyDirty: hasAnyDirty,
     updateTabPath: updateTabPath,
+    updateWindowTitle: updateWindowTitle,
     ensureActiveTabVisible: ensureActiveTabVisible
   };
 })();

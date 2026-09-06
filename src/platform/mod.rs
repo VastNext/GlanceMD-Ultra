@@ -27,6 +27,7 @@ use std::process::ExitStatus;
 
 pub mod linux;
 pub mod macos;
+pub mod terminal;
 pub mod windows;
 
 /// 平台能力调用失败的原因。

@@ -35,7 +35,7 @@
         <svg viewBox="0 0 16 16" fill="none"><path d="M3 3h10M3 6.5h7M3 10h8M3 13.5h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
       </button>
     </div>
-    <span id="titlebar-title">Untitled</span>
+    <span id="titlebar-title">GlanceMD Ultra</span>
     <div id="window-controls">
       <button id="btn-theme" title="Toggle Theme" data-i18n-title="toolbar.toggleTheme">
         <svg id="icon-sun" viewBox="0 0 16 16" fill="none" style="display:none"><circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.2"/><path d="M8 2v1.5M8 12.5V14M2 8h1.5M12.5 8H14M3.75 3.75l1.06 1.06M11.19 11.19l1.06 1.06M3.75 12.25l1.06-1.06M11.19 4.81l1.06-1.06" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
@@ -110,10 +110,52 @@
           <button id="navigation-fallback-close" class="navigation-fallback-close" type="button" aria-label="关闭提示">&times;</button>
         </div>
       </section>
-      <div id="toc-panel">
-        <div id="toc-list"></div>
-        <div id="toc-resize-handle"></div>
-      </div>
+        <div id="welcome-view" class="welcome-view" style="display:none;">
+          <div class="welcome-container">
+            <div class="welcome-header">
+              <h1 class="welcome-title">GlanceMD Ultra</h1>
+              <p class="welcome-subtitle" data-i18n="welcome.subtitle">轻量原生 Markdown 工作区编辑器</p>
+            </div>
+            <div class="welcome-shortcuts">
+              <button id="welcome-btn-new" class="welcome-btn" type="button">
+                <svg viewBox="0 0 16 16" fill="none"><path d="M4 1.5h5.5L13 5v9.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.2"/><path d="M9 1.5V5h3.5" stroke="currentColor" stroke-width="1.2"/><path d="M6 9h4M8 7v4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                <div class="welcome-btn-text">
+                  <span class="welcome-btn-primary" data-i18n="welcome.newFile">新建文件</span>
+                  <span class="welcome-btn-shortcut">Ctrl+N</span>
+                </div>
+              </button>
+              <button id="welcome-btn-open-file" class="welcome-btn" type="button">
+                <svg viewBox="0 0 16 16" fill="none"><path d="M3 1.5h7l3 3v10H3z" stroke="currentColor" stroke-width="1.2"/><path d="M10 1.5V5h3M5.5 8h5M5.5 10.5h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                <div class="welcome-btn-text">
+                  <span class="welcome-btn-primary" data-i18n="welcome.openFile">打开文件</span>
+                  <span class="welcome-btn-shortcut">Ctrl+O</span>
+                </div>
+              </button>
+              <button id="welcome-btn-open-folder" class="welcome-btn" type="button">
+                <svg viewBox="0 0 16 16" fill="none"><path d="M2 13V4.5a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" stroke="currentColor" stroke-width="1.2"/></svg>
+                <div class="welcome-btn-text">
+                  <span class="welcome-btn-primary" data-i18n="welcome.openFolder">打开文件夹</span>
+                </div>
+              </button>
+            </div>
+            <div class="welcome-recent-section">
+              <div class="welcome-recent-header">
+                <div class="welcome-tabs" role="tablist" aria-label="最近记录">
+                  <button type="button" class="welcome-tab active" id="welcome-tab-projects" role="tab" aria-selected="true" data-tab="projects" data-i18n="welcome.recentProjects">最近目录</button>
+                  <button type="button" class="welcome-tab" id="welcome-tab-files" role="tab" aria-selected="false" data-tab="files" data-i18n="welcome.recentFiles">最近文件</button>
+                </div>
+              </div>
+              <div id="welcome-projects-pane" class="welcome-tab-pane active" role="tabpanel" aria-labelledby="welcome-tab-projects">
+                <div id="welcome-recent-projects-list" class="welcome-recent-list"></div>
+                <div id="welcome-recent-projects-empty" class="welcome-recent-empty" data-i18n="welcome.noRecentProjects" style="display:none;">尚未打开过项目，点击上方打开文件夹开始</div>
+              </div>
+              <div id="welcome-files-pane" class="welcome-tab-pane" role="tabpanel" aria-labelledby="welcome-tab-files" style="display:none;">
+                <div id="welcome-recent-list" class="welcome-recent-list"></div>
+                <div id="welcome-recent-empty" class="welcome-recent-empty" data-i18n="welcome.noRecent" style="display:none;">暂无最近文件</div>
+              </div>
+            </div>
+          </div>
+        </div>
       <div id="editor-container" class="active">
         <div id="recent-panel"></div>
         <!-- 行号槽：绝对定位覆盖 #editor 左侧 padding 区，显隐/内容由
@@ -126,7 +168,6 @@
       <div id="preview-container">
         <div id="preview-wrapper">
           <div id="preview"></div>
-          <div id="preview-resize-handle"></div>
         </div>
       </div>
     </div>
@@ -155,7 +196,7 @@
 
   <div id="statusbar">
     <span id="status-mode">EDIT</span>
-    <span id="status-file">Untitled</span>
+    <span id="status-file"></span>
     <span id="status-counts"></span>
     <span id="status-info"></span>
   </div>

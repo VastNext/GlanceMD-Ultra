@@ -15,6 +15,38 @@ use super::operations::UndoStack;
 use super::watcher::{LoopSuppressor, WatchService};
 use crate::file_codec::TextFile;
 
+const SESSION_FILE_NAME: &str = "session.json";
+
+/// 会话文件路径（注入 base 便于测试，生产调用方传入 data_dir::data_base()）。
+pub fn session_path(base: &Path) -> PathBuf {
+    base.join(SESSION_FILE_NAME)
+}
+
+/// 读取最近一次打开的工作区；文件缺失、损坏、字段缺失或目录已不存在时均视为无记录。
+pub fn load_last_root(base: &Path) -> Option<PathBuf> {
+    let text = std::fs::read_to_string(session_path(base)).ok()?;
+    let value: serde_json::Value = serde_json::from_str(&text).ok()?;
+    let root = value.get("lastRoot")?.as_str()?;
+    let path = PathBuf::from(root);
+    path.is_dir().then_some(path)
+}
+
+/// 写入最近一次打开的工作区；调用方可静默忽略便携目录不可写等错误。
+pub fn save_last_root(base: &Path, root: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(base)?;
+    let text = serde_json::to_vec(&serde_json::json!({"lastRoot": root.to_string_lossy()}))
+        .map_err(std::io::Error::other)?;
+    std::fs::write(session_path(base), text)
+}
+
+/// 启动恢复纯函数：显式 CLI 参数优先，不抢占文件/目录参数的既有行为。
+pub fn restore_pending_root(base: &Path, cli_path: Option<&Path>) -> Option<String> {
+    if cli_path.is_some() {
+        return None;
+    }
+    load_last_root(base).map(|path| path.to_string_lossy().into_owned())
+}
+
 fn root_slot() -> &'static Mutex<Option<PathBuf>> {
     static ROOT: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();
     ROOT.get_or_init(|| Mutex::new(None))
@@ -201,6 +233,64 @@ pub fn search_generation() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    static TEMP_SEQ: AtomicUsize = AtomicUsize::new(0);
+
+    fn temp_dir(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "glancemd-ultra-session-{}-{}-{}",
+            std::process::id(),
+            tag,
+            TEMP_SEQ.fetch_add(1, Ordering::SeqCst)
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn cleanup(dir: &Path) {
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn 最近工作区_写入读取_roundtrip() {
+        let base = temp_dir("roundtrip");
+        let root = base.join("project");
+        std::fs::create_dir_all(&root).unwrap();
+        save_last_root(&base, &root).unwrap();
+        assert_eq!(load_last_root(&base), Some(root));
+        cleanup(&base);
+    }
+
+    #[test]
+    fn 最近工作区_损坏_json回退_none() {
+        let base = temp_dir("corrupt");
+        std::fs::write(session_path(&base), b"{ not json").unwrap();
+        assert_eq!(load_last_root(&base), None);
+        cleanup(&base);
+    }
+
+    #[test]
+    fn 最近工作区_不存在目录回退_none() {
+        let base = temp_dir("missing-root");
+        save_last_root(&base, &base.join("gone")).unwrap();
+        assert_eq!(load_last_root(&base), None);
+        cleanup(&base);
+    }
+
+    #[test]
+    fn 启动恢复_无_cli路径时返回记录_显式cli时不恢复() {
+        let base = temp_dir("restore");
+        let root = base.join("project");
+        std::fs::create_dir_all(&root).unwrap();
+        save_last_root(&base, &root).unwrap();
+        assert_eq!(
+            restore_pending_root(&base, None),
+            Some(root.to_string_lossy().into_owned())
+        );
+        assert_eq!(restore_pending_root(&base, Some(&root)), None);
+        cleanup(&base);
+    }
 
     #[test]
     fn 撤销栈_空栈撤销报_mismatch() {

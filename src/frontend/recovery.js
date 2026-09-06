@@ -76,6 +76,16 @@
     return undefined;
   }
 
+  function crashRecoveryEnabled() {
+    var sa = window.SettingsApply;
+    try {
+      var settings = sa && typeof sa.get === 'function' ? (sa.get() || {}) : {};
+      return !settings.recovery || settings.recovery.crashRecovery !== false;
+    } catch (e) {
+      return true;
+    }
+  }
+
   function formatTime(ms) {
     var n = Number(ms);
     if (!isFinite(n) || n <= 0) {
@@ -605,6 +615,7 @@
   /* ══════════ 周期快照 ══════════ */
 
   function snapshotTick() {
+    if (!crashRecoveryEnabled()) return;
     var editor = document.getElementById('editor');
     if (!editor) {
       return;
@@ -837,6 +848,11 @@
     });
 
     on('workspace:recovery-available', function(data) {
+      if (!crashRecoveryEnabled()) {
+        pendingEntries = [];
+        hidePanel();
+        return;
+      }
       pendingEntries = (data && data.entries) || [];
       pendingWarnings = (data && data.warnings) || [];
       if (pendingEntries.length) {

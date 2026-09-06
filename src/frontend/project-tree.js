@@ -44,6 +44,8 @@
   // 上下文菜单
   var menuEl = null;
   var menuOpen = false;
+  var effectiveFilter = null;
+  var lastTreeFilterKey = null;
 
   /* ══════════ 基础工具 ══════════ */
 
@@ -256,7 +258,7 @@
   function removeSubtreeRows(relDir) {
     var prefix = relDir + '/';
     setKeys(rowByRel).forEach(function(rel) {
-      if (rel.indexOf(prefix) === 0) {
+      if ((relDir === '' && rel !== '') || (relDir !== '' && rel.indexOf(prefix) === 0)) {
         var row = rowByRel[rel];
         if (row && row.parentNode) row.parentNode.removeChild(row);
         delete rowByRel[rel];
@@ -975,6 +977,7 @@
   /* ══════════ Workspace 事件联动 ══════════ */
 
   function onOpened(data) {
+    lastTreeFilterKey = null;
     root = normPath(data && data.root);
     entriesByDir = {};
     loadedDirs = {};
@@ -1004,6 +1007,19 @@
   function onError() {
     // 目录不可读等失败：释放在途标记，允许用户重试展开
     pendingLists = {};
+  }
+
+  function onSettingsChanged(data) {
+    effectiveFilter = data && (data.filter || data.settings || data) || null;
+    var files = effectiveFilter && effectiveFilter.files || {};
+    var filterKey = JSON.stringify({
+      visibleExts: files.visibleExts || [],
+      showHidden: !!files.showHidden,
+      exclude: files.exclude || []
+    });
+    var changed = filterKey !== lastTreeFilterKey;
+    lastTreeFilterKey = filterKey;
+    if (root !== null && changed) refreshAll();
   }
 
   // 文件内容变更：刷新其父目录（kind 为 dir 时连带目录自身）
@@ -1330,6 +1346,8 @@
       window.Workspace.on('workspace:file-changed', onFileChanged);
       window.Workspace.on('workspace:fs-op-done', onFsOpDone);
       window.Workspace.on('workspace:error', onError);
+      window.Workspace.on('workspace:settings-effective', onSettingsChanged);
+      window.Workspace.on('workspace:settings-changed', onSettingsChanged);
     }
 
     bindDocumentHandlers();

@@ -45,6 +45,8 @@ pub enum Event {
     FileChanged { payload: serde_json::Value },
     /// 监听后端错误。
     WatcherError { message: String },
+    /// 可用终端列表。
+    TerminalList { terminals: serde_json::Value },
     /// 设置已变更（`scope`: global/project）。
     SettingsChanged { scope: String },
     /// 设置回执：全局设置。
@@ -96,6 +98,7 @@ impl Event {
             Event::FsOpDone { .. } => "workspace:fs-op-done",
             Event::FileChanged { .. } => "workspace:file-changed",
             Event::WatcherError { .. } => "workspace:watcher-error",
+            Event::TerminalList { .. } => "workspace:terminal-list",
             Event::SettingsChanged { .. } => "workspace:settings-changed",
             Event::SettingsGlobal { .. } => "workspace:settings-global",
             Event::SettingsEffective { .. } => "workspace:settings-effective",
@@ -126,6 +129,7 @@ impl Event {
             Event::FsOpDone { payload } => payload.clone(),
             Event::FileChanged { payload } => payload.clone(),
             Event::WatcherError { message } => json!({ "message": message }),
+            Event::TerminalList { terminals } => json!({ "terminals": terminals }),
             Event::SettingsChanged { scope } => json!({ "scope": scope }),
             Event::SettingsGlobal { settings, warnings } => {
                 json!({ "settings": settings, "warnings": warnings })

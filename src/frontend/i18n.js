@@ -43,6 +43,18 @@
       'app.retry': '重试',
       'app.dismissNotice': '关闭提示',
 
+      // welcome：欢迎视图
+      'welcome.subtitle': '轻量原生 Markdown 工作区编辑器',
+      'welcome.newFile': '新建文件',
+      'welcome.openFile': '打开文件',
+      'welcome.openFolder': '打开文件夹',
+      'welcome.noRecent': '暂无最近文件',
+      'welcome.clearRecent': '清除',
+      'welcome.recentProjects': '最近目录',
+      'welcome.recentFiles': '最近文件',
+      'welcome.noRecentProjects': '尚未打开过项目，点击上方打开文件夹开始',
+      'welcome.currentProject': '当前',
+
       // tabs：未命名 / 关闭确认 / 批量关闭确认 / 右键菜单
       'tabs.untitled': '未命名',
       'tabs.closeConfirm': '“{name}” 有未保存的修改，确定关闭？',
@@ -83,6 +95,15 @@
       'settings.noMatch': '没有匹配的设置',
       'settings.projectOverridden': '项目已覆盖',
       'settings.categoryEmpty': '该分类暂无可配置项',
+      'settings.terminal': '终端程序',
+      'settings.terminalDesc': '在终端中打开项目或目录时调用的程序',
+      'settings.terminalAuto': '自动（检测已安装终端）',
+      'settings.terminalScanning': '正在扫描系统终端…',
+      'settings.terminalCustom': '自定义…',
+      'settings.terminalCustomPlaceholder': '可执行文件完整路径',
+      'settings.terminalArgs': '终端参数',
+      'settings.terminalArgsDesc': '附加启动参数，支持 {dir} 作为目标目录占位符',
+      'settings.terminalArgsPlaceholder': '例如 -e /bin/zsh -c "cd {dir}"，支持 {dir} 占位符',
 
       // search：全文搜索面板
       'search.title': '全文搜索',
@@ -191,6 +212,18 @@
       'app.retry': 'Retry',
       'app.dismissNotice': 'Dismiss notice',
 
+      // welcome
+      'welcome.subtitle': 'Lightweight native Markdown workspace editor',
+      'welcome.newFile': 'New File',
+      'welcome.openFile': 'Open File',
+      'welcome.openFolder': 'Open Folder',
+      'welcome.noRecent': 'No recent files',
+      'welcome.clearRecent': 'Clear',
+      'welcome.recentProjects': 'Recent Projects',
+      'welcome.recentFiles': 'Recent Files',
+      'welcome.noRecentProjects': 'No recent projects. Click Open Folder above to start.',
+      'welcome.currentProject': 'Current',
+
       // tabs
       'tabs.untitled': 'Untitled',
       'tabs.closeConfirm': 'Unsaved changes in "{name}". Close anyway?',
@@ -230,6 +263,15 @@
       'settings.noMatch': 'No matching settings',
       'settings.projectOverridden': 'Overridden by project',
       'settings.categoryEmpty': 'Nothing to configure in this category',
+      'settings.terminal': 'Terminal Program',
+      'settings.terminalDesc': 'Program used when opening project or folder in terminal',
+      'settings.terminalAuto': 'Auto (detect installed terminals)',
+      'settings.terminalScanning': 'Scanning system terminals...',
+      'settings.terminalCustom': 'Custom...',
+      'settings.terminalCustomPlaceholder': 'Full path to executable',
+      'settings.terminalArgs': 'Terminal Arguments',
+      'settings.terminalArgsDesc': 'Additional startup arguments; supports {dir} as directory placeholder',
+      'settings.terminalArgsPlaceholder': 'e.g. -e /bin/zsh -c "cd {dir}", supports {dir}',
 
       // search
       'search.title': 'Full-Text Search',

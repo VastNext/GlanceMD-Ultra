@@ -102,6 +102,8 @@ pub struct Appearance {
     /// 侧栏（资源管理器 / Outline）基准字号（px）。默认 14，各面板字号按
     /// calc 比例换算后视觉 ≈ 基线（树行 13px / 面板标题 11px / 空态 12px）。
     pub sidebar_font_size: u32,
+    /// 大纲面板显示位置：`left` | `right`。默认 `right`。
+    pub outline_side: String,
     /// 界面语言（i18n）。默认 `zh-CN`（简体中文），当前可选 `en`（English）；
     /// 字符串类型便于未来新增语言，无需 schema 升版。
     pub language: String,
@@ -112,6 +114,7 @@ impl Default for Appearance {
         Appearance {
             theme: Theme::Light,
             sidebar_font_size: 14,
+            outline_side: "right".to_string(),
             language: "zh-CN".to_string(),
         }
     }
@@ -146,6 +149,10 @@ pub struct Files {
     pub exclude: Vec<String>,
     /// 文件监听排除规则——主计划阶段 2 点名的字面键 `files.watcherExclude`。
     pub watcher_exclude: Vec<String>,
+    /// 自定义终端可执行文件路径；空字符串表示自动选择内置候选。
+    pub terminal_path: String,
+    /// 自定义终端参数模板，支持 `{dir}` 占位符。
+    pub terminal_args: String,
 }
 
 impl Default for Files {
@@ -155,6 +162,8 @@ impl Default for Files {
             show_hidden: false,
             exclude: default_exclude_dirs(),
             watcher_exclude: default_exclude_dirs(),
+            terminal_path: String::new(),
+            terminal_args: String::new(),
         }
     }
 }
@@ -349,6 +358,8 @@ pub struct AppearancePatch {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sidebar_font_size: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub outline_side: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub language: Option<String>,
 }
 
@@ -364,6 +375,10 @@ pub struct FilesPatch {
     pub exclude: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub watcher_exclude: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub terminal_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub terminal_args: Option<String>,
 }
 
 /// [`Watching`] 的补丁镜像。
@@ -449,6 +464,11 @@ pub fn effective(global: &Settings, project: &SettingsPatch) -> Settings {
                     .and_then(|a| a.sidebar_font_size),
                 global.appearance.sidebar_font_size,
             ),
+            outline_side: project
+                .appearance
+                .as_ref()
+                .and_then(|a| a.outline_side.clone())
+                .unwrap_or_else(|| global.appearance.outline_side.clone()),
             language: project
                 .appearance
                 .as_ref()
@@ -474,6 +494,14 @@ pub fn effective(global: &Settings, project: &SettingsPatch) -> Settings {
                     .as_ref()
                     .and_then(|f| f.watcher_exclude.clone()),
                 global.files.watcher_exclude.clone(),
+            ),
+            terminal_path: opt_or(
+                project.files.as_ref().and_then(|f| f.terminal_path.clone()),
+                global.files.terminal_path.clone(),
+            ),
+            terminal_args: opt_or(
+                project.files.as_ref().and_then(|f| f.terminal_args.clone()),
+                global.files.terminal_args.clone(),
             ),
         },
         watching: Watching {
@@ -593,6 +621,10 @@ pub fn is_overridden(project: &SettingsPatch, key_path: &str) -> bool {
             .appearance
             .as_ref()
             .is_some_and(|a| a.sidebar_font_size.is_some()),
+        ("appearance", "outlineSide") => project
+            .appearance
+            .as_ref()
+            .is_some_and(|a| a.outline_side.is_some()),
         ("appearance", "language") => project
             .appearance
             .as_ref()
@@ -610,6 +642,14 @@ pub fn is_overridden(project: &SettingsPatch, key_path: &str) -> bool {
             .files
             .as_ref()
             .is_some_and(|f| f.watcher_exclude.is_some()),
+        ("files", "terminalPath") => project
+            .files
+            .as_ref()
+            .is_some_and(|f| f.terminal_path.is_some()),
+        ("files", "terminalArgs") => project
+            .files
+            .as_ref()
+            .is_some_and(|f| f.terminal_args.is_some()),
         ("watching", "enableWatcher") => project
             .watching
             .as_ref()
@@ -669,6 +709,41 @@ pub fn is_overridden(project: &SettingsPatch, key_path: &str) -> bool {
             .is_some_and(|r| r.create_project_settings.is_some()),
         _ => false,
     }
+}
+
+/// 返回项目补丁中真实显式覆盖的字段路径，供 effective 回执使用。
+pub fn overridden_keys(project: &SettingsPatch) -> Vec<String> {
+    const KEYS: &[&str] = &[
+        "appearance.theme",
+        "appearance.sidebarFontSize",
+        "appearance.outlineSide",
+        "appearance.language",
+        "files.visibleExts",
+        "files.showHidden",
+        "files.exclude",
+        "files.watcherExclude",
+        "files.terminalPath",
+        "files.terminalArgs",
+        "watching.enableWatcher",
+        "watching.autoSave",
+        "watching.autoSaveDelayMs",
+        "search.exclude",
+        "search.maxFileSizeMB",
+        "search.maxResults",
+        "editor.fontSize",
+        "editor.tabSize",
+        "editor.wordWrap",
+        "editor.lineNumbers",
+        "editor.largeFileMB",
+        "keybindings.overrides",
+        "recovery.confirmCloseDirty",
+        "recovery.crashRecovery",
+        "recovery.createProjectSettings",
+    ];
+    KEYS.iter()
+        .filter(|key| is_overridden(project, key))
+        .map(|key| (*key).to_string())
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -783,7 +858,10 @@ pub fn load_project_checked(root: &Path) -> Option<LoadedPatch> {
     let mut warnings = Vec::new();
     collect_unknown_keys(&raw, &mut warnings);
     match serde_json::from_value::<SettingsPatch>(raw) {
-        Ok(patch) => Some(LoadedPatch { patch, warnings }),
+        Ok(mut patch) => {
+            repair_patch(&mut patch, &mut warnings);
+            Some(LoadedPatch { patch, warnings })
+        }
         Err(e) => {
             warnings.push(format!("项目设置解析失败：{e}，已忽略项目覆盖"));
             Some(LoadedPatch {
@@ -799,13 +877,108 @@ pub fn load_project_checked(root: &Path) -> Option<LoadedPatch> {
 /// 原子性说明：本实现直接 `std::fs::write`（**非原子**）。阶段 6 `atomic_save`
 /// 落地后，粘合层应切换为"临时文件写入 → 替换目标"路径（见契约文档）。
 pub fn save(base_dir: &Path, settings: &Settings) -> std::io::Result<()> {
+    if let Some(message) = validate_settings(settings).into_iter().next() {
+        return Err(std::io::Error::new(ErrorKind::InvalidInput, message));
+    }
     write_settings_file(&global_settings_path(base_dir), settings)
+}
+
+/// 校验用户可配置的边界，并返回面向用户的中文告警。
+///
+/// 加载路径会保留可恢复的设置并回退非法字段到默认值；保存路径则拒绝非法
+/// 文档，避免把无法生效的值写回磁盘。
+pub fn validate_settings(settings: &Settings) -> Vec<String> {
+    let mut warnings = Vec::new();
+    if !(12..=18).contains(&settings.appearance.sidebar_font_size) {
+        warnings.push(format!(
+            "appearance.sidebarFontSize 值 {} 超出 12..18，已回退为 14",
+            settings.appearance.sidebar_font_size
+        ));
+    }
+    if !matches!(settings.appearance.outline_side.as_str(), "left" | "right") {
+        warnings.push(format!(
+            "appearance.outlineSide 值 {} 不是 left/right，已回退为 right",
+            settings.appearance.outline_side
+        ));
+    }
+    warnings
+}
+
+fn repair_settings(settings: &mut Settings, warnings: &mut Vec<String>) {
+    if !(12..=18).contains(&settings.appearance.sidebar_font_size) {
+        warnings.extend(validate_settings(settings));
+        settings.appearance.sidebar_font_size = Appearance::default().sidebar_font_size;
+    }
+    if !matches!(settings.appearance.outline_side.as_str(), "left" | "right") {
+        warnings.push(format!(
+            "appearance.outlineSide 值 {} 不是 left/right，已回退为 right",
+            settings.appearance.outline_side
+        ));
+        settings.appearance.outline_side = Appearance::default().outline_side;
+    }
+}
+
+fn repair_patch(patch: &mut SettingsPatch, warnings: &mut Vec<String>) {
+    if let Some(value) = patch
+        .appearance
+        .as_mut()
+        .and_then(|appearance| appearance.sidebar_font_size.as_mut())
+    {
+        if !(12..=18).contains(value) {
+            warnings.push(format!(
+                "appearance.sidebarFontSize 值 {} 超出 12..18，已忽略项目覆盖",
+                *value
+            ));
+            *value = Appearance::default().sidebar_font_size;
+        }
+    }
+    if let Some(value) = patch
+        .appearance
+        .as_mut()
+        .and_then(|appearance| appearance.outline_side.as_mut())
+    {
+        if !matches!(value.as_str(), "left" | "right") {
+            warnings.push(format!(
+                "appearance.outlineSide 值 {} 不是 left/right，已忽略项目覆盖",
+                value
+            ));
+            *value = Appearance::default().outline_side;
+        }
+    }
 }
 
 /// 保存项目设置补丁：写入 `{root}/.glancemd/settings.json`（自动创建
 /// `.glancemd` 目录）；`None` 字段不落盘，文件只包含显式覆盖项。
 pub fn save_project(root: &Path, patch: &SettingsPatch) -> std::io::Result<()> {
+    if let Some(message) = validate_patch(patch).into_iter().next() {
+        return Err(std::io::Error::new(ErrorKind::InvalidInput, message));
+    }
     write_settings_file(&project_settings_path(root), patch)
+}
+
+fn validate_patch(patch: &SettingsPatch) -> Vec<String> {
+    let mut warnings = Vec::new();
+    if let Some(value) = patch
+        .appearance
+        .as_ref()
+        .and_then(|appearance| appearance.sidebar_font_size)
+        .filter(|value| !(12..=18).contains(value))
+    {
+        warnings.push(format!(
+            "appearance.sidebarFontSize 值 {value} 超出 12..18，无法保存"
+        ));
+    }
+    if let Some(value) = patch
+        .appearance
+        .as_ref()
+        .and_then(|appearance| appearance.outline_side.as_deref())
+        .filter(|value| !matches!(*value, "left" | "right"))
+    {
+        warnings.push(format!(
+            "appearance.outlineSide 值 {value} 不是 left/right，无法保存"
+        ));
+    }
+    warnings
 }
 
 fn write_settings_file<T: Serialize>(path: &Path, value: &T) -> std::io::Result<()> {
@@ -917,8 +1090,9 @@ pub fn migrate_checked(raw: &Value) -> Result<MigratedSettings, MigrateError> {
         obj.insert("version".to_string(), json!(SCHEMA_VERSION));
     }
     collect_unknown_keys(&doc, &mut warnings);
-    let settings: Settings =
+    let mut settings: Settings =
         serde_json::from_value(doc).map_err(|e| MigrateError::InvalidDocument(e.to_string()))?;
+    repair_settings(&mut settings, &mut warnings);
     Ok(MigratedSettings { settings, warnings })
 }
 
@@ -966,10 +1140,20 @@ const KNOWN_TOP_LEVEL: &[&str] = &[
 /// 已知类内字段（JSON 键名）。`keybindings` 不在表中：其内层键是命令 ID
 /// （开放集合），不做未知键检查。
 const KNOWN_CATEGORY_FIELDS: &[(&str, &[&str])] = &[
-    ("appearance", &["theme", "sidebarFontSize", "language"]),
+    (
+        "appearance",
+        &["theme", "sidebarFontSize", "outlineSide", "language"],
+    ),
     (
         "files",
-        &["visibleExts", "showHidden", "exclude", "watcherExclude"],
+        &[
+            "visibleExts",
+            "showHidden",
+            "exclude",
+            "watcherExclude",
+            "terminalPath",
+            "terminalArgs",
+        ],
     ),
     (
         "watching",

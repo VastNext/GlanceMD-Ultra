@@ -157,11 +157,13 @@ pub fn register_builtin() {
         ("workspace.fs.undo", fs_undo),
         ("workspace.fs.reveal", fs_reveal),
         ("workspace.fs.terminal", fs_terminal),
+        ("workspace.terminal.scan", terminal_scan),
         ("watcher.pause", watcher_pause),
         ("watcher.resume", watcher_resume),
         ("workspace.settings.get-global", settings_global),
         ("workspace.settings.get-effective", settings_effective),
         ("workspace.settings.set-global", settings_set),
+        ("workspace.settings.set-theme", settings_set_theme),
         ("workspace.settings.load-project", settings_project),
         ("workspace.settings.save-global", settings_set),
         ("workspace.settings.open-settings-json", settings_open),
@@ -219,21 +221,37 @@ fn workspace_open(_: &CommandContext, p: &CommandPayload) {
             // 这里只读全局设置（base=settings_base()）——项目覆盖可忽略：项目设置
             // 仅是补丁语义，监听启停以全局开关为阶段边界（项目级独立启停留待后续
             // 阶段，见 docs/dev/contracts/settings.md §2.3）。
-            let watcher_enabled = workspace::settings::load_global(&settings_base())
-                .watching
-                .enable_watcher;
+            let base = settings_base();
+            let global = workspace::settings::load_global(&base);
+            let project = workspace::settings::load_project_checked(ws.root())
+                .map(|loaded| loaded.patch)
+                .unwrap_or_default();
+            let effective = workspace::settings::effective(&global, &project);
+            if effective.recovery.create_project_settings
+                && !workspace::settings::project_settings_path(ws.root()).exists()
+            {
+                let _ = workspace::settings::save_project(
+                    ws.root(),
+                    &workspace::settings::SettingsPatch {
+                        version: Some(workspace::settings::SCHEMA_VERSION),
+                        ..Default::default()
+                    },
+                );
+            }
             session::clear_root();
             session::set_root(ws.root().to_path_buf());
-            if watcher_enabled {
-                start_watcher(ws.root().to_path_buf());
+            // 打开成功后记录最近工作区；便携目录不可写时静默忽略，避免影响打开流程。
+            let _ = session::save_last_root(data_dir::data_base(), ws.root());
+            if effective.watching.enable_watcher {
+                start_watcher(ws.root().to_path_buf(), &effective.files.watcher_exclude);
             }
             let _ = workspace::open_and_scan(path);
         }
         Err(e) => error(format!("打开项目失败：{e}")),
     }
 }
-fn start_watcher(root: PathBuf) {
-    let Ok(service) = WatchService::new(&root, &[]) else {
+fn start_watcher(root: PathBuf, excludes: &[String]) {
+    let Ok(service) = WatchService::new(&root, excludes) else {
         return;
     };
     let Some(rx) = service.take_receiver() else {
@@ -273,7 +291,13 @@ fn watch_event(e: MergedEvent) {
 fn tree_list(_: &CommandContext, p: &CommandPayload) {
     let Some(r) = require_root() else { return };
     let rel = p.path.as_deref().unwrap_or("");
-    match tree::list_dir(&r, rel, &TreeFilter::default()) {
+    let effective = effective_settings(&r);
+    let filter = TreeFilter {
+        visible_exts: effective.files.visible_exts,
+        excluded_dirs: effective.files.exclude,
+        show_hidden: effective.files.show_hidden,
+    };
+    match tree::list_dir(&r, rel, &filter) {
         Ok(v) => emit(workspace::events::Event::TreeListed {
             rel_dir: rel.into(),
             entries: serde_json::to_value(v).unwrap_or_else(|_| json!([])),
@@ -281,9 +305,16 @@ fn tree_list(_: &CommandContext, p: &CommandPayload) {
         Err(e) => error(format!("读取目录失败：{e}")),
     }
 }
+fn effective_settings(root: &Path) -> workspace::settings::Settings {
+    let global = workspace::settings::load_global(&settings_base());
+    let project = workspace::settings::load_project(root).unwrap_or_default();
+    workspace::settings::effective(&global, &project)
+}
+
 fn search_start(_: &CommandContext, p: &CommandPayload) {
     let Some(r) = require_root() else { return };
     let o = value(p, &["options"]).unwrap_or_else(|| json!({}));
+    let effective = effective_settings(&r);
     let id = o
         .get("searchId")
         .or_else(|| o.get("search_id"))
@@ -298,14 +329,30 @@ fn search_start(_: &CommandContext, p: &CommandPayload) {
         .unwrap_or(false);
     s.whole_word = o.get("wholeWord").and_then(Value::as_bool).unwrap_or(false);
     s.use_regex = o.get("regex").and_then(Value::as_bool).unwrap_or(false);
+    s.exclude_globs = effective.search.exclude.clone();
+    s.max_file_bytes = effective
+        .search
+        .max_file_size_mb
+        .saturating_mul(1024 * 1024);
+    s.max_results = effective.search.max_results;
+    // Request options intentionally override effective settings for this interaction.
     s.max_file_bytes = o
         .get("maxFileBytes")
         .and_then(Value::as_u64)
+        .or_else(|| o.get("max_file_size_mb").and_then(Value::as_u64))
         .unwrap_or(s.max_file_bytes);
     s.max_results = o
         .get("maxResults")
+        .or_else(|| o.get("max_results"))
         .and_then(Value::as_u64)
         .unwrap_or(s.max_results as u64) as usize;
+    if let Some(exclude) = o.get("exclude").and_then(Value::as_array) {
+        s.exclude_globs = exclude
+            .iter()
+            .filter_map(Value::as_str)
+            .map(str::to_owned)
+            .collect();
+    }
     let cancel = session::register_search(&id);
     let generation = session::bump_search_generation();
     thread::spawn(move || {
@@ -446,10 +493,26 @@ fn fs_terminal(c: &CommandContext, p: &CommandPayload) {
         } else {
             x.parent().unwrap_or(&r).to_path_buf()
         };
-        if let Err(e) = platform::terminal_opener().open_in_terminal(&d) {
+        let settings = workspace::settings::load_global(&settings_base());
+        let result = if settings.files.terminal_path.is_empty() {
+            platform::terminal_opener().open_in_terminal(&d)
+        } else {
+            platform::terminal::spawn_custom(
+                &settings.files.terminal_path,
+                &settings.files.terminal_args,
+                &d,
+            )
+        };
+        if let Err(e) = result {
             ipc::send_to_js(c.webview, "error", &json!({"message":e.to_string()}));
         }
     }
+}
+fn terminal_scan(_: &CommandContext, _: &CommandPayload) {
+    let terminals = platform::terminal::scan_terminals();
+    emit(workspace::events::Event::TerminalList {
+        terminals: serde_json::to_value(terminals).unwrap_or_else(|_| json!([])),
+    });
 }
 fn watcher_pause(_: &CommandContext, _: &CommandPayload) {
     session::watcher_pause();
@@ -476,16 +539,37 @@ fn settings_effective(_: &CommandContext, _: &CommandPayload) {
     let p = root().and_then(|r| workspace::settings::load_project_checked(&r));
     let (patch, w) = p.map(|x| (x.patch, x.warnings)).unwrap_or_default();
     let s = workspace::settings::effective(&g.settings, &patch);
+    let overridden = workspace::settings::overridden_keys(&patch);
     emit(workspace::events::Event::SettingsEffective {
         settings: serde_json::to_value(s).unwrap_or_default(),
         warnings: [g.warnings, w].concat(),
-        overridden: Vec::new(),
+        overridden,
     });
 }
 fn settings_set(_: &CommandContext, p: &CommandPayload) {
     let Some(raw) = value(p, &["data", "settings"]) else {
         return;
     };
+    if let Err(e) = apply_settings_at(&settings_base(), raw) {
+        error(e);
+    }
+}
+
+fn settings_set_theme(_: &CommandContext, p: &CommandPayload) {
+    let Some(theme) = string(p, &["theme"]) else {
+        return;
+    };
+    let mut settings = workspace::settings::load_global(&settings_base());
+    settings.appearance.theme = match theme.as_str() {
+        "dark" => workspace::settings::Theme::Dark,
+        "light" => workspace::settings::Theme::Light,
+        "system" => workspace::settings::Theme::System,
+        _ => {
+            error("未知主题设置");
+            return;
+        }
+    };
+    let raw = serde_json::to_value(settings).unwrap_or_default();
     if let Err(e) = apply_settings_at(&settings_base(), raw) {
         error(e);
     }
@@ -508,17 +592,20 @@ fn apply_settings_at(base: &Path, raw: Value) -> Result<(), String> {
     };
     let settings: workspace::settings::Settings =
         serde_json::from_value(v).map_err(|e| format!("设置格式错误：{e}"))?;
-    let watcher_before = workspace::settings::load_global(base)
-        .watching
-        .enable_watcher;
+    let settings_before = workspace::settings::load_global(base);
+    let watcher_before = settings_before.watching.enable_watcher;
     workspace::settings::save(base, &settings).map_err(|e| format!("保存设置失败：{e}"))?;
-    let watcher_after = workspace::settings::load_global(base)
-        .watching
-        .enable_watcher;
+    let settings_after = workspace::settings::load_global(base);
+    let watcher_after = settings_after.watching.enable_watcher;
     if watcher_before && !watcher_after {
         session::watcher_pause();
     } else if !watcher_before && watcher_after {
         session::watcher_resume();
+    }
+    if let Some(r) = root() {
+        if settings_before.files.watcher_exclude != settings_after.files.watcher_exclude {
+            start_watcher(r, &settings_after.files.watcher_exclude);
+        }
     }
     emit(workspace::events::Event::SettingsChanged {
         scope: "global".into(),
@@ -527,17 +614,33 @@ fn apply_settings_at(base: &Path, raw: Value) -> Result<(), String> {
 }
 fn settings_project(_: &CommandContext, _: &CommandPayload) {
     if let Some(r) = require_root() {
-        if let Some(x) = workspace::settings::load_project_checked(&r) {
-            emit(workspace::events::Event::SettingsProject {
-                patch: serde_json::to_value(x.patch).unwrap_or_default(),
-                warnings: x.warnings,
-                path: Some(
-                    workspace::settings::project_settings_path(&r)
-                        .to_string_lossy()
-                        .into(),
-                ),
-            });
-        }
+        let path = workspace::settings::project_settings_path(&r);
+        let mut warnings = Vec::new();
+        let loaded = workspace::settings::load_project_checked(&r);
+        let patch = match loaded {
+            Some(x) => {
+                warnings = x.warnings;
+                x.patch
+            }
+            None => {
+                let create = effective_settings(&r).recovery.create_project_settings;
+                if create {
+                    let patch = workspace::settings::SettingsPatch {
+                        version: Some(workspace::settings::SCHEMA_VERSION),
+                        ..Default::default()
+                    };
+                    if let Err(e) = workspace::settings::save_project(&r, &patch) {
+                        warnings.push(format!("创建项目设置失败：{e}"));
+                    }
+                }
+                workspace::settings::load_project(&r).unwrap_or_default()
+            }
+        };
+        emit(workspace::events::Event::SettingsProject {
+            patch: serde_json::to_value(patch).unwrap_or_default(),
+            warnings,
+            path: Some(path.to_string_lossy().into()),
+        });
     }
 }
 /// 确保全局 settings.json 存在（不存在则写入默认设置），返回其路径。
@@ -556,10 +659,40 @@ fn ensure_global_settings_file(base: &Path) -> std::path::PathBuf {
     path
 }
 
-fn settings_open(_: &CommandContext, _: &CommandPayload) {
-    let path = ensure_global_settings_file(&settings_base());
-    if let Err(e) = platform::revealer().reveal(&path) {
-        error(format!("无法打开设置文件：{e}"));
+fn settings_open(ctx: &CommandContext, p: &CommandPayload) {
+    let scope = string(p, &["scope"]).unwrap_or_else(|| "global".into());
+    let path = if scope == "project" {
+        let Some(root) = require_root() else { return };
+        let path = workspace::settings::project_settings_path(&root);
+        if !path.exists() {
+            let patch = workspace::settings::SettingsPatch {
+                version: Some(workspace::settings::SCHEMA_VERSION),
+                ..Default::default()
+            };
+            if let Err(e) = workspace::settings::save_project(&root, &patch) {
+                error(format!("创建项目设置文件失败：{e}"));
+                return;
+            }
+        }
+        path
+    } else {
+        ensure_global_settings_file(&settings_base())
+    };
+    match std::fs::read(&path)
+        .and_then(|b| file_codec::read_text(&b).map_err(|e| std::io::Error::other(e.to_string())))
+    {
+        Ok(text) => {
+            session::store_file_meta(&path.to_string_lossy(), text.clone());
+            ipc::send_to_js(
+                ctx.webview,
+                "file_opened",
+                &json!({
+                    "content": text.content,
+                    "path": path.to_string_lossy()
+                }),
+            );
+        }
+        Err(e) => error(format!("无法打开设置文件：{e}")),
     }
 }
 fn recovery_store() -> RecoveryStore {

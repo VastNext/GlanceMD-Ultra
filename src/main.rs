@@ -227,6 +227,12 @@ fn main() {
     // unused_unsafe），且此处仅在 main 启动早期、单线程、事件循环与任何后台
     // 线程启动之前调用一次，不存在并发读写环境变量的竞态。
     let data_base = data_dir::data_base();
+    // 无 CLI 路径时恢复上次打开的工作区；显式路径（目录或文件）保持既有行为。
+    if cli_file.is_none() {
+        if let Some(last_root) = workspace::session::restore_pending_root(data_base, None) {
+            workspace::set_pending_root(last_root);
+        }
+    }
     #[allow(unused_unsafe)]
     unsafe {
         std::env::set_var("WEBVIEW2_USER_DATA_FOLDER", data_base.join("webview2"));

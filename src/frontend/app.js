@@ -44,18 +44,53 @@ document.addEventListener('DOMContentLoaded', function() {
     $.statusFile = document.getElementById('status-file');
     $.titlebarTitle = document.getElementById('titlebar-title');
     $.dropOverlay = document.getElementById('drop-overlay');
-    $.tocPanel = document.getElementById('toc-panel');
-    $.tocItems = document.getElementById('toc-list');
     $.findBar = document.getElementById('find-bar');
     $.findInput = document.getElementById('find-input');
     $.findCount = document.getElementById('find-count');
     $.zoomToast = document.getElementById('zoom-toast');
+    var editorColumn = document.getElementById('editor-column');
+    if (editorColumn) editorColumn.style.position = 'relative';
 });
 
 // State
 var currentMode = 'edit';
 var splitMode = false;
 var isMacOS = document.body.dataset.platform === 'macos';
+
+// Restore the clean VS Code-style empty state after the last tab closes.
+function resetToWelcomeState() {
+  currentMode = 'edit';
+  splitMode = false;
+
+  var editorContainer = $.editorContainer || document.getElementById('editor-container');
+  var previewContainer = $.previewContainer || document.getElementById('preview-container');
+  if (editorContainer) editorContainer.classList.add('active');
+  if (previewContainer) {
+    previewContainer.classList.remove('active');
+    previewContainer.style.flex = '';
+  }
+  document.body.classList.remove('split-mode');
+
+  var splitButton = document.getElementById('btn-split');
+  if (splitButton) splitButton.classList.remove('active');
+  var toggleButton = document.getElementById('btn-toggle');
+  if (toggleButton) toggleButton.classList.remove('active');
+  var iconPreview = document.getElementById('icon-preview');
+  var iconEdit = document.getElementById('icon-edit');
+  if (iconPreview) iconPreview.style.display = '';
+  if (iconEdit) iconEdit.style.display = 'none';
+  var statusMode = document.getElementById('status-mode');
+  if (statusMode) statusMode.textContent = 'EDIT';
+  var preview = $.preview || document.getElementById('preview');
+  if (preview) preview.innerHTML = '';
+
+  // 空态收起大纲浮层：z-index 高于欢迎视图，留着会遮挡干净空态（VS Code 行为）
+  if (window.LayoutUI && typeof window.LayoutUI.collapse === 'function') {
+    window.LayoutUI.collapse('outline');
+  }
+
+  updateWelcome();
+}
 
 function hasPrimaryModifier(event) {
   return isMacOS ? event.metaKey : event.ctrlKey;
@@ -270,12 +305,19 @@ function updateSplitPreview() {
 
 // Word count
 function updateWordCount() {
+  var countEl = document.getElementById('status-counts');
+  if (!countEl) return;
+  var tab = typeof TabManager !== 'undefined' ? TabManager.getActiveTab() : null;
+  if (!tab) {
+    countEl.textContent = '';
+    return;
+  }
   var text = ($.editor || document.getElementById('editor')).value;
   var words = text.trim() ? text.trim().split(/\s+/).length : 0;
-  document.getElementById('status-counts').textContent = words + ' word' + (words !== 1 ? 's' : '');
+  countEl.textContent = words + ' word' + (words !== 1 ? 's' : '');
 }
 
-// Recent Files
+// Recent Files, Recent Projects & Welcome View
 function getRecentFiles() {
   try { return JSON.parse(localStorage.getItem('glancemd-ultra-recent')) || []; } catch(e) { return []; }
 }
@@ -290,23 +332,86 @@ function addRecentFile(path) {
   try { localStorage.setItem('glancemd-ultra-recent', JSON.stringify(recent)); } catch(e) {}
 }
 
-function showRecentPanel() {
-  var panel = document.getElementById('recent-panel');
-  var tab = TabManager.getActiveTab();
-  if (!tab || tab.path || tab.dirty || tab.content !== '') {
-    panel.classList.remove('visible');
+function getRecentProjects() {
+  try { return JSON.parse(localStorage.getItem('glancemd-ultra-recent-projects')) || []; } catch(e) { return []; }
+}
+
+function addRecentProject(dirPath) {
+  if (!dirPath) return;
+  var norm = dirPath.replace(/\\/g, '/').replace(/\/+$/, '');
+  var name = norm.split('/').pop() || norm;
+  var list = getRecentProjects();
+  list = list.filter(function(p) {
+    return p.path.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase() !== norm.toLowerCase();
+  });
+  list.unshift({ path: dirPath, name: name, ts: Date.now() });
+  if (list.length > 10) list = list.slice(0, 10);
+  try { localStorage.setItem('glancemd-ultra-recent-projects', JSON.stringify(list)); } catch(e) {}
+}
+
+if (typeof window !== 'undefined') {
+  function initWorkspaceRecent() {
+    if (window.Workspace && typeof window.Workspace.on === 'function') {
+      window.Workspace.on('workspace:opened', function(data) {
+        var p = data && (data.path || data.root || (typeof data === 'string' ? data : null));
+        if (p) addRecentProject(p);
+        if (welcomeActiveTab === 'projects') renderWelcomeRecentProjects();
+      });
+    }
+  }
+  if (window.Workspace) {
+    initWorkspaceRecent();
+  } else {
+    document.addEventListener('DOMContentLoaded', initWorkspaceRecent);
+  }
+}
+
+var welcomeActiveTab = 'projects';
+
+function setWelcomeTab(tab) {
+  welcomeActiveTab = tab;
+  var btnProjects = document.getElementById('welcome-tab-projects');
+  var btnFiles = document.getElementById('welcome-tab-files');
+  var paneProjects = document.getElementById('welcome-projects-pane');
+  var paneFiles = document.getElementById('welcome-files-pane');
+
+  if (btnProjects) {
+    btnProjects.classList.toggle('active', tab === 'projects');
+    btnProjects.setAttribute('aria-selected', tab === 'projects' ? 'true' : 'false');
+  }
+  if (btnFiles) {
+    btnFiles.classList.toggle('active', tab === 'files');
+    btnFiles.setAttribute('aria-selected', tab === 'files' ? 'true' : 'false');
+  }
+  if (paneProjects) {
+    paneProjects.style.display = tab === 'projects' ? 'block' : 'none';
+  }
+  if (paneFiles) {
+    paneFiles.style.display = tab === 'files' ? 'block' : 'none';
+  }
+
+  if (tab === 'projects') {
+    renderWelcomeRecentProjects();
+  } else {
+    renderWelcomeRecent();
+  }
+}
+
+function renderWelcomeRecent() {
+  var recentList = document.getElementById('welcome-recent-list');
+  var recentEmpty = document.getElementById('welcome-recent-empty');
+  if (!recentList) return;
+  var recent = getRecentFiles();
+  recentList.innerHTML = '';
+  if (recent.length === 0) {
+    if (recentEmpty) recentEmpty.style.display = 'block';
     return;
   }
-  var recent = getRecentFiles();
-  if (recent.length === 0) { panel.classList.remove('visible'); return; }
-  panel.innerHTML = '';
-  var title = document.createElement('div');
-  title.className = 'recent-title';
-  title.textContent = t('app.recentFiles');
-  panel.appendChild(title);
+  if (recentEmpty) recentEmpty.style.display = 'none';
+
   recent.forEach(function(r) {
     var item = document.createElement('div');
-    item.className = 'recent-item';
+    item.className = 'welcome-recent-item';
     var name = document.createElement('span');
     name.className = 'recent-name';
     name.textContent = r.filename;
@@ -318,92 +423,90 @@ function showRecentPanel() {
     item.addEventListener('click', function() {
       sendToRust('open_file', { path: r.path });
     });
-    panel.appendChild(item);
+    recentList.appendChild(item);
   });
-  panel.classList.add('visible');
 }
 
-// Table of Contents
-var tocOpen = false;
-
-function parseTOC(text) {
-  var lines = text.split('\n');
-  var headings = [];
-  var inCodeBlock = false;
-  for (var i = 0; i < lines.length; i++) {
-    if (/^```/.test(lines[i])) { inCodeBlock = !inCodeBlock; continue; }
-    if (inCodeBlock) continue;
-    var match = lines[i].match(/^(#{1,6})\s+(.+)/);
-    if (match) {
-      headings.push({ level: match[1].length, text: match[2].replace(/\s+#+\s*$/, '').replace(/[*_`\[\]]/g, '').trim(), line: i });
-    }
-  }
-  return headings;
-}
-
-function updateTOC() {
-  var list = $.tocItems || document.getElementById('toc-list');
-  var text = ($.editor || document.getElementById('editor')).value;
-  var headings = parseTOC(text);
-  list.innerHTML = '';
-  if (headings.length === 0) {
-    var empty = document.createElement('div');
-    empty.className = 'toc-empty';
-    empty.textContent = 'No headings';
-    list.appendChild(empty);
+function renderWelcomeRecentProjects() {
+  var listEl = document.getElementById('welcome-recent-projects-list');
+  var emptyEl = document.getElementById('welcome-recent-projects-empty');
+  if (!listEl) return;
+  var projects = getRecentProjects();
+  listEl.innerHTML = '';
+  if (projects.length === 0) {
+    if (emptyEl) emptyEl.style.display = 'block';
     return;
   }
-  headings.forEach(function(h, idx) {
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  var currentRoot = (window.Workspace && typeof window.Workspace.getState === 'function' && window.Workspace.getState().root) || null;
+  var normCurrent = currentRoot ? currentRoot.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase() : null;
+
+  projects.forEach(function(p) {
     var item = document.createElement('div');
-    item.className = 'toc-item toc-h' + h.level;
-    item.textContent = h.text;
+    item.className = 'welcome-recent-item';
+    var isCurrent = normCurrent && p.path.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase() === normCurrent;
+    if (isCurrent) item.classList.add('is-current');
+
+    var name = document.createElement('span');
+    name.className = 'recent-name';
+    name.textContent = p.name || p.path.split(/[/\\]/).pop();
+    if (isCurrent) {
+      var badge = document.createElement('span');
+      badge.className = 'recent-badge';
+      badge.textContent = t('welcome.currentProject');
+      name.appendChild(badge);
+    }
+
+    var pathSpan = document.createElement('span');
+    pathSpan.className = 'recent-path';
+    pathSpan.textContent = p.path;
+
+    item.appendChild(name);
+    item.appendChild(pathSpan);
+
     item.addEventListener('click', function() {
-      if (splitMode) {
-        /* split 下编辑区与预览区同时联动跳转 */
-        scrollEditorToLine(h.line);
-        scrollPreviewToHeading(idx);
-      } else if (currentMode === 'edit') {
-        scrollEditorToLine(h.line);
+      if (window.Commands && typeof window.Commands.run === 'function') {
+        window.Commands.run('workspace.open', { path: p.path });
       } else {
-        scrollPreviewToHeading(idx);
+        sendToRust('workspace.open', { path: p.path });
       }
     });
-    list.appendChild(item);
+    listEl.appendChild(item);
   });
 }
 
-function scrollEditorToLine(lineNum) {
-  var editor = document.getElementById('editor');
-  var lines = editor.value.split('\n');
-  var pos = 0;
-  for (var i = 0; i < lineNum && i < lines.length; i++) {
-    pos += lines[i].length + 1;
+function updateWelcome() {
+  var welcomeView = document.getElementById('welcome-view');
+  var legacyPanel = document.getElementById('recent-panel');
+  var tab = typeof TabManager !== 'undefined' ? TabManager.getActiveTab() : null;
+
+  if (tab) {
+    if (welcomeView) {
+      welcomeView.classList.remove('visible');
+      welcomeView.style.display = 'none';
+    }
+    if (legacyPanel) legacyPanel.classList.remove('visible');
+    return;
   }
-  editor.focus();
-  editor.selectionStart = pos;
-  editor.selectionEnd = pos + (lines[lineNum] || '').length;
-  var approxLineHeight = editor.scrollHeight / lines.length;
-  editor.scrollTop = lineNum * approxLineHeight - editor.clientHeight / 3;
+
+  if (welcomeView) {
+    welcomeView.classList.add('visible');
+    welcomeView.style.display = 'flex';
+    setWelcomeTab(welcomeActiveTab);
+  }
+  if (legacyPanel) legacyPanel.classList.remove('visible');
 }
 
-function scrollPreviewToHeading(idx) {
-  var headings = document.getElementById('preview').querySelectorAll('h1,h2,h3,h4,h5,h6');
-  if (headings[idx]) {
-    headings[idx].scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-}
-
-function toggleTOC() {
-  tocOpen = !tocOpen;
-  document.getElementById('toc-panel').classList.toggle('open', tocOpen);
-  document.getElementById('btn-toc').classList.toggle('active', tocOpen);
-  if (tocOpen) updateTOC();
+function showRecentPanel() {
+  updateWelcome();
 }
 
 function doSave() {
   var tab = TabManager.getActiveTab();
+  if (!tab) return;
   var data = { content: document.getElementById('editor').value };
-  if (tab && tab.path) data.path = tab.path;
+  if (tab.path) data.path = tab.path;
   sendToRust('save_file', data);
 }
 
@@ -431,50 +534,6 @@ document.addEventListener('wheel', function(e) {
     applyZoom(zoomLevel + (e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP));
   }
 }, { passive: false });
-
-// Preview width resize
-(function() {
-  var handle = document.getElementById('preview-resize-handle');
-  var preview = document.getElementById('preview-wrapper');
-  var container = document.getElementById('preview-container');
-  var DEFAULT_WIDTH = 720;
-  var MIN_WIDTH = 300;
-
-  var saved = null;
-  try { saved = localStorage.getItem('glancemd-ultra-preview-width'); } catch(e) {}
-  if (saved) preview.style.maxWidth = saved + 'px';
-
-  var dragging = false;
-
-  handle.addEventListener('mousedown', function(e) {
-    e.preventDefault();
-    dragging = true;
-    handle.classList.add('dragging');
-    document.body.classList.add('preview-resizing');
-  });
-
-  document.addEventListener('mousemove', function(e) {
-    if (!dragging) return;
-    var containerRect = container.getBoundingClientRect();
-    var centerX = containerRect.left + containerRect.width / 2;
-    var width = Math.max(MIN_WIDTH, (e.clientX - centerX) * 2);
-    width = Math.min(width, containerRect.width);
-    preview.style.maxWidth = Math.round(width) + 'px';
-  });
-
-  document.addEventListener('mouseup', function() {
-    if (!dragging) return;
-    dragging = false;
-    handle.classList.remove('dragging');
-    document.body.classList.remove('preview-resizing');
-    try { localStorage.setItem('glancemd-ultra-preview-width', parseInt(preview.style.maxWidth)); } catch(e) {}
-  });
-
-  handle.addEventListener('dblclick', function() {
-    preview.style.maxWidth = DEFAULT_WIDTH + 'px';
-    try { localStorage.setItem('glancemd-ultra-preview-width', DEFAULT_WIDTH); } catch(e) {}
-  });
-})();
 
 // Split 分界拖拽：调整编辑/预览两栏比例（交互与 TOC 拖宽一致）
 (function() {
@@ -541,55 +600,6 @@ document.addEventListener('wheel', function(e) {
     var width = Math.min(areaRect.width - MIN_PANE, Math.max(MIN_PANE, areaRect.width * savedRatio));
     setPaneWidth(width);
   };
-})();
-
-// TOC (outline) width resize
-(function() {
-  var handle = document.getElementById('toc-resize-handle');
-  var DEFAULT_WIDTH = 220;
-  var MIN_WIDTH = 160;
-  var MAX_WIDTH = 480;
-
-  // 恢复上次宽度（CSS 变量驱动 #toc-panel 与 #toc-list）
-  try {
-    var saved = localStorage.getItem('glancemd-ultra-toc-width');
-    if (saved) {
-      document.documentElement.style.setProperty('--toc-width', saved + 'px');
-    }
-  } catch(e) {}
-
-  var dragging = false;
-
-  handle.addEventListener('mousedown', function(e) {
-    e.preventDefault();
-    dragging = true;
-    handle.classList.add('dragging');
-    document.body.classList.add('toc-resizing');
-  });
-
-  document.addEventListener('mousemove', function(e) {
-    if (!dragging) return;
-    // TOC 贴窗口左缘，鼠标 X 坐标即面板宽度
-    var width = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, e.clientX));
-    document.documentElement.style.setProperty('--toc-width', Math.round(width) + 'px');
-  });
-
-  document.addEventListener('mouseup', function() {
-    if (!dragging) return;
-    dragging = false;
-    handle.classList.remove('dragging');
-    document.body.classList.remove('toc-resizing');
-    try {
-      localStorage.setItem('glancemd-ultra-toc-width',
-        parseInt(document.documentElement.style.getPropertyValue('--toc-width')) || DEFAULT_WIDTH);
-    } catch(e) {}
-  });
-
-  // 双击手柄恢复默认宽度
-  handle.addEventListener('dblclick', function() {
-    document.documentElement.style.setProperty('--toc-width', DEFAULT_WIDTH + 'px');
-    try { localStorage.setItem('glancemd-ultra-toc-width', DEFAULT_WIDTH); } catch(e) {}
-  });
 })();
 
 // Find
@@ -729,9 +739,22 @@ document.addEventListener('keydown', function(e) {
     e.preventDefault();
     closeFind();
   } else if (primaryModifier && !e.shiftKey && e.key.toLowerCase() === 'o') {
-    e.preventDefault();
-    if (window.Commands && Commands.has && Commands.has('file.open')) Commands.run('file.open');
-    else sendToRust('open_file');
+    // keybindings.js owns Ctrl+O when the command registry is available. It is
+    // loaded after app.js, so check at dispatch time and retain the legacy IPC
+    // fallback for test pages and older builds without the keybinding stack.
+    var keybindingsReady = window.Keybindings && window.Commands
+      && typeof window.Keybindings.dispatch === 'function'
+      && typeof window.Keybindings.effective === 'function'
+      && typeof window.Keybindings.normalize === 'function'
+      && typeof window.Commands.has === 'function';
+    var keybindingsOwnsOpen = keybindingsReady
+      && window.Keybindings.effective()['file.open'] === window.Keybindings.normalize(e)
+      && window.Commands.has('file.open');
+    if (!keybindingsOwnsOpen) {
+      e.preventDefault();
+      if (window.Commands && Commands.has && Commands.has('file.open')) Commands.run('file.open');
+      else sendToRust('open_file');
+    }
   } else if (primaryModifier && !e.shiftKey && e.key.toLowerCase() === 's') {
     e.preventDefault();
     doSave();
@@ -768,7 +791,9 @@ document.addEventListener('keydown', function(e) {
     toggleSplit();
   } else if (primaryModifier && e.shiftKey && e.key.toLowerCase() === 'o') {
     e.preventDefault();
-    toggleTOC();
+    if (window.LayoutUI && typeof window.LayoutUI.toggle === 'function') {
+      window.LayoutUI.toggle('outline');
+    }
   }
 });
 
@@ -776,7 +801,11 @@ document.addEventListener('keydown', function(e) {
 document.getElementById('btn-minimize').addEventListener('click', function() { sendToRust('window_minimize'); });
 document.getElementById('btn-maximize').addEventListener('click', function() { sendToRust('window_maximize'); });
 document.getElementById('btn-close').addEventListener('click', function() {
-  if (TabManager.hasAnyDirty()) {
+  var settings = window.SettingsApply && typeof window.SettingsApply.get === 'function'
+    ? window.SettingsApply.get()
+    : {};
+  var shouldConfirm = !settings.recovery || settings.recovery.confirmCloseDirty !== false;
+  if (TabManager.hasAnyDirty() && shouldConfirm) {
     if (!confirm(t('app.unsavedClose'))) return;
   }
   sendToRust('window_close');
@@ -788,33 +817,111 @@ document.getElementById('btn-open').addEventListener('click', function() { sendT
 document.getElementById('btn-save').addEventListener('click', doSave);
 document.getElementById('btn-toggle').addEventListener('click', toggleMode);
 document.getElementById('btn-split').addEventListener('click', toggleSplit);
-document.getElementById('btn-toc').addEventListener('click', toggleTOC);
+var btnToc = document.getElementById('btn-toc');
+if (btnToc) {
+  btnToc.addEventListener('click', function() {
+    if (window.LayoutUI && typeof window.LayoutUI.toggle === 'function') {
+      window.LayoutUI.toggle('outline');
+    }
+  });
+}
 
 // Theme Toggle
 function setTheme(theme) {
-  document.documentElement.setAttribute('data-theme', theme);
-  document.getElementById('icon-sun').style.display = theme === 'light' ? '' : 'none';
-  document.getElementById('icon-moon').style.display = theme === 'light' ? 'none' : '';
-  try { localStorage.setItem('glancemd-ultra-theme', theme); } catch(e) {}
+  if (window.SettingsApply && typeof window.SettingsApply.applyTheme === 'function') {
+    window.SettingsApply.applyTheme(theme);
+  } else {
+    document.documentElement.setAttribute('data-theme', theme === 'dark' ? 'dark' : 'light');
+  }
+  var resolved = document.documentElement.getAttribute('data-theme') || 'light';
+  document.getElementById('icon-sun').style.display = resolved === 'light' ? '' : 'none';
+  document.getElementById('icon-moon').style.display = resolved === 'light' ? 'none' : '';
 }
 
 document.getElementById('btn-theme').addEventListener('click', function() {
+  var effective = window.SettingsApply && typeof window.SettingsApply.get === 'function'
+    ? window.SettingsApply.get()
+    : {};
+  var requested = effective.appearance && effective.appearance.theme;
+  // 工具栏是当前实际渲染主题的切换器；effective 仅用于识别 system 模式，
+  // 避免 settings.changed 尚未回执时连续点击始终基于旧值计算。
   var current = document.documentElement.getAttribute('data-theme') || 'light';
-  setTheme(current === 'dark' ? 'light' : 'dark');
+  if (requested === 'system') {
+    current = document.documentElement.getAttribute('data-theme') || 'light';
+  }
+  var next = current === 'dark' ? 'light' : 'dark';
+  if (window.ipc && window.ipc.postMessage) {
+    window.ipc.postMessage(JSON.stringify({ command: 'workspace.settings.set-theme', theme: next }));
+  }
+  setTheme(next);
 });
 
 // Init
 document.addEventListener('DOMContentLoaded', function() {
+  var wBtnNew = document.getElementById('welcome-btn-new');
+  if (wBtnNew) {
+    wBtnNew.addEventListener('click', function() { TabManager.createTab(null, ''); });
+  }
+  var wBtnOpenFile = document.getElementById('welcome-btn-open-file');
+  if (wBtnOpenFile) {
+    wBtnOpenFile.addEventListener('click', function() {
+      if (window.Commands && Commands.has && Commands.has('file.open')) Commands.run('file.open');
+      else sendToRust('open_file');
+    });
+  }
+  var wBtnOpenFolder = document.getElementById('welcome-btn-open-folder');
+  if (wBtnOpenFolder) {
+    wBtnOpenFolder.addEventListener('click', function() {
+      if (window.Commands && Commands.has && Commands.has('workspace.open')) Commands.run('workspace.open');
+      else sendToRust('open_file');
+    });
+  }
+
+  var wTabProjects = document.getElementById('welcome-tab-projects');
+  if (wTabProjects) {
+    wTabProjects.addEventListener('click', function() {
+      setWelcomeTab('projects');
+    });
+  }
+  var wTabFiles = document.getElementById('welcome-tab-files');
+  if (wTabFiles) {
+    wTabFiles.addEventListener('click', function() {
+      setWelcomeTab('files');
+    });
+  }
+
   if (isMacOS) {
     document.querySelectorAll('[title*="Ctrl+"]').forEach(function(element) {
       element.title = element.title.replaceAll('Ctrl+', '⌘');
     });
+    document.querySelectorAll('.welcome-btn-shortcut').forEach(function(element) {
+      element.textContent = element.textContent.replaceAll('Ctrl+', '⌘');
+    });
   }
-  var saved = null;
-  try { saved = localStorage.getItem('glancemd-ultra-theme'); } catch(e) {}
-  setTheme(saved || 'light');
-  TabManager.createTab(null, '');
+  // 主题由 SettingsApply 启动后加载的 effective settings 决定；此处只保持首帧默认。
+  setTheme(document.documentElement.getAttribute('data-theme') || 'light');
+  if (typeof TabManager !== 'undefined' && typeof TabManager.updateWindowTitle === 'function') {
+    TabManager.updateWindowTitle();
+  } else {
+    setTitle('GlanceMD Ultra');
+  }
   updateWordCount();
-  showRecentPanel();
+  updateWelcome();
   sendToRust('ready');
+});
+
+document.addEventListener('click', function(e) {
+  var revealBtn = e.target && e.target.closest && e.target.closest('#project-tree-reveal');
+  if (revealBtn) {
+    revealBtn.classList.remove('flashing');
+    void revealBtn.offsetWidth;
+    revealBtn.classList.add('flashing');
+    setTimeout(function() {
+      revealBtn.classList.remove('flashing');
+    }, 1000);
+  }
+});
+
+window.addEventListener('i18n-changed', function() {
+  updateWelcome();
 });
