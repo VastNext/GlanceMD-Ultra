@@ -335,6 +335,7 @@ fn 文件符号链接显示为_symlink_file_目录符号链接不显示() {
             ("real-dir".to_string(), EntryKind::Dir),
             ("broken.md".to_string(), EntryKind::SymLinkFile),
             ("link.md".to_string(), EntryKind::SymLinkFile),
+            ("target.md".to_string(), EntryKind::File),
         ]
     );
     cleanup(&dir);
@@ -365,6 +366,7 @@ fn 文件符号链接显示为_symlink_file_目录符号链接不显示() {
         vec![
             ("real-dir".to_string(), EntryKind::Dir),
             ("link.md".to_string(), EntryKind::SymLinkFile),
+            ("target.md".to_string(), EntryKind::File),
         ]
     );
     cleanup(&dir);
