@@ -57,6 +57,14 @@
   VimEngine.prototype.ex = function(cmd) { var raw=String(cmd).replace(/^:/,'').trim(), bang=/!$/.test(raw), name=raw.replace(/!$/,'').split(/\s+/)[0], args=raw.slice(name.length).trim(); if(name==='set'){this.wrap=args!=='nowrap';} this.commandRunner(name,{command:raw,args:args,bang:bang,engine:this}); return raw; };
   VimEngine.prototype.handleKey = function(key, event) {
     if(this.composing || (event&&event.isComposing) || key==='Process')return {handled:false,composing:true};
+    // 允许应用全局快捷键与 chord 放行（如 Alt+Shift+E 等组合，或处于 chord 等待态时不被 Vim 当单字母截获）
+    var globalObj = typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : null);
+    if(globalObj && globalObj.BindingService && globalObj.BindingService.pending) {
+      return {handled:false};
+    }
+    if(event && (event.altKey || event.metaKey || (event.ctrlKey && key !== 'r' && key !== 'R' && key !== 'f' && key !== 'b' && key !== 'd' && key !== 'u'))) {
+      return {handled:false};
+    }
     key=String(key); var n, p;
     if(this.mode==='CommandLine'){if(key==='Escape'){this.mode='Normal';this.commandLine='';}else if(key==='Enter'){var c=this.commandLine;this.ex(c);this.mode='Normal';this.commandLine='';}else if(key==='Backspace')this.commandLine=this.commandLine.slice(0,-1);else if(key.length===1)this.commandLine+=key;return {handled:true};}
     if(this.mode==='Insert'){if(key==='Escape'){this.mode='Normal';this.cursor=clamp(this.cursor-1,0,this.text.length);this._sync();return {handled:true};} if(key.length===1||key==='Enter'||key==='Tab'){this._replace(this.cursor,this.cursor,key==='Enter'?'\n':key);this.cursor++;this._sync();return {handled:true};} return {handled:false};}

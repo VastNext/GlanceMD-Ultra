@@ -125,17 +125,21 @@
     if (Array.isArray(bindings)) {
       return bindings.map(function (b) {
         var id = b.commandId || b.id;
+        var cmd = window.Commands && typeof window.Commands.get === 'function' ? window.Commands.get(id) : null;
+        var title = (cmd && (cmd.label || cmd.title)) || b.title || b.label || id;
+        var category = (cmd && cmd.category) || b.category || '';
+        var description = (cmd && cmd.description) || b.description || '';
         return {
           id: id,
-          title: b.title || b.label || id,
-          category: b.category || '',
+          title: title,
+          category: category,
           key: b.sequence || b.key || '',
           keys: b.keys || (b.sequence ? [b.sequence] : []),
           when: b.when || '',
           source: b.source || 'default',
           enabled: b.enabled !== false,
           conflicted: Boolean(b.conflicted || b.conflict),
-          description: b.description || ''
+          description: description
         };
       });
     }
@@ -556,6 +560,7 @@
     var dom = ensureDom();
     dom.overlay.classList.add('open');
     dom.overlay.setAttribute('aria-hidden', 'false');
+    dom.overlay.style.display = 'flex';
     dom.searchInput.value = '';
 
     render();
@@ -583,6 +588,7 @@
     if (state.dom) {
       state.dom.overlay.classList.remove('open');
       state.dom.overlay.setAttribute('aria-hidden', 'true');
+      state.dom.overlay.style.display = 'none';
     }
 
     // 恢复焦点
@@ -611,6 +617,23 @@
     if (state.isOpen) {
       render();
     }
+  }
+
+  function initCommands() {
+    if (!window.Commands || typeof window.Commands.register !== 'function') return;
+    if (!window.Commands.has('keyassist.toggle')) {
+      window.Commands.register('keyassist.toggle', {
+        label: '快捷键助手',
+        category: 'Help',
+        run: function(opts) { toggle(opts); }
+      });
+    }
+  }
+
+  if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    document.addEventListener('DOMContentLoaded', initCommands);
+  } else {
+    initCommands();
   }
 
   window.KeyAssist = {

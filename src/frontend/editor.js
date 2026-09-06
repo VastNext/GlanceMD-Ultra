@@ -233,6 +233,10 @@
       if (window.VimUI && typeof window.VimUI.mount === 'function') {
         window.VimUI.mount({ target: editor });
       }
+    } else {
+      if (window.VimUI && typeof window.VimUI.unmount === 'function') {
+        window.VimUI.unmount();
+      }
     }
     updateVimUi();
     return vimEnabled;

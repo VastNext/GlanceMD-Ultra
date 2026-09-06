@@ -22,6 +22,7 @@
     record('settings.keybindings', 'Alt+Shift+P K', 'settingsFocus'),
     record('editor.vim.toggle', 'Alt+Shift+E V'),
     record('palette.toggle', 'Ctrl+3'),
+    record('keyassist.toggle', 'Ctrl+Shift+L'),
     record('search.toggle', 'Ctrl+H'),
     record('tabs.quickSwitch', 'Ctrl+E'),
     record('tabs.next', 'Ctrl+F6'),
