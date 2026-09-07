@@ -57,6 +57,7 @@
 
       // tabs：未命名 / 关闭确认 / 批量关闭确认 / 右键菜单
       'tabs.untitled': '未命名',
+      'tabs.image': '图片',
       'tabs.closeConfirm': '“{name}” 有未保存的修改，确定关闭？',
       'tabs.closeBatchConfirm': '有 {n} 个未保存的标签页，确定全部关闭？',
       'tabs.menuClose': '关闭',
@@ -226,6 +227,7 @@
 
       // tabs
       'tabs.untitled': 'Untitled',
+      'tabs.image': 'Image',
       'tabs.closeConfirm': 'Unsaved changes in "{name}". Close anyway?',
       'tabs.closeBatchConfirm': '{n} unsaved tabs. Close all?',
       'tabs.menuClose': 'Close',

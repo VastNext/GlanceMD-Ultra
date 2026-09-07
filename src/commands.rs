@@ -182,6 +182,28 @@ fn open_file(ctx: &CommandContext, p: &CommandPayload) {
     let Some(path) = p.path.clone().or_else(file_ops::pick_open_file) else {
         return;
     };
+    // 图片与 CLI 相对路径支持：统一转绝对路径；图片走空内容 + is_image 标记。
+    let path = std::path::absolute(&path)
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or(path);
+    if file_ops::is_image_path(&path) {
+        if let Err(e) = std::fs::metadata(&path) {
+            ipc::send_to_js(
+                ctx.webview,
+                "error",
+                &json!({"message": format!("Failed to open file: {e}")}),
+            );
+            return;
+        }
+        ipc::send_to_js(
+            ctx.webview,
+            "file_opened",
+            &json!({"content": "", "path": path, "is_image": true}),
+        );
+        ctx.window.set_minimized(false);
+        ctx.window.set_focus();
+        return;
+    }
     match std::fs::read(&path)
         .and_then(|b| file_codec::read_text(&b).map_err(|e| std::io::Error::other(e.to_string())))
     {
