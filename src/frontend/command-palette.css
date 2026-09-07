@@ -1,0 +1,1 @@
+.command-palette{top:18vh;left:50%;transform:translateX(-50%);width:min(620px,calc(100vw - 40px));max-height:60vh;overflow:auto}.command-palette input{display:block;margin-bottom:8px}.palette-item.active{background:var(--heading-soft,#552477)}

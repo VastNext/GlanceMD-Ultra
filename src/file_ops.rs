@@ -38,6 +38,13 @@ pub fn pick_open_file() -> Option<String> {
         .map(|p| p.to_string_lossy().to_string())
 }
 
+pub fn pick_workspace_folder() -> Option<String> {
+    FileDialog::new()
+        .set_title("打开项目文件夹")
+        .pick_folder()
+        .map(|p| p.to_string_lossy().to_string())
+}
+
 pub fn pick_save_file() -> Option<String> {
     FileDialog::new()
         .add_filter("Markdown", &["md", "markdown"])

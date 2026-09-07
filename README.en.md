@@ -1,37 +1,55 @@
-# 🚀 GlanceMD
+# 🚀 GlanceMD Ultra
 
 <p align="center">
   <a href="README.md">简体中文</a> · <b>English</b>
 </p>
 
 <p align="center">
-  <a href="https://github.com/VastNext/GlanceMD/releases/latest"><img src="https://img.shields.io/github/v/release/VastNext/GlanceMD?style=flat-square&logo=github&color=a855f7" alt="release"></a>
+  <a href="https://github.com/VastNext/GlanceMD-Ultra/releases/latest"><img src="https://img.shields.io/github/v/release/VastNext/GlanceMD-Ultra?style=flat-square&logo=github&color=a855f7" alt="release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-ec4899?style=flat-square" alt="license"></a>
-  <a href="https://github.com/VastNext/GlanceMD/stargazers"><img src="https://img.shields.io/github/stars/VastNext/GlanceMD?style=flat-square&color=f59e0b" alt="stars"></a>
+  <a href="https://github.com/VastNext/GlanceMD-Ultra/stargazers"><img src="https://img.shields.io/github/stars/VastNext/GlanceMD-Ultra?style=flat-square&color=f59e0b" alt="stars"></a>
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6?style=flat-square" alt="platform">
   <img src="https://img.shields.io/badge/built%20with-Rust-DEA584?style=flat-square&logo=rust" alt="rust">
-  <img src="https://img.shields.io/github/last-commit/VastNext/GlanceMD?style=flat-square&color=8b5cf6" alt="last commit">
+  <img src="https://img.shields.io/github/last-commit/VastNext/GlanceMD-Ultra?style=flat-square&color=8b5cf6" alt="last commit">
 </p>
 
-A lightweight cross-platform markdown viewer and editor. It keeps the Notepad-fast startup and Obsidian-pretty rendering; the Windows build remains a single ~900 KB executable, while macOS and Linux use native packages.
+A **lightweight native workspace editor** for local Markdown and structured-text projects: project tree, file watching with conflict protection, full-text search, and a settings & keyboard-shortcut system. It evolves independently from the [GlanceMD](https://github.com/VastNext/GlanceMD) v1.6.3 snapshot while staying natively light — a 2–5 MB binary with no Electron/Monaco and no external runtime dependencies.
 
-Built with Rust and the system webview, with no Electron. Windows uses WebView2, macOS uses WebKit, and Linux uses WebKitGTK.
+Built with Rust and the system webview, with no Electron. Windows uses WebView2, macOS uses WebKit, and Linux uses WebKitGTK. Notepad-fast startup, Obsidian-pretty rendering.
 
-GlanceMD is deeply developed from the open-source project **[Peekdown](https://github.com/Mockitup/Peekdown)** (by Mockitup), with the preview typography theme from the **[Marco](https://github.com/Ranrar/Marco)** reader. See [Acknowledgments](#-acknowledgments).
+Project lineage: **[Peekdown](https://github.com/Mockitup/Peekdown)** (by Mockitup) → **GlanceMD** → **GlanceMD Ultra**, with the preview typography theme from the **[Marco](https://github.com/Ranrar/Marco)** reader. See [Acknowledgments](#-acknowledgments).
 
 <p align="center">
-  <img src="screenshot-preview.png" alt="GlanceMD preview (light theme)" width="820">
+  <img src="screenshot-preview.png" alt="GlanceMD Ultra preview (light theme)" width="820">
 </p>
 
 <p align="center">
-  <img src="screenshot-preview_dark.png" alt="GlanceMD preview (dark theme)" width="820">
+  <img src="screenshot-preview_dark.png" alt="GlanceMD Ultra preview (dark theme)" width="820">
 </p>
 
-## ✅ Features
+## 🧭 Current Workspace Capabilities in v0.1.0
+
+v0.1.0 includes the first usable workspace, sidebar, and settings capabilities. This is not a claim that the master implementation plan is complete; later stages are still being implemented.
+
+- **Workspace** 🌲 — open a local project directory, scan and lazy-load its tree, and open project files; the tree also provides create, rename, move, copy, delete, undo, reveal in the system file manager, and open in a terminal.
+- **Sidebars** 🧭 — show the project tree and Outline together; collapse panels, resize them by dragging, persist the layout, and place Outline on the left or right; locating the current file and the project search panel are available.
+- **Files and recovery** 🛡️ — file watching, external-change/conflict notifications, workspace recovery events, and the basic recovery UI are wired in; full cross-platform and abnormal-exit gates are not complete.
+- **Settings** ⚙️ — Settings v1 provides seven categories: Appearance, Files, Watching, Search, Editor, Keybindings, and Recovery. It supports global settings, project overrides in `.glancemd/settings.json`, settings search, Simplified Chinese/English language selection, themes, sidebar font size, Outline position, terminal settings, and opening the settings JSON.
+- **Keyboard shortcuts** ⌨️ — the current system is **basic shortcuts with limited customization**: single-stroke shortcut recording for available commands, conflict feedback, clear, restore-default, and persistence. v0.1.0 **does not include** chords, context bindings, multiple schemes, Key Assist, or Vim mode.
+
+These capabilities describe the current v0.1.0 worktree. Full workspace transactions, complete keyboard accessibility, cross-platform matrices, and the strong keyboard system remain planned and are not yet implemented.
+
+## 🧭 Future Workspace Work
+
+- **File watching and conflict protection** 🛡️ — complete external-change matrix, atomic saves, and crash recovery
+- **Full-text search** 🔍 — complete project-wide behavior and performance gates
+- **Settings and shortcuts** ⚙️ — complete command registration, contexts, chords, schemes, and keyboard assistance
+
+## ✅ Features (single-file editor baseline)
 
 - **Instant startup** ⚡ — native window, no framework overhead
 - **Live preview** 👀 — rendered markdown with full GFM support (tables, task lists, footnotes)
-- **Marco rendering** 🎨 — signature Astro/Space preview style: left-aligned gradient headings, full-width content and tables
+- **Marco rendering** 🎨 — left-aligned gradient headings, full-width content and tables
 - **Split view** ↔️ — side-by-side editor and preview with live sync (Ctrl+\\)
 - **Syntax highlighting** 🌈 — 30+ languages via highlight.js
 - **Multi-tab** 📑 — open multiple files, auto-hides tab bar for single files
@@ -46,7 +64,9 @@ GlanceMD is deeply developed from the open-source project **[Peekdown](https://g
 - **File associations** 📄 — use as default `.md` viewer via "Open With"
 - **Embedded frontend** 💾 — HTML, CSS and JavaScript are compiled into the native binary
 
-## ⌨️ Keyboard Shortcuts
+## ⌨️ Basic Keyboard Shortcuts (v0.1.0)
+
+The following are the currently available basic shortcuts. Customization is currently limited to recording single-stroke bindings; v0.1.0 does not include chords, contexts, multiple schemes, Key Assist, or Vim.
 
 | Shortcut | Action |
 |---|---|
@@ -72,17 +92,17 @@ Requires Rust and the target platform's webview development environment. Windows
 cargo build --release
 ```
 
-Windows output: `target/release/GlanceMD.exe`. GitHub Actions creates native macOS and Linux packages on their respective runners.
+Windows output: `target/release/GlanceMD-Ultra.exe`. GitHub Actions creates native macOS and Linux packages on their respective runners.
 
 ### 🚦 Release via GitHub Actions
 
 Push a `v*` tag to automatically build and publish a release:
 
 ```bash
-git tag v1.3.6 && git push origin v1.3.6
+git tag v0.1.0 && git push origin v0.1.0
 ```
 
-Release artifacts include Windows x64 EXE, unsigned Apple Silicon and Intel macOS DMGs, and Linux x64 DEB/AppImage packages.
+Release artifacts include the Windows x64 EXE (`GlanceMD-Ultra-windows-x64.exe`), unsigned Apple Silicon and Intel macOS DMGs, and Linux x64 DEB/AppImage packages.
 
 > macOS packages are not yet signed with Developer ID or notarized by Apple. The first launch may require manual approval in System Settings → Privacy & Security.
 
@@ -98,10 +118,11 @@ Release artifacts include Windows x64 EXE, unsigned Apple Silicon and Intel macO
 
 This project is built on top of, and deeply indebted to:
 
-- **[Peekdown](https://github.com/Mockitup/Peekdown)** (by Mockitup) — the project this fork originated from. Window management, file I/O, multi-tab architecture and the overall product shape all come from it
+- **[Peekdown](https://github.com/Mockitup/Peekdown)** (by Mockitup) — the origin of the project lineage. Window management, file I/O, multi-tab architecture and the overall product shape all come from it
+- **[GlanceMD](https://github.com/VastNext/GlanceMD)** (the lightweight single-file edition) — this project evolves independently from its v1.6.3 snapshot; the two repos grow separately and share kernel fixes both ways
 - **[Marco](https://github.com/Ranrar/Marco)** / [marco-core](https://github.com/Ranrar/marco-core) (by Kim Skov Rasmussen, MIT) — the preview typography theme is derived from Marco's Astro/Space theme: gradient headings, full-width layout, striped tables and more
 
-Thank you both for open-sourcing your work! 🚀
+Thank you all for open-sourcing your work! 🚀
 
 ## 📄 License
 

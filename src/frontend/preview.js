@@ -216,6 +216,24 @@ if (lightboxBackdrop) {
     }
   }, true);
 
+// 大文件跳过实时 Markdown 解析，避免切换预览/分栏时高耗时阻塞 UI。
+(function() {
+  var parse = marked.parse;
+  marked.parse = function(markdown) {
+    var sa = window.SettingsApply;
+    var limit = 5;
+    try {
+      var settings = sa && typeof sa.get === 'function' ? (sa.get() || {}) : {};
+      var mb = Number(settings.editor && settings.editor.largeFileMB);
+      if (isFinite(mb) && mb > 0) limit = mb;
+    } catch (e) {}
+    if (String(markdown || '').length > limit * 1024 * 1024) {
+      return '<p class="large-file-preview-disabled">实时预览已停用（文件超过大文件阈值）</p>';
+    }
+    return parse.call(marked, markdown);
+  };
+})();
+
 // Post-process: resolve local images via IPC
 function resolveLocalImages() {
   var tab = typeof TabManager !== 'undefined' ? TabManager.getActiveTab() : null;

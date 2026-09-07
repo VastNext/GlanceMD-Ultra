@@ -1,4 +1,5 @@
 :root {
+  color-scheme: dark; /* 原生控件（select/option 弹层、滚动条、日期等）跟随暗色 */
   --bg-base: #111113;
   --bg-surface: #18181b;
   --bg-raised: #1f1f23;
@@ -59,6 +60,7 @@
 
 /* Light theme — Catppuccin Latte inspired */
 [data-theme="light"] {
+  color-scheme: light; /* 原生控件弹层跟随浅色 */
   --bg-base: #eff1f5;
   --bg-surface: #e6e9ef;
   --bg-raised: #dce0e8;
@@ -269,6 +271,10 @@ body:not([data-platform="windows"]) #titlebar {
   height: 30px;
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border);
+}
+
+body:not(.has-tabs) #tab-bar-wrap {
+  display: none;
 }
 
 #tab-bar {
@@ -518,12 +524,55 @@ body.tab-drag-active .tab {
   border: none;
   padding: 28px 32px;
   font-family: var(--font-mono);
-  font-size: calc(13.5px * var(--zoom));
+  /* 字号/Tab 宽度由 settings-apply.js 写入 documentElement CSS 变量
+     （editor.fontSize / editor.tabSize），缺省值与基线一致（14px / 4） */
+  font-size: calc(var(--editor-font-size, 14px) * var(--zoom));
   line-height: 1.8;
   resize: none;
   outline: none;
-  tab-size: 4;
+  tab-size: var(--editor-tab-size, 4);
   caret-color: var(--mk-heading);
+  /* 自动换行（editor.wordWrap）：textarea 默认软换行；关闭时（wrap=off）
+     由 settings-apply.js 加 .wrap-off 类切到不换行 + 横向滚动 */
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+#editor.wrap-off {
+  white-space: pre;
+  overflow-x: auto;
+}
+
+/* ── 行号槽（editor.lineNumbers）：绝对定位覆盖编辑器左侧 padding 区，
+      与 #editor 同字体同行高（含 --zoom），scrollTop 由 settings-apply.js
+      同步；开启时编辑器左 padding 让出槽宽，关闭时随 .gutter-on 摘除 ── */
+#editor-gutter {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: var(--editor-gutter-width, 52px);
+  box-sizing: border-box;
+  padding: 28px 10px 28px 0;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border-subtle);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: calc(var(--editor-font-size, 14px) * var(--zoom));
+  line-height: 1.8;
+  text-align: right;
+  white-space: pre;
+  overflow: hidden;
+  user-select: none;
+  pointer-events: none;
+  z-index: 5;
+}
+
+#editor-container.gutter-on #editor-gutter { display: block; }
+
+#editor-container.gutter-on #editor {
+  padding-left: calc(32px + var(--editor-gutter-width, 52px));
 }
 
 #editor::placeholder {
@@ -593,34 +642,6 @@ body.split-mode #split-resize-handle { display: block; }
 
 body.split-resizing { cursor: col-resize !important; }
 body.split-resizing * { cursor: col-resize !important; }
-
-/* split 下隐藏预览右缘的内容列宽拖拽柄，避免与分界拖拽混淆 */
-body.split-mode #preview-resize-handle { display: none; }
-
-/* Preview resize handle */
-#preview-resize-handle {
-  position: absolute;
-  top: 0;
-  /* 完全落在容器内侧，避免越界部分撑出 #preview-container 的横向滚动条 */
-  right: 0;
-  width: 6px;
-  height: 100%;
-  cursor: col-resize;
-  background: transparent;
-  transition: background 0.15s;
-  z-index: 10;
-}
-
-#preview-resize-handle:hover,
-#preview-resize-handle.dragging {
-  background: var(--heading-gradient);
-  opacity: 0.4;
-  border-radius: 3px;
-}
-
-body.preview-resizing { cursor: col-resize !important; }
-body.preview-resizing * { cursor: col-resize !important; }
-body.preview-resizing #preview { user-select: none; }
 
 /* ── Marco 标题：左对齐 + 紫→粉渐变文字（marco 主题标志） ── */
 #preview h1, #preview h2, #preview h3,
@@ -1059,101 +1080,268 @@ body.preview-resizing #preview { user-select: none; }
 }
 
 /* ============================================
-   TABLE OF CONTENTS
+   WELCOME VIEW & RECENT FILES
    ============================================ */
-#toc-panel {
-  position: relative;
-  width: 0;
-  height: 100%;
-  background: var(--bg-surface);
-  border-right: 1px solid transparent;
-  overflow: hidden;
-  flex-shrink: 0;
-  transition: width 0.2s ease, border-color 0.2s ease;
-}
-
-#toc-panel.open {
-  width: var(--toc-width, 220px);
-  border-right-color: var(--border);
-  overflow-y: auto;
-}
-
-/* 拖拽中禁用宽度过渡，保证跟手 */
-body.toc-resizing #toc-panel { transition: none; }
-
-/* TOC 右缘拖拽调整宽度 */
-#toc-resize-handle {
+#welcome-view {
+  display: none;
   position: absolute;
-  top: 0;
-  right: 0;
-  width: 5px;
-  height: 100%;
-  cursor: col-resize;
-  background: transparent;
-  z-index: 20;
-  opacity: 0;
-  transition: opacity 0.15s;
+  inset: 0;
+  z-index: 25;
+  background: var(--editor-bg);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 48px 32px;
 }
 
-#toc-panel.open #toc-resize-handle { opacity: 1; }
-
-#toc-resize-handle:hover,
-#toc-resize-handle.dragging {
-  background: var(--heading-gradient);
-  opacity: 0.4;
-}
-
-body.toc-resizing { cursor: col-resize !important; }
-body.toc-resizing * { cursor: col-resize !important; }
-
-#toc-list {
+#welcome-view.visible {
   display: flex;
   flex-direction: column;
-  width: var(--toc-width, 220px);
+  align-items: center;
 }
 
-.toc-item {
-  padding: 4px 12px;
-  cursor: pointer;
-  color: var(--text-secondary);
-  font-family: var(--font-body);
-  font-size: 11.5px;
-  line-height: 1.4;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition: color 0.1s, background 0.1s;
+.welcome-container {
+  width: 100%;
+  max-width: min(860px, 92%);
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
 }
 
-.toc-item:hover {
-  color: var(--text);
-  background: rgba(128, 128, 128, 0.08);
+.welcome-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.toc-item.active {
+.welcome-title {
+  font-size: 26px;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.2;
   background: var(--heading-gradient);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+  display: inline-block;
+  font-family: var(--mk-body-font);
 }
 
-.toc-h1 { padding-left: 12px; font-weight: 600; }
-.toc-h2 { padding-left: 24px; }
-.toc-h3 { padding-left: 36px; font-size: 11px; }
-.toc-h4 { padding-left: 48px; font-size: 11px; color: var(--text-dim); }
-.toc-h5 { padding-left: 56px; font-size: 10.5px; color: var(--text-dim); }
-.toc-h6 { padding-left: 64px; font-size: 10.5px; color: var(--text-dim); }
-
-.toc-empty {
-  padding: 12px;
+.welcome-subtitle {
+  font-size: 13px;
   color: var(--text-dim);
+  margin: 0;
+  font-family: var(--font-body);
+}
+
+.welcome-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.welcome-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  flex: 1 1 200px;
+  max-width: 270px;
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.welcome-btn:hover {
+  background: var(--bg-raised);
+  border-color: var(--mk-heading);
+}
+
+.welcome-btn:active {
+  transform: translateY(1px);
+}
+
+.welcome-btn svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--mk-heading);
+}
+
+.welcome-btn-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.welcome-btn-primary {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.welcome-btn-shortcut {
   font-size: 11px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+.welcome-recent-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.welcome-recent-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 8px;
+}
+
+.welcome-tabs {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  gap: 2px;
+}
+
+.welcome-tab {
+  height: 26px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-family: var(--font-body);
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.14s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.welcome-tab:hover {
+  color: var(--text);
+}
+
+.welcome-tab.active {
+  background: var(--bg-surface, var(--bg-raised));
+  color: var(--mk-heading);
+  font-weight: 600;
+  border-color: rgba(168, 85, 247, 0.25);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="light"] .welcome-tabs {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: var(--border);
+}
+
+[data-theme="light"] .welcome-tab.active {
+  background: #ffffff;
+  color: var(--mk-heading);
+  border-color: rgba(168, 85, 247, 0.3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.welcome-tab-pane {
+  width: 100%;
+}
+
+.welcome-recent-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.welcome-recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.welcome-recent-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  background: var(--bg-surface);
+  border: 1px solid transparent;
+  transition: background 0.12s, border-color 0.12s;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.welcome-recent-item:hover {
+  background: var(--bg-raised);
+  border-color: var(--border);
+}
+
+.welcome-recent-item.is-current {
+  border-color: rgba(168, 85, 247, 0.35);
+}
+
+.welcome-recent-item .recent-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.welcome-recent-item .recent-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--heading-soft);
+  color: var(--mk-heading);
+}
+
+.welcome-recent-item .recent-path {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  flex: 1;
+  min-width: 0;
+}
+
+.welcome-recent-empty {
+  padding: 18px 0;
+  color: var(--text-dim);
+  font-size: 13px;
   font-style: italic;
 }
 
-/* ============================================
-   RECENT FILES
-   ============================================ */
 #recent-panel {
   display: none;
   position: absolute;
@@ -1378,9 +1566,11 @@ body.toc-resizing * { cursor: col-resize !important; }
 
 #editor-container.active { animation: fadeIn 0.12s ease; }
 #preview-container.active { animation: fadeIn 0.15s ease; }
+
 #image-container.active { animation: fadeIn 0.15s ease; }
 
-/* ============================================
+/* 
+=====================================
    MERMAID CHARTS
    ============================================ */
 .mermaid-block {
@@ -1631,4 +1821,313 @@ body.toc-resizing * { cursor: col-resize !important; }
   opacity: 0.35;
   cursor: not-allowed;
   pointer-events: none;
+=======
+
+/* ============================================
+   WORKSPACE LAYOUT — 三栏骨架（阶段 1）
+   对照：docs/design/01-project-tree.html 与 docs/design/index.html 的
+   "新增 token 登记表"。本 section 仅追加，不修改上方既有规则；
+   面板折叠/拖宽/持久化行为由 src/frontend/layout.js（window.LayoutUI）驱动。
+   ============================================ */
+
+/* ── 设计稿新增 token（登记表摘录；--hover-* 两主题同值，树底色明暗各一套）── */
+:root {
+  --tree-font-size: 14px;
+  --tree-icon-size: 20px;
+  --tree-caret-size: 14px;
+  --tree-row-height: 32px;
+  --tree-gap: 8px;
+  --tree-indent: 16px;
+  --tree-selected-bg: rgba(168, 85, 247, 0.14); /* 多选行底色 */
+  --tree-active-bg: rgba(168, 85, 247, 0.28);   /* 激活行底色 */
+  --hover-bg: rgba(128, 128, 128, 0.08);        /* 行/按钮通用悬停底 */
+  --hover-strong: rgba(128, 128, 128, 0.1);     /* 按钮悬停底 */
+}
+
+[data-theme="light"] {
+  --tree-selected-bg: rgba(168, 85, 247, 0.12);
+  --tree-active-bg: rgba(168, 85, 247, 0.18);
+}
+
+/* ── 中央编辑列：既有 toolbar/tabs/editor/preview/split DOM 的包裹层。
+    不设 position —— #navigation-fallback 的 absolute 继续相对 #content 定位 ── */
+#editor-column {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  order: 3;
+}
+
+/* ── 侧面板（#panel-tree / #panel-outline）：默认 264px，可在编辑区保留
+    最小可见宽度（80px）的前提下自由拖宽，无额外比例或固定像素上限 ── */
+.workspace-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 264px;
+  background: var(--bg-surface);
+  overflow: hidden;
+  transition: width 0.15s ease;
+}
+
+#panel-tree {
+  order: 1;
+  border-right: 1px solid var(--border);
+}
+
+#panel-tree-resizer {
+  order: 2;
+}
+
+#panel-outline-resizer {
+  order: 4;
+}
+
+#panel-outline {
+  order: 5;
+  border-left: 1px solid var(--border);
+  border-right: none;
+  display: none;
+}
+
+#panel-outline.open {
+  display: flex;
+}
+
+/* ── 当 outlineSide="left" 时：Outline 位于资源管理器右侧（Tree | tree-resizer | Outline | outline-resizer | Editor） ── */
+[data-outline-side="left"] #panel-tree,
+#content[data-outline-side="left"] #panel-tree {
+  order: 1;
+}
+
+[data-outline-side="left"] #panel-tree-resizer,
+#content[data-outline-side="left"] #panel-tree-resizer {
+  order: 2;
+}
+
+[data-outline-side="left"] #panel-outline,
+#content[data-outline-side="left"] #panel-outline {
+  order: 3;
+  border-right: 1px solid var(--border);
+  border-left: none;
+}
+
+[data-outline-side="left"] #panel-outline-resizer,
+#content[data-outline-side="left"] #panel-outline-resizer {
+  order: 4;
+}
+
+[data-outline-side="left"] #editor-column,
+#content[data-outline-side="left"] #editor-column {
+  order: 5;
+}
+
+[data-outline-side="left"] #panel-outline-collapse svg,
+#content[data-outline-side="left"] #panel-outline-collapse svg {
+  transform: scaleX(-1);
+}
+
+/* 拖宽中禁用宽度过渡，保证跟手（惯例同 toc-resizing / split-resizing） */
+body.panel-resizing .workspace-panel { transition: none; }
+body.panel-resizing { cursor: col-resize !important; }
+body.panel-resizing * { cursor: col-resize !important; }
+
+/* ── 面板头部：标题 + 折叠按钮（样式对照设计稿 .panel-head / .p-btn）── */
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 6px 0 12px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.panel-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* 侧栏基准字号（appearance.sidebarFontSize → --panel-font-size，settings-apply.js 写入）：
+     11/14 ≈ 0.786，取 0.79（默认 14px 时 = 11.06px，视觉 ≈ 基线 11px） */
+  font-size: calc(var(--panel-font-size, 14px) * 0.79);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.panel-btn,
+.panel-head .panel-btn,
+#panel-tree .panel-head .panel-btn,
+#panel-outline .panel-head .panel-btn {
+  width: 28px;
+  height: 24px;
+  min-width: 28px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.12s ease;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.panel-btn:hover,
+.panel-head .panel-btn:hover,
+#panel-tree .panel-head .panel-btn:hover,
+#panel-outline .panel-head .panel-btn:hover {
+  color: var(--text);
+  background: var(--hover-bg, var(--bg-overlay));
+  border-color: var(--border-subtle);
+}
+
+.panel-btn.disabled,
+.panel-head .panel-btn.disabled,
+#panel-tree .panel-head .panel-btn.disabled,
+#panel-outline .panel-head .panel-btn.disabled {
+  color: var(--text-dim);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.panel-btn.disabled:hover,
+.panel-head .panel-btn.disabled:hover,
+#panel-tree .panel-head .panel-btn.disabled:hover,
+#panel-outline .panel-head .panel-btn.disabled:hover {
+  color: var(--text-dim);
+  opacity: 0.5;
+  background: transparent;
+  border-color: transparent;
+}
+
+.panel-btn:focus-visible,
+.panel-head .panel-btn:focus-visible,
+#panel-tree .panel-head .panel-btn:focus-visible,
+#panel-outline .panel-head .panel-btn:focus-visible {
+  outline: 2px solid var(--mk-heading);
+  outline-offset: 1px;
+}
+
+.panel-btn svg,
+.panel-head .panel-btn svg,
+#panel-tree .panel-head .panel-btn svg,
+#panel-outline .panel-head .panel-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* 定位按钮点击 1s 紫粉高亮动画反馈 */
+@keyframes panel-btn-locate-flash {
+  0% {
+    color: #ffffff;
+    background: var(--heading-gradient);
+    border-color: rgba(168, 85, 247, 0.4);
+    box-shadow: 0 0 8px rgba(168, 85, 247, 0.4);
+  }
+  100% {
+    color: var(--text-secondary);
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+  }
+}
+
+#project-tree-reveal.flashing,
+#project-tree-reveal:active {
+  animation: panel-btn-locate-flash 1s ease-out;
+}
+
+/* ── 面板主体与空态 ── */
+.panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.panel-empty {
+  padding: 12px;
+  color: var(--text-dim);
+  /* 侧栏基准字号比例：12/14 ≈ 0.857，取 0.86（默认 14px 时 = 12.04px，视觉 ≈ 基线 12px） */
+  font-size: calc(var(--panel-font-size, 14px) * 0.86);
+  font-style: italic;
+}
+
+/* ── 拖宽手柄：5px，默认透明，悬停/拖拽显示渐变（同 split/toc 手柄惯例）── */
+.panel-resizer {
+  width: 5px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 20;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.panel-resizer:hover,
+.panel-resizer.dragging {
+  background: var(--heading-gradient);
+  opacity: 0.4;
+}
+
+/* ── 折叠态：36px 窄条 + 竖排展开按钮（对照设计稿折叠形态）。
+    !important 覆盖 JS 写入的 inline width；展开时摘掉类即恢复原宽度 ── */
+.workspace-panel.collapsed { width: 36px !important; }
+
+.workspace-panel.collapsed .panel-head,
+.workspace-panel.collapsed .panel-body { display: none; }
+
+.panel-expand-btn {
+  display: none;
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  writing-mode: vertical-rl;
+  padding: 10px 2px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--heading-glow);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 10.5px;
+  letter-spacing: 0.2em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.panel-expand-btn:hover { color: var(--mk-heading); }
+
+.workspace-panel.collapsed .panel-expand-btn { display: inline-flex; }
+
+/* ── 侧栏字号（appearance.sidebarFontSize → --panel-font-size，settings-apply.js 写入）。
+    .tree-row / .outline-item 的本体规则在 project-tree.css / outline.css（装载晚于
+    本文件，同特异性会覆盖这里），故用面板 id 提升特异性在级联中胜出；
+    本文件保持零改动面板文件的边界。
+    比例换算：13/14 ≈ 0.929，取 0.93（默认 14px 时 = 13.02px，视觉 ≈ 基线 13px） ── */
+#panel-tree .tree-row {
+  font-size: var(--tree-font-size, 14px);
+}
+
+#panel-outline .outline-item {
+  font-size: var(--tree-font-size, 14px);
+}
+
+#panel-outline .panel-expand-btn {
+  display: none !important;
+
 }

@@ -9,8 +9,8 @@
 use std::thread;
 use std::time::Duration;
 
-const MUTEX_NAME: &str = "Local\\GlanceMD.SingleInstance.v1";
-const PIPE_NAME: &str = r"\\.\pipe\glancemd.openfile.v1";
+const MUTEX_NAME: &str = "Local\\GlanceMD-Ultra.SingleInstance.v1";
+const PIPE_NAME: &str = r"\\.\pipe\glancemd-ultra.openfile.v1";
 
 const ERROR_ALREADY_EXISTS: u32 = 183;
 const ERROR_BROKEN_PIPE: u32 = 109;

@@ -1,7 +1,7 @@
 # GlanceMD Ultra 工作区实施计划
 
 - 日期：2026-09-04
-- 状态：待执行（按阶段推进，每阶段独立验收）
+- 状态：执行中（阶段 5 设置与快捷键 Wave 2a；按阶段推进，每阶段独立验收）
 - 仓库：`VastNext/GlanceMD-Ultra`（私有），基线为 GlanceMD v1.6.3 快照
 - 输入文档（按 `naming-and-planning-readiness.md` §4 的优先级）：
   1. `reports/2026-08-29-目录项目管理功能影响评估-096d/naming-and-planning-readiness.md`
@@ -37,7 +37,7 @@
 ### 0.3 工程约定（继承自 AGENTS.md）
 
 - 分支 `feat/<主题>` / `fix/<主题>` / `chore/<主题>`；Conventional Commits，中文描述。
-- 合入 main 门禁：`cargo test`、`cargo fmt --check`、四平台 CI Build 全绿；UI 改动需明暗双主题截图验证。
+- 合入 main 门禁：`cargo test`、`cargo fmt --check`、Playwright 冒烟套件全绿（自阶段 0 建立后）、四平台 CI Build 全绿；UI 改动需明暗双主题截图验证。
 - 打 tag 即发布（`release.yml`）；tag 必须与 `Cargo.toml` 版本一致。
 - JS 继续 IIFE 模块化；不引入前端构建链与 npm 依赖。
 - Rust 体积配置保持 `opt-level = "s"`、`lto = "fat"`、`panic = "abort"`、永不 strip 符号。
@@ -45,6 +45,10 @@
 ### 0.4 版本序列
 
 Ultra 采用独立 semver 序列：阶段 0–6 期间为 `0.x.0` 内部版本（tag 触发 Release 供内部验证），首个对外稳定版为 `v1.0.0`。
+
+### 0.5 平台优先级
+
+开发与日常验证以 **Windows 为主平台**：各阶段的功能开发、冲突矩阵与性能门禁先在 Windows 全量执行并作为进入下一阶段的门禁；macOS/Linux 的完整功能矩阵按 §4 风险表节奏在阶段 3 与阶段 7 两次执行，`v1.0.0` 发布前三平台矩阵必须全绿。各阶段交付的 Rust 层单元测试与前端冒烟套件本身跨平台可运行，用于提前暴露平台差异。
 
 ## 1. 目标架构（来自方案 §9，落地为本仓库目录）
 
@@ -87,7 +91,18 @@ src/
 
 每个阶段 = 独立分支 + 独立验收标准 + 回归清单 + 可发布的垂直切片。估算为单人串行。
 
-### 阶段 0：仓库身份与架构地基（1–2 周）
+### 回归自动化策略（贯穿各阶段）
+
+前端保持零依赖原则，测试基建同样不引入前端构建链与 npm 运行时依赖（Playwright 仅作为开发/CI 工具，不进产物）：
+
+- **分层**：
+  1. Rust 层：`cargo test` 单元/集成测试，承载文件操作、监听去抖、设置迁移、编码往返等逻辑主体的验证。
+  2. 前端冒烟：Playwright 驱动组装测试页（与 `main.rs::build_html` 相同的占位符拼接 + `window.ipc` mock）。用例随阶段累积——阶段 N 结束时，冒烟套件必须覆盖阶段 0–N 全部核心路径（打开/保存/tab/树/搜索/设置等）。
+  3. 人工专项：仅保留无法自动化的系统交互——明暗双主题视觉截图、原生对话框、回收站"还原"、资源管理器/Finder reveal、终端打开、真实 kill -9 恢复。
+- **节奏**：以下各阶段的"回归清单"自阶段 1 起按此执行——先跑累积冒烟套件，再执行本阶段人工专项；不再逐阶段人工重跑全部历史场景。
+- **CI 接入**：冒烟套件自阶段 1 起并入 `build.yml`（至少 Windows runner 执行，避免四平台矩阵成倍拉长耗时）；视觉截图对比仍以本地人工验证为准。
+
+### 阶段 0：仓库身份与架构地基（1–2 周；UI 设计基线可延展至阶段 1 前期并行收尾）
 
 **交付内容**
 
@@ -95,13 +110,16 @@ src/
    - Cargo package → `glancemd-ultra`；Windows 产物 → `GlanceMD-Ultra.exe`；配置目录 → `glancemd-ultra`
    - localStorage 前缀 → `glancemd-ultra-`；Bundle ID → `com.vastnext.glancemd-ultra`
    - `build.yml` / `release.yml` 产物命名与校验逻辑同步更新
-   - README / README.en / AGENTS.md / CLAUDE.md 改写为 Ultra 定位（"面向本地 Markdown 与结构化文本项目的轻量原生工作区编辑器"）
+   - README / README.en 改写为 Ultra 定位（"面向本地 Markdown 与结构化文本项目的轻量原生工作区编辑器"）；AGENTS.md 已完成 Ultra 化更新、CLAUDE.md 已废弃删除（见决策变更记录）
    - 版本号设为 `0.1.0`，打 tag `v0.1.0` 验证发布链路
 2. 命令注册表：Rust 与 JS 各建单一命令表，命令 ID 唯一；菜单、按钮、快捷键只引用命令 ID。将至少一个既有菜单动作（如"打开文件"）迁移到注册表以验证模式。
 3. Workspace IPC 通道与事件桥骨架：定义事件枚举与序列化格式，打通 Rust → JS 广播与 JS → Rust 命令两条链路。
 4. 可信项目根：`workspace::mod` 提供项目根规范化与路径边界校验工具函数（后续所有文件操作强制经过）。
 5. `platform/` 模块 trait 定义 + 三平台空实现（编译通过即可，行为在阶段 3 填充）。
-6. 清理仓库遗留：README 截图、screenshot 文案中与旧品牌相关的部分随身份重命名一并处理；`reports/` 与 `docs/` 保留作为决策档案。
+6. 清理仓库遗留：README 截图、screenshot 文案中与旧品牌相关的部分随身份重命名一并处理；`docs/PLAN.md` 已归档至 `docs/archive/PLAN.md`，`reports/` 与 `docs/` 其余部分保留作为决策与研究档案。
+7. 测试与设计基建：
+   - Playwright 冒烟框架：组装测试页 + `window.ipc` mock + 首批用例（新建/打开/保存/tab 切换/主题切换/拖放），覆盖既有单文件功能核心路径。
+   - UI 设计基线：延续既有紫粉渐变设计语言，产出项目树/Outline/欢迎页/冲突横幅/搜索面板/设置页的静态 HTML 设计稿（明暗双主题），存入 `docs/design/`，作为后续阶段 UI 实现与截图验收的对照基准。
 
 **垂直切片**：CLI 传入目录 → Rust 打开 Workspace → 前端收到 `workspace:opened` 与 `workspace:scan-progress` 事件（UI 上先以状态栏文字呈现，无树 UI）。
 
@@ -110,7 +128,8 @@ src/
 - `cargo build --release` 产物为 `GlanceMD-Ultra.exe`，体积 ≤ 5 MB。
 - 四平台 CI 绿；`v0.1.0` tag 触发 `release.yml` 产出五件套（产物名已更新）。
 - 命令注册表迁移后的菜单动作行为与迁移前一致。
-- 既有单文件功能（打开/保存/tab/主题/拖放）回归通过。
+- 既有单文件功能（打开/保存/tab/主题/拖放）回归通过，且已沉淀为 Playwright 冒烟首批用例并本地全绿。
+- UI 设计基线稿经维护者确认并入库 `docs/design/`。
 
 **回归清单**：`cargo test` 全量；手动：新建/打开/保存/tab 切换/暗色主题/拖放文件到窗口。
 
@@ -152,7 +171,7 @@ src/
 - `workspace:watcher-error` 事件与 UI 提示。
 - "暂停文件监听"命令（如排期紧张可移至阶段 5 随命令面板交付）。
 
-**验收标准**：冲突矩阵全绿——{clean, dirty} × {外部修改, 外部删除, 外部移动, 自身保存} × {Windows, macOS, Linux}；任何组合下不出现静默数据丢失；去抖单元测试覆盖事件风暴场景（1s 内 100 次同文件写入只触发一次重载）。
+**验收标准**：冲突矩阵全绿——{clean, dirty} × {外部修改, 外部删除, 外部移动, 自身保存}。矩阵先在主开发平台 Windows 全量执行并作为进入阶段 3 的门禁，macOS/Linux 两列按 §0.5 节奏在阶段 3 与阶段 7 复跑补齐；任何组合下不出现静默数据丢失；去抖单元测试覆盖事件风暴场景（1s 内 100 次同文件写入只触发一次重载）。
 
 **回归清单**：阶段 1 全部；重点回归自身保存不触发自动重载循环。
 
@@ -188,7 +207,13 @@ src/
 
 **回归清单**：搜索结果打开的文件若已被外部删除（阶段 2 场景），不得崩溃。
 
-### 阶段 5：设置与快捷键（2–3 周）
+### 阶段 5：设置与快捷键（2–3 周；执行中）
+
+**当前状态（2026-09-06，v0.1.0，Wave 2a）**：设置 schema v1、七类设置 UI、设置搜索、全局/项目覆盖、项目树与 Outline 侧栏布局、快捷键编辑器、语言/主题接线及设置 v2 视觉基线已落地。工作区当前可打开项目目录并使用项目树进行文件浏览与基础文件操作（新建、重命名、移动、复制、删除、撤销、系统文件管理器 reveal、终端打开），并提供 Outline、项目级搜索、文件监听/冲突提示及基础恢复 UI。此处仅记录 v0.1.0 当前实现，不代表本计划完成；完整监听/恢复、跨平台矩阵、全工作区事务和发布门禁仍未完成。
+
+当前快捷键仅为**基础快捷键/有限自定义**：可对现有单段快捷键进行录制、冲突提示、清除、恢复默认和持久化。v0.1.0 明确不含 chord、context、多键位方案（multi-scheme）、Key Assist 或 Vim。`docs/design/prototypes/settings-sidebar-v2.html` 仅作为视觉/交互基线，schema 七类保持不变；custom select、密度公式、动态宽度与 420px 编辑器下限的批准规则记录于 `docs/dev/contracts/settings.md` §8。独立 overlay 与产品 custom select DOM 尚未接入，不在本轮测试中假造接口。
+
+**强快捷键方向（仅评估，全部尚未实施）**：用户最终确认采用 Eclipse 式架构与导航语义，首装默认启用 Eclipse scheme，同时提供完整 VS Code scheme；所有公开命令都必须有默认键。Eclipse 键位包括 `Ctrl+O` Quick Outline、`Ctrl+Shift+S` Save All、`Ctrl+E` Quick Switch、`Ctrl+H` Search、`Ctrl+3` Find Actions。Ultra 扩展包括 `Alt+Shift+F O` 打开文件、`Alt+Shift+F P` 打开项目、`Alt+Shift+S` 另存为、`Alt+Shift+P` 打开设置、设置内 `Alt+Shift+P K` 进入快捷键页、`Alt+Shift+E V` 切换 Vim。Vim 属于编辑器层，首版目标为常用完整集。该方向的完整测试门禁预计 **398–588 项**；上述强快捷键系统、scheme、chord、context、Key Assist、Vim 及对应测试目前全部尚未实施。
 
 **交付内容**（`settings.rs` + `settings.js` + `keybindings.js` + `command-palette.js`）
 
@@ -248,7 +273,7 @@ src/
 | 双仓库编辑内核漂移（独立仓库新引入） | `[sync]` 提交标注纪律；同一文件双修 ≥3 次/月时启动共享 crate 提取评估（ADR 0001） |
 | 产品边界失控（滑向 IDE） | 每阶段结束对照方案 §13 非目标清单审查新增需求 |
 | 10k 文件性能不达标 | 阶段 1 门禁未过不得锁定 watcher/search 选型 |
-| 数据丢失（监听×dirty×保存×恢复组合） | 阶段 2 冲突矩阵、阶段 6 原子保存重验、kill -9 恢复测试为发布硬门禁 |
+| 数据丢失（监听×dirty×保存×恢复组合） | 阶段 2 冲突矩阵（Windows 先行，阶段 3/7 三平台复跑）、阶段 6 原子保存重验、kill -9 恢复测试为发布硬门禁 |
 | UI 拥挤（双栏 + split 在 1024px） | 阶段 1 交付最小宽度/折叠约束，不后补 |
 | 跨平台差异（回收站/reveal/终端/事件语义） | `platform/` trait 隔离；三平台矩阵在阶段 3 与 7 两次执行 |
 
@@ -258,7 +283,10 @@ src/
 2. 命令注册表 + Workspace IPC 事件桥骨架 PR（含"打开文件"动作迁移验证）。
 3. 可信项目根与路径边界工具函数（附单元测试）。
 4. 准备 10k 文件真实测试目录（生成脚本入库 `tools/gen-test-tree.py`），供阶段 1 门禁使用。
+5. 搭建 Playwright 冒烟框架与首批用例（组装测试页 + `window.ipc` mock）。
+6. UI 设计基线稿（`docs/design/`，明暗双主题），供阶段 1 开工前确认。
 
 ## 决策变更记录
 
 - 2026-09-04：建立本计划。产品结构与调研建议的偏离（独立仓库）见 `docs/adr/0001-glancemd-ultra-独立仓库.md`。
+- 2026-09-04（计划补强）：新增回归自动化策略（§2）与平台优先级（§0.5）；阶段 0 增加测试与设计基建交付（Playwright 冒烟框架、UI 设计基线）；冲突矩阵调整为 Windows 先行、三平台按 §0.5 节奏补齐。配套文档动作：`CLAUDE.md` 废弃删除、`docs/PLAN.md` 归档至 `docs/archive/`、`AGENTS.md` 完成 Ultra 化更新。

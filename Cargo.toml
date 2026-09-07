@@ -1,11 +1,11 @@
 [package]
-name = "glancemd"
-version = "1.6.3"
+name = "glancemd-ultra"
+version = "0.1.0"
 edition = "2021"
 
-# 产物名与仓库名保持一致：GlanceMD.exe
+# 产物名与仓库名保持一致：GlanceMD-Ultra.exe
 [[bin]]
-name = "GlanceMD"
+name = "GlanceMD-Ultra"
 path = "src/main.rs"
 
 [dependencies]
@@ -17,6 +17,8 @@ rfd = "0.15"
 dirs = "6"
 percent-encoding = "2"
 png = "0.17"
+notify = "7"
+trash = "5"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 webview2-com = "0.35"
@@ -36,10 +38,10 @@ panic = "abort"
 strip = "none"
 
 [package.metadata.packager]
-product-name = "GlanceMD"
-identifier = "com.vastnext.glancemd"
-description = "轻量级跨平台 Markdown 查看器与编辑器"
-homepage = "https://github.com/VastNext/GlanceMD"
+product-name = "GlanceMD-Ultra"
+identifier = "com.vastnext.glancemd-ultra"
+description = "面向本地 Markdown 与结构化文本项目的轻量原生工作区编辑器"
+homepage = "https://github.com/VastNext/GlanceMD-Ultra"
 authors = ["VastNext"]
 category = "Utility"
 license-file = "LICENSE"

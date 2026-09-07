@@ -1,46 +1,55 @@
-# 🚀 GlanceMD
+# 🚀 GlanceMD Ultra
 
 <p align="center">
   <b>简体中文</b> · <a href="README.en.md">English</a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/VastNext/GlanceMD/releases/latest"><img src="https://img.shields.io/github/v/release/VastNext/GlanceMD?style=flat-square&logo=github&color=a855f7" alt="release"></a>
+  <a href="https://github.com/VastNext/GlanceMD-Ultra/releases/latest"><img src="https://img.shields.io/github/v/release/VastNext/GlanceMD-Ultra?style=flat-square&logo=github&color=a855f7" alt="release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-ec4899?style=flat-square" alt="license"></a>
-  <a href="https://github.com/VastNext/GlanceMD/stargazers"><img src="https://img.shields.io/github/stars/VastNext/GlanceMD?style=flat-square&color=f59e0b" alt="stars"></a>
+  <a href="https://github.com/VastNext/GlanceMD-Ultra/stargazers"><img src="https://img.shields.io/github/stars/VastNext/GlanceMD-Ultra?style=flat-square&color=f59e0b" alt="stars"></a>
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6?style=flat-square" alt="platform">
   <img src="https://img.shields.io/badge/built%20with-Rust-DEA584?style=flat-square&logo=rust" alt="rust">
-  <img src="https://img.shields.io/github/last-commit/VastNext/GlanceMD?style=flat-square&color=8b5cf6" alt="last commit">
+  <img src="https://img.shields.io/github/last-commit/VastNext/GlanceMD-Ultra?style=flat-square&color=8b5cf6" alt="last commit">
 </p>
 
-一款轻量级的跨平台 Markdown 查看器与编辑器。启动速度媲美记事本，渲染效果媲美 Obsidian。Windows 版本保持约 900 KB 的单文件可执行程序，macOS 与 Linux 提供系统原生软件包。
+一款面向本地 Markdown 与结构化文本项目的**轻量原生工作区编辑器**：项目树、文件监听与冲突保护、全文搜索、设置与快捷键体系。基于 [GlanceMD](https://github.com/VastNext/GlanceMD) v1.6.3 快照独立演进，保持原生轻量——二进制 2–5 MB，无 Electron/Monaco、无外部运行时依赖。
 
-使用 Rust + 系统 WebView 构建，不含 Electron。Windows 使用 WebView2，macOS 使用系统 WebKit，Linux 使用 WebKitGTK。
+使用 Rust + 系统 WebView 构建，不含 Electron。Windows 使用 WebView2，macOS 使用系统 WebKit，Linux 使用 WebKitGTK。启动速度媲美记事本，渲染效果媲美 Obsidian。
 
-本项目基于开源项目 **[Peekdown](https://github.com/Mockitup/Peekdown)**（by Mockitup）深度开发而来，并采用 **[Marco](https://github.com/Ranrar/Marco)** 阅读器的排版主题。详见[致谢](#-致谢)。
+本项目的历史血脉：**[Peekdown](https://github.com/Mockitup/Peekdown)**（by Mockitup）→ **GlanceMD** → **GlanceMD Ultra**，并采用 **[Marco](https://github.com/Ranrar/Marco)** 阅读器的排版主题。详见[致谢](#-致谢)。
 
 <p align="center">
-  <img src="screenshot-preview.png" alt="GlanceMD 预览（浅色主题）" width="820">
+  <img src="screenshot-preview.png" alt="GlanceMD Ultra 预览（浅色主题）" width="820">
 </p>
 
 <p align="center">
-  <img src="screenshot-preview_dark.png" alt="GlanceMD 预览（深色主题）" width="820">
+  <img src="screenshot-preview_dark.png" alt="GlanceMD Ultra 预览（深色主题）" width="820">
 </p>
 
-## 🎨 默认 Marco 排版
+## 🧭 v0.1.0 当前工作区能力
 
-默认采用 **Marco / Polo** 阅读器的 Marco 排版风格（Astro/Space 主题）：
+v0.1.0 已包含工作区、侧栏和设置的首批可用能力，但这不是主实施计划的完成声明，后续阶段仍在实施中。
 
-- **标题居左对齐**，带紫→粉渐变配色（`#a855f7 → #ec4899`）✨
-- **内容铺满整个屏幕**，不再受固定宽度限制 📐
-- **表格铺满全宽**，斑马纹 + 行悬停高亮
-- 无衬线字体（Segoe UI），16px / 1.6 行高，阅读舒适
-- 代码块带边框圆角与**语言标签**，深色/浅色两套配色自动适配 🌙/☀️
+- **工作区** 🌲 — 可打开本地项目目录，扫描并懒加载项目树；支持项目内文件打开、树内新建/重命名/移动/复制/删除、撤销、在系统文件管理器中显示及在终端中打开。
+- **侧栏** 🧭 — 项目树与 Outline 可同时显示；支持折叠、拖动调整宽度、持久化布局，以及将 Outline 放在左侧或右侧；支持定位当前文件和项目级搜索面板。
+- **文件与恢复** 🛡️ — 已接入文件监听、外部变更提示/冲突处理、恢复相关工作区事件与基础恢复 UI；完整跨平台与异常退出门禁仍未完成。
+- **设置** ⚙️ — 设置 v1 提供外观、文件、监听、搜索、编辑器、快捷键、恢复七类设置；支持全局设置、`.glancemd/settings.json` 项目覆盖、设置搜索、语言（简体中文/English）、主题、侧栏字号、Outline 位置、终端和设置 JSON 入口。
+- **快捷键** ⌨️ — 当前是**基础快捷键/有限自定义**：支持已提供命令的单段快捷键录制、冲突提示、清除、恢复默认和持久化。v0.1.0 **不包含** chord、多上下文绑定（context）、多键位方案（multi-scheme）、Key Assist 或 Vim 模式。
 
-## ✅ 功能特性
+以上能力以当前 v0.1.0 工作树为准；尚未实施的完整工作区事务、全键盘可达性、跨平台矩阵和强快捷键系统仍属于计划内容。
+
+## 🧭 后续工作区计划
+
+- **文件监听与冲突保护** 🛡️ — 完整外部修改矩阵、原子保存与崩溃恢复
+- **全文搜索** 🔍 — 完整项目级搜索与性能门禁
+- **设置与快捷键** ⚙️ — 完整命令注册、上下文、chord、键位方案与键盘辅助
+
+## ✅ 功能特性（单文件编辑器基线）
 
 - **极速启动** ⚡ — 原生窗口，无框架开销
 - **实时预览** 👀 — 完整 GFM 支持（表格、任务列表、脚注）
+- **Marco 排版** 🎨 — 标题居左对齐，带紫→粉渐变配色（`#a855f7 → #ec4899`），内容与表格铺满全宽
 - **分屏模式** ↔️ — 编辑器与预览并排，实时同步（Ctrl+\）
 - **语法高亮** 🌈 — 30+ 种语言（highlight.js）
 - **多标签页** 📑 — 打开多个文件，单文件时自动隐藏标签栏
@@ -55,7 +64,9 @@
 - **文件关联** 📄 — 通过"打开方式"设为默认 `.md` 查看器
 - **单文件可执行** 💾 — 所有资源内嵌，无需安装
 
-## ⌨️ 键盘快捷键
+## ⌨️ 基础键盘快捷键（v0.1.0）
+
+以下是当前已提供的基础快捷键。快捷键自定义目前是有限的单段录制能力；v0.1.0 不含 chord、context、多键位方案、Key Assist 或 Vim。
 
 | 快捷键 | 功能 |
 |---|---|
@@ -81,19 +92,19 @@
 cargo build --release
 ```
 
-Windows 输出：`target/release/GlanceMD.exe`。macOS 与 Linux 正式产物由 GitHub Actions 在对应系统的原生 Runner 上构建。
+Windows 输出：`target/release/GlanceMD-Ultra.exe`。macOS 与 Linux 正式产物由 GitHub Actions 在对应系统的原生 Runner 上构建。
 
 ### 🚦 GitHub Actions 发布
 
 推送 `v*` 标签即自动构建并发布 Release：
 
 ```bash
-git tag v1.3.6 && git push origin v1.3.6
+git tag v0.1.0 && git push origin v0.1.0
 ```
 
 发布产物：
 
-- Windows x64：`GlanceMD-windows-x64.exe`
+- Windows x64：`GlanceMD-Ultra-windows-x64.exe`
 - macOS：Apple Silicon 与 Intel 的未签名 `.dmg`
 - Linux x64：`.deb` 与 `.AppImage`
 
@@ -111,10 +122,11 @@ git tag v1.3.6 && git push origin v1.3.6
 
 本项目基于以下开源项目构建，并从中汲取了大量养分：
 
-- **[Peekdown](https://github.com/Mockitup/Peekdown)**（by Mockitup）— 本项目的前身。窗口管理、文件 I/O、多标签架构与整体产品形态均源自它
+- **[Peekdown](https://github.com/Mockitup/Peekdown)**（by Mockitup）— 历史血脉的起点。窗口管理、文件 I/O、多标签架构与整体产品形态均源自它
+- **[GlanceMD](https://github.com/VastNext/GlanceMD)**（单文件轻量版）— 本项目基于其 v1.6.3 快照独立演进；两仓库保持独立发展，共同拥有的编辑内核缺陷修复双向同步
 - **[Marco](https://github.com/Ranrar/Marco)** / [marco-core](https://github.com/Ranrar/marco-core)（by Kim Skov Rasmussen，MIT）— 预览排版主题来自 Marco 的 Astro/Space 主题：渐变标题、铺满全屏、表格斑马纹等
 
-感谢两位作者的开源精神！🚀
+感谢各位作者的开源精神！🚀
 
 ## 📄 许可证
 

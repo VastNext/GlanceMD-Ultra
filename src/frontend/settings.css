@@ -1,0 +1,913 @@
+/* 设置面板（settings.js 渲染的 #settings-panel）—— 全量重写。
+ *
+ * 视觉基线：docs/design/prototypes/settings-sidebar-v2.html (Quiet Technical Layers)
+ * - 表面阶梯：Overlay fixed 居中遮罩 (毛玻璃 blur 3px)，Modal 对话框落在 --bg-surface / --bg-raised，输入件上探一层 --bg-overlay；
+ * - 1px hairline：外框 --border，分区内部分隔与设置行分隔用更浅的 --border-subtle；
+ * - 尺寸基线：默认 880x640px，最小 760x520px，最大限制在视口 95vw/92vh 内；
+ * - 自定义 Select：单例弹出层、暗色纯净无白边、亮色浅紫底深色字紫色对勾、键盘与视口翻转；
+ * - 字阶与间距：标题 14–15px，导航与标签 12.5–13px，说明与徽标 11–12px；
+ * - 明暗主题 token 自动适配。
+ */
+
+/* ── 遮罩与模态容器 ── */
+.settings-panel,
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(3px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  overflow: hidden;
+  opacity: 1;
+  transition: opacity 0.16s ease;
+}
+
+/* 必须显式声明 [hidden] display:none !important，防止 display:flex 覆盖 */
+.settings-panel[hidden] {
+  display: none !important;
+}
+
+/* ── 模态对话框主体 (880x640 默认, 760x520 min) ── */
+.settings-dialog {
+  width: 880px;
+  height: 640px;
+  min-width: 760px;
+  min-height: 520px;
+  max-width: min(1080px, 95vw);
+  max-height: min(800px, 92vh);
+  background: var(--bg-surface, var(--bg-raised));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), 0 8px 24px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: absolute;
+  transform: scale(1);
+  transition: transform 0.15s ease;
+}
+
+[data-theme="light"] .settings-dialog {
+  box-shadow: 0 24px 54px rgba(22, 28, 45, 0.18), 0 8px 20px rgba(22, 28, 45, 0.1);
+}
+
+.settings-panel.dragging,
+.settings-panel.resizing {
+  user-select: none;
+}
+
+/* ── 统一 SVG 图标通用基类 ── */
+.svg-icon {
+  display: inline-block;
+  vertical-align: middle;
+  stroke-width: 1.5;
+  stroke: currentColor;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+
+/* ── 头部 (52px 固定高，支持拖拽) ── */
+.dialog-header {
+  height: 52px;
+  background: var(--bg-surface, var(--bg-raised));
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px;
+  cursor: move;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.dialog-header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dialog-header-title .title-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--mk-heading);
+}
+
+.dialog-header-title strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.dialog-header-title .badge {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-weight: normal;
+  border-left: 1px solid var(--border);
+  padding-left: 8px;
+}
+
+.dialog-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: default;
+}
+
+.search-input-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--input-bg, var(--bg-overlay));
+  border: 1px solid var(--input-border, var(--border));
+  border-radius: 4px;
+  padding: 0 8px;
+  height: 28px;
+  width: 220px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.search-input-box:hover {
+  border-color: rgba(168, 85, 247, 0.45);
+}
+
+.search-input-box:focus-within {
+  border-color: var(--mk-heading);
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.35);
+}
+
+.search-input-box input {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text);
+  width: 100%;
+}
+
+.search-input-box input::placeholder {
+  color: var(--text-dim);
+}
+
+.modal-close-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.modal-close-btn:hover {
+  background: var(--bg-overlay);
+  color: var(--text);
+}
+
+/* ── 中间主体布局 (左右分栏，外框恒定高度) ── */
+.dialog-body,
+.settings-layout {
+  flex: 1;
+  height: calc(100% - 104px);
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── 左侧 7 分类导航 (208px 固定宽) ── */
+.dialog-nav {
+  width: 208px;
+  background: var(--bg-surface, var(--bg-raised));
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  padding: 8px 6px;
+  gap: 2px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  border: 1px solid transparent;
+  background: transparent;
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.nav-item:hover {
+  background: var(--bg-overlay);
+  color: var(--text);
+}
+
+.nav-item.active {
+  background: var(--heading-soft);
+  color: var(--text);
+  font-weight: 600;
+  border-color: rgba(168, 85, 247, 0.25);
+  position: relative;
+}
+
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--heading-gradient);
+}
+
+.nav-item .nav-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--text-dim);
+  transition: color 0.12s ease;
+}
+
+.nav-item.active .nav-icon {
+  color: var(--mk-heading);
+}
+
+/* ── 右侧设置内容区 (独立滚动) ── */
+.dialog-content {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow-y: auto;
+  padding: 20px 28px;
+  background: var(--bg-surface, var(--bg-raised));
+}
+
+#settings-body h2 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.settings-category-desc {
+  margin: 0 0 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.settings-empty {
+  margin: 24px 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* ── 项目覆盖提示横幅 ── */
+.settings-warning-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 14px;
+  border-radius: 6px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #f59e0b;
+  font-size: 12px;
+}
+
+[data-theme="light"] .settings-warning-banner {
+  background: rgba(217, 119, 6, 0.1);
+  border-color: rgba(217, 119, 6, 0.25);
+  color: #d97706;
+}
+
+/* ── 全局搜索：跨分类聚合 ── */
+.settings-search-group {
+  margin-bottom: 12px;
+}
+
+.settings-search-cat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--mk-heading);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.settings-search-cat:hover {
+  background: var(--bg-overlay);
+}
+
+.settings-search-cat span {
+  margin-left: auto;
+  font-weight: 400;
+  color: var(--text-dim);
+}
+
+/* ── 设置行结构 (左：标签+说明+徽标；右：控件) ── */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.1s;
+}
+
+.setting-row:last-child {
+  border-bottom: none;
+}
+
+.setting-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.setting-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.setting-desc {
+  display: block;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.setting-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--heading-soft);
+  color: var(--mk-heading);
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.4;
+  vertical-align: 1px;
+}
+
+.setting-control {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── 表单输入控件 ── */
+.setting-control input[type="text"],
+.setting-control input[type="number"] {
+  height: 28px;
+  padding: 0 8px;
+  background-color: var(--input-bg, var(--bg-overlay));
+  border: 1px solid var(--input-border, var(--border));
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.setting-control input[type="text"] {
+  width: 240px;
+}
+
+.setting-control input[type="number"] {
+  width: 110px;
+}
+
+.setting-control input:hover {
+  border-color: rgba(168, 85, 247, 0.45);
+}
+
+.setting-control input:focus,
+.setting-control input:focus-visible {
+  border-color: var(--mk-heading);
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.35);
+}
+
+/* ── Switch 开关 ── */
+.settings-switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.settings-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.settings-switch-track {
+  position: absolute;
+  inset: 0;
+  background-color: var(--bg-overlay);
+  border: 1px solid var(--border);
+  transition: background 0.18s ease, border-color 0.18s ease;
+  border-radius: 999px;
+}
+
+.settings-switch-thumb {
+  position: absolute;
+  height: 14px;
+  width: 14px;
+  left: 2px;
+  bottom: 2px;
+  background-color: #ffffff;
+  transition: transform 0.18s ease, background-color 0.18s ease;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.settings-switch input:checked + .settings-switch-track {
+  background: var(--heading-gradient);
+  border-color: transparent;
+}
+
+.settings-switch input:checked + .settings-switch-track .settings-switch-thumb {
+  transform: translateX(16px);
+  background-color: #ffffff;
+}
+
+.settings-switch input:focus-visible + .settings-switch-track {
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.4);
+}
+
+/* ── 原生 Select (兜底) ── */
+.select-input,
+.setting-control select {
+  height: 28px;
+  min-width: 150px;
+  padding: 0 28px 0 10px;
+  background-color: var(--input-bg, var(--bg-overlay));
+  border: 1px solid var(--input-border, var(--border));
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23868694' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.select-input:hover,
+.setting-control select:hover {
+  border-color: rgba(168, 85, 247, 0.45);
+}
+
+.select-input:focus,
+.select-input:focus-visible,
+.setting-control select:focus {
+  border-color: var(--mk-heading);
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.35);
+}
+
+.select-input option,
+.setting-control select option {
+  background-color: var(--bg-overlay);
+  color: var(--text);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   生产化自定义 Select 控件 (单例下拉菜单)
+   ════════════════════════════════════════════════════════════════ */
+.custom-select-wrapper {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.custom-select-trigger {
+  height: 28px;
+  min-width: 150px;
+  padding: 0 28px 0 10px;
+  background-color: var(--input-bg, var(--bg-overlay));
+  border: 1px solid var(--input-border, var(--border));
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.custom-select-trigger:hover {
+  border-color: rgba(168, 85, 247, 0.45);
+}
+
+.custom-select-trigger.active,
+.custom-select-trigger:focus-visible {
+  outline: none;
+  border-color: var(--mk-heading);
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.35);
+}
+
+.custom-select-arrow {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  color: var(--text-secondary);
+  pointer-events: none;
+  transition: transform 0.15s ease;
+}
+
+.custom-select-trigger.active .custom-select-arrow {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+/* ── 自定义下拉菜单弹出层 (单例，暗色纯净无白边，高斯模糊) ── */
+.custom-select-menu {
+  position: fixed;
+  z-index: 2200;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.35);
+  padding: 4px;
+  min-width: 160px;
+  max-height: 240px;
+  overflow-y: auto;
+  opacity: 0;
+  transform: translateY(-4px) scale(0.98);
+  pointer-events: none;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  backdrop-filter: blur(12px);
+  box-sizing: border-box;
+}
+
+.custom-select-menu.open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.custom-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+
+.custom-select-option:hover,
+.custom-select-option.hovered {
+  background: var(--heading-soft);
+  color: var(--text);
+}
+
+.custom-select-option.selected {
+  background: var(--heading-soft);
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* 亮色模式选中：浅紫底、深色字、紫色对勾 */
+[data-theme="light"] .custom-select-option.selected {
+  background: rgba(168, 85, 247, 0.14);
+  color: #2c303b;
+  font-weight: 600;
+}
+
+.custom-select-option .check-icon {
+  width: 13px;
+  height: 13px;
+  color: var(--mk-heading);
+  margin-left: 8px;
+  opacity: 0;
+  stroke-width: 2.5;
+}
+
+.custom-select-option.selected .check-icon {
+  opacity: 1;
+}
+
+.custom-select-opt-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.custom-select-opt-name {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.custom-select-subtext {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.3;
+  word-break: break-all;
+}
+
+/* ── 终端程序特例控件 ── */
+.setting-row-terminal {
+  align-items: flex-start;
+}
+
+.setting-control-terminal {
+  flex: 1;
+  max-width: 320px;
+  justify-content: flex-end;
+}
+
+.setting-terminal-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.setting-terminal-box .custom-select-wrapper,
+.setting-terminal-box .custom-select-trigger,
+.setting-terminal-box select {
+  width: 100%;
+}
+
+.setting-terminal-extra {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding-top: 2px;
+}
+
+.setting-terminal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.setting-terminal-sublabel {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.setting-terminal-input {
+  height: 28px;
+  padding: 0 8px;
+  background-color: var(--input-bg, var(--bg-overlay));
+  border: 1px solid var(--input-border, var(--border));
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.setting-terminal-input:hover {
+  border-color: rgba(168, 85, 247, 0.45);
+}
+
+.setting-terminal-input:focus,
+.setting-terminal-input:focus-visible {
+  border-color: var(--mk-heading);
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.35);
+}
+
+/* ── 快捷键专用列表 (keybindings 分类) ── */
+.settings-kb-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 0 10px;
+}
+
+.settings-kb-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--border-subtle);
+  min-height: 36px;
+}
+
+.settings-kb-row.settings-kb-unbound {
+  opacity: 0.6;
+}
+
+.settings-kb-info {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settings-kb-label {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.settings-kb-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.settings-kb-key {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-overlay);
+  color: var(--text-secondary);
+}
+
+.settings-kb-btn {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-overlay);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.settings-kb-btn:hover {
+  background: var(--heading-soft);
+  color: var(--text);
+}
+
+.settings-kb-recording {
+  font-size: 13px;
+  color: var(--mk-heading);
+  font-weight: 600;
+}
+
+.settings-kb-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.settings-kb-error {
+  font-size: 12px;
+  color: var(--danger);
+}
+
+.settings-kb-badge {
+  font-size: 11px;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.settings-kb-row[data-kb-recording] {
+  background: var(--heading-soft);
+  border-radius: 6px;
+}
+
+/* ── 底部栏 (52px 固定高) ── */
+.dialog-footer {
+  height: 52px;
+  background: var(--bg-surface, var(--bg-raised));
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  flex-shrink: 0;
+}
+
+.dialog-footer-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-family: var(--font-body);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-overlay);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.14s ease;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  border-color: rgba(168, 85, 247, 0.45);
+  color: var(--text);
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn-primary {
+  background: var(--heading-gradient);
+  border: none;
+  color: #ffffff;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(168, 85, 247, 0.35);
+}
+
+.btn-primary:hover {
+  filter: brightness(1.08);
+  color: #ffffff;
+}
+
+/* ── 右下角 Resize 把手 ── */
+.dialog-resize-grip,
+.settings-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 2px;
+  color: var(--text-dim);
+  z-index: 10;
+}
+
+.dialog-resize-grip::before,
+.settings-resize-handle::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+}
