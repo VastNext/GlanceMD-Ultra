@@ -42,6 +42,7 @@ SCRIPT_ORDER = (
     "i18n.js",
     "highlight.min.js",
     "marked.min.js",
+    "mermaid.min.js",
     "preview.js",
     "tabs.js",
     "editor.js",

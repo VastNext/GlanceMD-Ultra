@@ -1567,262 +1567,6 @@ body.split-resizing * { cursor: col-resize !important; }
 #editor-container.active { animation: fadeIn 0.12s ease; }
 #preview-container.active { animation: fadeIn 0.15s ease; }
 
-#image-container.active { animation: fadeIn 0.15s ease; }
-
-/* 
-=====================================
-   MERMAID CHARTS
-   ============================================ */
-.mermaid-block {
-  position: relative;
-  margin: 1.5em 0;
-  background: var(--mk-bg-pre);
-  border: 1px solid var(--mk-border);
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.mermaid-block .code-copy-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 10;
-}
-
-.mermaid-chart {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 24px 16px;
-  overflow-x: auto;
-  min-height: 60px;
-}
-
-.mermaid-chart svg {
-  max-width: 100% !important;
-  height: auto !important;
-}
-
-.mermaid-error {
-  width: 100%;
-  padding: 12px 16px;
-  background: rgba(193, 80, 80, 0.12);
-  border: 1px solid rgba(193, 80, 80, 0.3);
-  border-radius: 6px;
-  color: var(--danger);
-  font-size: 13px;
-}
-
-.mermaid-error-title {
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-
-.mermaid-error pre {
-  margin: 0;
-  padding: 0;
-  background: transparent;
-  border: none;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  white-space: pre-wrap;
-  word-break: break-all;
-  color: inherit;
-}
-
-/* ============================================
-   IMAGE TAB VIEWER
-   ============================================ */
-#image-container {
-  display: none;
-  flex: 1;
-  position: relative;
-  height: 100%;
-  background: var(--bg-base);
-  overflow: hidden;
-}
-
-#image-container.active {
-  display: flex;
-  flex-direction: column;
-}
-
-#image-viewer {
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  height: 100%;
-  position: relative;
-}
-
-#image-stage {
-  min-height: 0;
-  flex: 1;
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
-  overflow: auto;
-  padding: 32px;
-  background-color: var(--bg-base);
-  background-image:
-    linear-gradient(45deg, var(--bg-surface) 25%, transparent 25%),
-    linear-gradient(-45deg, var(--bg-surface) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, var(--bg-surface) 75%),
-    linear-gradient(-45deg, transparent 75%, var(--bg-surface) 75%);
-  background-size: 24px 24px;
-  background-position: 0 0, 0 12px, 12px -12px, -12px 0px;
-  user-select: none;
-}
-
-#image-preview {
-  flex: none;
-  margin: auto;
-  object-fit: contain;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
-  border-radius: 4px;
-}
-
-#image-toolbar {
-  position: absolute;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  background: var(--bg-overlay);
-  border: 1px solid var(--border);
-  border-radius: 24px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(12px);
-  z-index: 50;
-}
-
-#image-toolbar button {
-  background: transparent;
-  border: none;
-  color: var(--text);
-  padding: 4px 8px;
-  border-radius: 12px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s, color 0.15s;
-}
-
-#image-toolbar button svg {
-  width: 14px;
-  height: 14px;
-}
-
-#image-toolbar button:hover {
-  background: var(--heading-soft);
-  color: var(--mk-heading);
-}
-
-#image-zoom-val {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  min-width: 44px;
-  text-align: center;
-}
-
-.image-meta-pill {
-  font-size: 12px;
-  color: var(--text-dim);
-  padding-left: 8px;
-  border-left: 1px solid var(--border);
-}
-
-/* ============================================
-   IMAGE LIGHTBOX
-   ============================================ */
-#image-lightbox {
-  position: fixed;
-  inset: 0;
-  z-index: 2000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-}
-
-#image-lightbox.visible {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-#image-lightbox[hidden] { display: none; }
-
-.lightbox-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.78);
-  backdrop-filter: blur(8px);
-}
-
-.lightbox-content {
-  position: relative;
-  max-width: 90vw;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  z-index: 10;
-}
-
-#lightbox-img {
-  max-width: 90vw;
-  max-height: 82vh;
-  object-fit: contain;
-  border-radius: 6px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
-}
-
-.lightbox-caption {
-  margin-top: 10px;
-  color: #e5e7eb;
-  font-size: 13px;
-  font-family: var(--font-body);
-}
-
-.lightbox-close {
-  position: absolute;
-  top: -36px;
-  right: -36px;
-  background: transparent;
-  border: none;
-  color: #fff;
-  font-size: 32px;
-  cursor: pointer;
-  line-height: 1;
-  padding: 4px 8px;
-  opacity: 0.8;
-  transition: opacity 0.15s, transform 0.15s;
-}
-
-.lightbox-close:hover {
-  opacity: 1;
-  transform: scale(1.1);
-}
-
-/* 禁用状态按钮 */
-.titlebar-actions button.disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-  pointer-events: none;
-=======
-
 /* ============================================
    WORKSPACE LAYOUT — 三栏骨架（阶段 1）
    对照：docs/design/01-project-tree.html 与 docs/design/index.html 的
@@ -2129,5 +1873,259 @@ body.panel-resizing * { cursor: col-resize !important; }
 
 #panel-outline .panel-expand-btn {
   display: none !important;
+}
 
+#image-container.active { animation: fadeIn 0.15s ease; }
+
+/* ============================================
+   MERMAID CHARTS
+   ============================================ */
+.mermaid-block {
+  position: relative;
+  margin: 1.5em 0;
+  background: var(--mk-bg-pre);
+  border: 1px solid var(--mk-border);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.mermaid-block .code-copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+}
+
+.mermaid-chart {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px 16px;
+  overflow-x: auto;
+  min-height: 60px;
+}
+
+.mermaid-chart svg {
+  max-width: 100% !important;
+  height: auto !important;
+}
+
+.mermaid-error {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(193, 80, 80, 0.12);
+  border: 1px solid rgba(193, 80, 80, 0.3);
+  border-radius: 6px;
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.mermaid-error-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.mermaid-error pre {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: inherit;
+}
+
+/* ============================================
+   IMAGE TAB VIEWER
+   ============================================ */
+#image-container {
+  display: none;
+  flex: 1;
+  position: relative;
+  height: 100%;
+  background: var(--bg-base);
+  overflow: hidden;
+}
+
+#image-container.active {
+  display: flex;
+  flex-direction: column;
+}
+
+#image-viewer {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+  position: relative;
+}
+
+#image-stage {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  overflow: auto;
+  padding: 32px;
+  background-color: var(--bg-base);
+  background-image:
+    linear-gradient(45deg, var(--bg-surface) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--bg-surface) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--bg-surface) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--bg-surface) 75%);
+  background-size: 24px 24px;
+  background-position: 0 0, 0 12px, 12px -12px, -12px 0px;
+  user-select: none;
+}
+
+#image-preview {
+  flex: none;
+  margin: auto;
+  object-fit: contain;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  border-radius: 4px;
+}
+
+#image-toolbar {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(12px);
+  z-index: 50;
+}
+
+#image-toolbar button {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  padding: 4px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+#image-toolbar button svg {
+  width: 14px;
+  height: 14px;
+}
+
+#image-toolbar button:hover {
+  background: var(--heading-soft);
+  color: var(--mk-heading);
+}
+
+#image-zoom-val {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 44px;
+  text-align: center;
+}
+
+.image-meta-pill {
+  font-size: 12px;
+  color: var(--text-dim);
+  padding-left: 8px;
+  border-left: 1px solid var(--border);
+}
+
+/* ============================================
+   IMAGE LIGHTBOX
+   ============================================ */
+#image-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+#image-lightbox.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#image-lightbox[hidden] { display: none; }
+
+.lightbox-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(8px);
+}
+
+.lightbox-content {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 10;
+}
+
+#lightbox-img {
+  max-width: 90vw;
+  max-height: 82vh;
+  object-fit: contain;
+  border-radius: 6px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+
+.lightbox-caption {
+  margin-top: 10px;
+  color: #e5e7eb;
+  font-size: 13px;
+  font-family: var(--font-body);
+}
+
+.lightbox-close {
+  position: absolute;
+  top: -36px;
+  right: -36px;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 32px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px 8px;
+  opacity: 0.8;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.lightbox-close:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+/* 禁用状态按钮 */
+.titlebar-actions button.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
 }
