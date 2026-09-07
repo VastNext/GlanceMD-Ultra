@@ -559,17 +559,21 @@ mod tests {
     }
 
     #[test]
-    fn 拖放目录打开工作区_文本文件打开文件_其他文件忽略() {
+    fn 拖放目录打开工作区_文本与图片打开文件_其他文件忽略() {
         let root = std::env::temp_dir().join(format!("glancemd-ultra-drop-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(&root).unwrap();
         let markdown = root.join("note.md");
-        let other = root.join("image.png");
+        let image = root.join("image.png");
+        let other = root.join("archive.zip");
         fs::write(&markdown, "# note").unwrap();
-        fs::write(&other, b"png").unwrap();
+        fs::write(&image, b"png").unwrap();
+        fs::write(&other, b"zip").unwrap();
 
         assert_eq!(classify_drop_path(&root), DropAction::OpenWorkspace);
         assert_eq!(classify_drop_path(&markdown), DropAction::OpenFile);
+        // 图片文件随图片预览功能支持拖放打开
+        assert_eq!(classify_drop_path(&image), DropAction::OpenFile);
         assert_eq!(classify_drop_path(&other), DropAction::Ignore);
         fs::remove_dir_all(&root).unwrap();
     }

@@ -19,11 +19,6 @@ pub fn is_image_path(path: &str) -> bool {
         .unwrap_or(false)
 }
 
-pub fn is_supported_file_extension(ext: &str) -> bool {
-    let lower = ext.to_ascii_lowercase();
-    MARKDOWN_EXTENSIONS.iter().any(|&e| e == lower) || is_image_extension(&lower)
-}
-
 pub fn pick_open_file() -> Option<String> {
     let mut all_supported = Vec::new();
     all_supported.extend_from_slice(MARKDOWN_EXTENSIONS);
