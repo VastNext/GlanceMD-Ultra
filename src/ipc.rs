@@ -39,12 +39,17 @@ pub fn handle_ipc_message(
             if let Some(p) = path {
                 match file_ops::read_file(&p) {
                     Ok(contents) => {
+                        let p = std::path::absolute(&p)
+                            .map(|p| p.to_string_lossy().into_owned())
+                            .unwrap_or(p);
+                        let is_img = file_ops::is_image_path(&p);
                         send_to_js(
                             webview,
                             "file_opened",
                             &serde_json::json!({
                                 "content": contents,
-                                "path": p
+                                "path": p,
+                                "is_image": is_img
                             }),
                         );
                         // 单实例转发/拖放打开时确保窗口前置
@@ -155,12 +160,17 @@ pub fn handle_ipc_message(
                 for p in pending_files {
                     match file_ops::read_file(&p) {
                         Ok(contents) => {
+                            let p = std::path::absolute(&p)
+                                .map(|p| p.to_string_lossy().into_owned())
+                                .unwrap_or(p);
+                            let is_img = file_ops::is_image_path(&p);
                             send_to_js(
                                 webview,
                                 "file_opened",
                                 &serde_json::json!({
                                     "content": contents,
-                                    "path": p
+                                    "path": p,
+                                    "is_image": is_img
                                 }),
                             );
                         }

@@ -3,6 +3,13 @@ var TabManager = (function() {
   var activeTabId = null;
   var tabIdCounter = 0;
 
+  var IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico', 'avif'];
+  function isImagePath(p) {
+    if (!p) return false;
+    var ext = p.split('.').pop().toLowerCase();
+    return IMAGE_EXTENSIONS.indexOf(ext) !== -1;
+  }
+
   /* ── 拖拽重排状态 ──
      activeDrag 持有当前拖拽上下文；dragJustEnded 用于抑制拖拽结束后的 click 误触发 */
   var activeDrag = null;
@@ -13,7 +20,7 @@ var TabManager = (function() {
     return p.replace(/\\/g, '/');
   }
 
-  function createTab(path, content, forceMode, forceFilename) {
+  function createTab(path, content, forceMode, forceFilename, isImage) {
     if (path) {
       var existing = findTabByPath(path);
       if (existing) {
@@ -22,13 +29,17 @@ var TabManager = (function() {
       }
     }
 
+    var isImg = isImage || isImagePath(path);
+
     var active = getActiveTab();
     if (active && !active.path && !active.dirty && active.content === '' && path) {
       active.path = normalizePath(path);
       active.filename = path.split(/[/\\]/).pop();
       active.content = content != null ? content : '';
+      active.parsedHtml = null;
+      active.isImage = isImg;
       active.dirty = false;
-      active.mode = 'preview';
+      active.mode = isImg ? 'image' : 'preview';
       restoreTabState(active);
       renderTabBar();
       updateWindowTitle();
@@ -39,14 +50,16 @@ var TabManager = (function() {
     var tab = {
       id: id,
       path: path ? normalizePath(path) : null,
-      filename: forceFilename || (path ? path.split(/[/\\]/).pop() : 'Untitled'),
+      filename: forceFilename || (path ? path.split(/[/\\]/).pop() : (isImg ? 'Image' : 'Untitled')),
       content: content != null ? content : '',
+      isImage: isImg,
       dirty: false,
-      mode: forceMode || (path ? 'preview' : 'edit'),
+      mode: forceMode || (isImg ? 'image' : (path ? 'preview' : 'edit')),
       scrollTop: 0,
       cursorStart: 0,
       cursorEnd: 0,
-      parsedHtml: null
+      parsedHtml: null,
+      imageZoom: null
     };
     tabs.push(tab);
     switchTab(id);
@@ -92,6 +105,10 @@ var TabManager = (function() {
   }
 
   function saveTabState(tab) {
+    if (tab.isImage) {
+      tab.mode = 'image';
+      return;
+    }
     var editor = document.getElementById('editor');
     tab.content = editor.value;
     tab.cursorStart = editor.selectionStart;
@@ -105,10 +122,47 @@ var TabManager = (function() {
   }
 
   function restoreTabState(tab) {
+    var imageContainer = document.getElementById('image-container');
+    var editorContainer = document.getElementById('editor-container');
+    var previewContainer = document.getElementById('preview-container');
+
+    if (tab.isImage) {
+      clearTimeout(splitPreviewTimer);
+      currentMode = 'image';
+      if (typeof setToolbarForImage === 'function') setToolbarForImage(true);
+      editorContainer.classList.remove('active');
+      previewContainer.classList.remove('active');
+      document.body.classList.remove('split-mode');
+      if (imageContainer) imageContainer.classList.add('active');
+
+      if (typeof showImageTab === 'function') {
+        showImageTab(tab);
+      }
+      document.getElementById('status-mode').textContent = 'IMAGE';
+      document.getElementById('status-file').textContent = tab.filename;
+      return;
+    }
+
+    if (typeof setToolbarForImage === 'function') setToolbarForImage(false);
+    if (imageContainer) imageContainer.classList.remove('active');
+
     var editor = document.getElementById('editor');
     editor.value = tab.content;
+    var iconPreview = document.getElementById('icon-preview');
+    var iconEdit = document.getElementById('icon-edit');
+    var btnToggle = document.getElementById('btn-toggle');
+    var btnSplit = document.getElementById('btn-split');
 
     if (typeof splitMode !== 'undefined' && splitMode) {
+      currentMode = 'edit';
+      document.body.classList.add('split-mode');
+      editorContainer.classList.add('active');
+      previewContainer.classList.add('active');
+      if (btnSplit) btnSplit.classList.add('active');
+      if (btnToggle) btnToggle.classList.remove('active');
+      if (iconPreview) iconPreview.style.display = 'none';
+      if (iconEdit) iconEdit.style.display = '';
+      document.getElementById('status-mode').textContent = 'SPLIT';
       editor.scrollTop = tab.scrollTop;
       editor.selectionStart = tab.cursorStart;
       editor.selectionEnd = tab.cursorEnd;
@@ -121,16 +175,29 @@ var TabManager = (function() {
         tab.parsedHtml = html;
       }
       if (typeof resolveLocalImages === 'function') resolveLocalImages();
+      if (typeof renderMermaidCharts === 'function') renderMermaidCharts();
     } else {
-      if (tab.mode !== currentMode) {
-        toggleMode();
-      }
+      document.body.classList.remove('split-mode');
+      if (btnSplit) btnSplit.classList.remove('active');
+      currentMode = tab.mode === 'edit' ? 'edit' : 'preview';
       if (currentMode === 'edit') {
+        editorContainer.classList.add('active');
+        previewContainer.classList.remove('active');
+        if (btnToggle) btnToggle.classList.remove('active');
+        if (iconPreview) iconPreview.style.display = '';
+        if (iconEdit) iconEdit.style.display = 'none';
+        document.getElementById('status-mode').textContent = 'EDIT';
         editor.scrollTop = tab.scrollTop;
         editor.selectionStart = tab.cursorStart;
         editor.selectionEnd = tab.cursorEnd;
         editor.focus();
       } else {
+        editorContainer.classList.remove('active');
+        previewContainer.classList.add('active');
+        if (btnToggle) btnToggle.classList.add('active');
+        if (iconPreview) iconPreview.style.display = 'none';
+        if (iconEdit) iconEdit.style.display = '';
+        document.getElementById('status-mode').textContent = 'PREVIEW';
         if (tab.parsedHtml) {
           document.getElementById('preview').innerHTML = tab.parsedHtml;
         } else {
@@ -139,6 +206,7 @@ var TabManager = (function() {
           tab.parsedHtml = html;
         }
         if (typeof resolveLocalImages === 'function') resolveLocalImages();
+        if (typeof renderMermaidCharts === 'function') renderMermaidCharts();
         setTimeout(function() {
           document.getElementById('preview-container').scrollTop = tab.scrollTop;
         }, 0);
@@ -146,6 +214,9 @@ var TabManager = (function() {
     }
 
     document.getElementById('status-file').textContent = tab.filename;
+    if (typeof updateStatusCounts === 'function') {
+      updateStatusCounts();
+    }
     if (typeof updateWordCount === 'function') updateWordCount();
     if (typeof showRecentPanel === 'function') showRecentPanel();
     if (typeof tocOpen !== 'undefined' && tocOpen && typeof updateTOC === 'function') updateTOC();
@@ -397,7 +468,8 @@ var TabManager = (function() {
     var tab = tabs.find(function(t) { return t.id === (id || activeTabId); });
     if (tab) {
       tab.path = path ? normalizePath(path) : null;
-      tab.filename = path ? path.split(/[/\\]/).pop() : 'Untitled';
+      tab.filename = path ? path.split(/[/\\]/).pop() : (tab.isImage ? 'Image' : 'Untitled');
+      tab.isImage = isImagePath(tab.path);
       renderTabBar();
       updateWindowTitle();
       document.getElementById('status-file').textContent = tab.filename;

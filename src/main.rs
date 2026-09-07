@@ -31,6 +31,7 @@ const EDITOR_JS: &str = include_str!("frontend/editor.js");
 const PREVIEW_JS: &str = include_str!("frontend/preview.js");
 const TABS_JS: &str = include_str!("frontend/tabs.js");
 const MARKED_JS: &str = include_str!("frontend/marked.min.js");
+const MERMAID_JS: &str = include_str!("frontend/mermaid.min.js");
 const HLJS: &str = include_str!("frontend/highlight.min.js");
 const ICON_PNG: &[u8] = include_bytes!("../assets/icon.png");
 
@@ -136,7 +137,11 @@ fn main() {
                 }
                 _ => {
                     if cli_file.is_none() {
-                        cli_file = Some(args[i].clone());
+                        let path = std::path::Path::new(&args[i]);
+                        let abs = std::path::absolute(path)
+                            .map(|p| p.to_string_lossy().into_owned())
+                            .unwrap_or_else(|_| args[i].clone());
+                        cli_file = Some(abs);
                     }
                 }
             }
@@ -242,6 +247,7 @@ fn main() {
                             "bmp" => "image/bmp",
                             "ico" => "image/x-icon",
                             "tiff" | "tif" => "image/tiff",
+                            "avif" => "image/avif",
                             _ => "application/octet-stream",
                         };
                         wry::http::Response::builder()
@@ -293,7 +299,7 @@ fn main() {
                             .and_then(|e| e.to_str())
                             .unwrap_or("")
                             .to_lowercase();
-                        if ext == "md" || ext == "markdown" || ext == "txt" {
+                        if file_ops::is_supported_file_extension(&ext) {
                             let msg = serde_json::json!({
                                 "command": "open_file",
                                 "path": path.to_string_lossy()
@@ -487,9 +493,10 @@ fn escape_for_script_tag(js: &str) -> String {
 fn build_html() -> String {
     // Build script tags with escaped content
     let scripts = format!(
-        "<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>",
+        "<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>",
         escape_for_script_tag(HLJS),
         escape_for_script_tag(MARKED_JS),
+        escape_for_script_tag(MERMAID_JS),
         escape_for_script_tag(PREVIEW_JS),
         escape_for_script_tag(TABS_JS),
         escape_for_script_tag(EDITOR_JS),

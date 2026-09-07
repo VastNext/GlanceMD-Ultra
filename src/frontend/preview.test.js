@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const test = require('node:test');
 const vm = require('node:vm');
 
-function loadPreview() {
+function loadPreview(options = {}) {
   let clickHandler;
   let activePath = 'D:/Software/CLIProxyAPI/README.md';
   const listeners = {};
@@ -22,6 +22,10 @@ function loadPreview() {
     'navigation-fallback-back': {},
     'navigation-fallback-retry': {},
     'navigation-fallback-close': {},
+    'image-lightbox': { hidden: true, classList: { add() {}, remove() {} } },
+    'lightbox-img': { removeAttribute() {} },
+    'lightbox-caption': { textContent: '' },
+    'lightbox-close': { focus() {} },
   };
   const context = {
     marked: {
@@ -40,6 +44,20 @@ function loadPreview() {
     },
     document: {
       activeElement: { focus() {} },
+      body: {
+        appendChild() {},
+        removeChild() {},
+      },
+      createElement() {
+        return {
+          style: {},
+          select() {},
+          setAttribute() {},
+          appendChild() {},
+          removeChild() {},
+          normalize() {},
+        };
+      },
       getElementById(id) {
         if (id === 'preview-container') {
           return {
@@ -55,9 +73,12 @@ function loadPreview() {
         return element;
       },
       querySelectorAll() { return []; },
+      querySelector() { return null; },
+      addEventListener(type, handler) { listeners['document:' + type] = handler; },
+      execCommand() {},
     },
     window: {},
-    navigator: {},
+    navigator: options.navigator || {},
     setTimeout() {},
     showError(message) {
       messages.push({ command: 'error', data: { message } });
@@ -203,4 +224,131 @@ test('非法 URL 编码不会触发 WebView 导航或抛出异常', () => {
   assert.equal(prevented, true);
   assert.equal(messages[0].command, 'error');
   assert.equal(messages[0].data.message, '链接地址格式无效');
+});
+
+test('点击常见图片相对链接时请求 Rust 打开图片文件', () => {
+  const { clickHandler, messages } = loadPreview();
+  const anchor = { getAttribute: () => './assets/diagram.png' };
+  let prevented = false;
+
+  clickHandler({
+    target: {
+      closest(selector) {
+        return selector === 'a' ? anchor : null;
+      },
+    },
+    preventDefault() { prevented = true; },
+  });
+
+  assert.equal(prevented, true);
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0].command, 'open_file');
+  assert.equal(messages[0].data.path, 'D:/Software/CLIProxyAPI/assets/diagram.png');
+});
+
+test('Mermaid 语言代码块被渲染为专用 mermaid-block 容器', () => {
+  let customRenderer;
+  const context = {
+    marked: {
+      Renderer: function() {
+        customRenderer = this;
+      },
+      use() {},
+      setOptions() {},
+    },
+    hljs: {
+      getLanguage() { return false; },
+      highlightAuto() { return { value: '' }; }
+    },
+    TabManager: { getActiveTab() { return null; } },
+    sendToRust() {},
+    document: {
+      activeElement: { focus() {} },
+      getElementById() { return { addEventListener() {} }; },
+      querySelectorAll() { return []; },
+      querySelector() { return null; },
+      addEventListener() {},
+    },
+    window: {},
+    navigator: {},
+    setTimeout() {},
+  };
+
+  const source = fs.readFileSync(__dirname + '/preview.js', 'utf8');
+  vm.runInNewContext(source, context);
+
+  const mermaidCode = 'graph TD;\n  A-->B;';
+  const html = customRenderer.code({ lang: 'mermaid', text: mermaidCode });
+
+  assert.match(html, /class="mermaid-block"/);
+  assert.match(html, /class="mermaid-chart"/);
+  assert.match(html, /data-raw-code="graph%20TD%3B%0A%20%20A--%3EB%3B"/);
+  assert.match(html, /class="code-copy-btn mermaid-copy-btn"/);
+});
+
+test('点击 Mermaid 代码块的复制按钮时复制原始未转义代码', () => {
+  const rawCode = 'graph TD;\n  A-->B;';
+  let copiedText = null;
+  const { clickHandler } = loadPreview({
+    navigator: {
+      clipboard: {
+        writeText: async (t) => { copiedText = t; }
+      }
+    }
+  });
+
+  const button = {
+    className: 'code-copy-btn mermaid-copy-btn',
+    classList: { add() {}, remove() {} },
+    innerHTML: '<svg></svg>',
+    closest(selector) {
+      if (selector === '.code-copy-btn') return button;
+      if (selector === '.mermaid-block') {
+        return {
+          getAttribute(attr) {
+            return attr === 'data-raw-code' ? encodeURIComponent(rawCode) : null;
+          }
+        };
+      }
+      return null;
+    }
+  };
+
+  clickHandler({
+    target: {
+      closest(selector) {
+        if (selector === 'a') return null;
+        if (selector === 'img') return null;
+        if (selector === '.code-copy-btn') return button;
+        return null;
+      }
+    },
+    preventDefault() {},
+  });
+
+  assert.equal(copiedText, rawCode);
+});
+
+test('点击预览中的普通图片元素打开 Lightbox 预览', () => {
+  const { clickHandler, elements } = loadPreview();
+  const imgElement = {
+    src: 'http://127.0.0.1:4123/test-demo.svg',
+    getAttribute(attr) {
+      return attr === 'alt' ? '测试SVG图标' : null;
+    },
+    closest(selector) {
+      if (selector === 'a') return null;
+      if (selector === '.code-copy-btn') return null;
+      if (selector === 'img') return imgElement;
+      return null;
+    }
+  };
+
+  clickHandler({
+    target: imgElement,
+    preventDefault() {},
+  });
+
+  assert.equal(elements['image-lightbox'].hidden, false);
+  assert.equal(elements['lightbox-caption'].textContent, '测试SVG图标');
 });
