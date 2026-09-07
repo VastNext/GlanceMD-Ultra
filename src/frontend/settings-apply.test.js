@@ -119,7 +119,7 @@ test('get() 未收到事件时返回内置默认值（与 Rust schema v1 Default
     version: 1,
     appearance: { theme: 'light', sidebarFontSize: 14, language: 'zh-CN', outlineSide: 'right' },
     files: {
-      visibleExts: ['md', 'markdown', 'txt', 'json', 'yaml', 'yml', 'toml', 'ini', 'csv'],
+      visibleExts: ['md', 'markdown', 'txt', 'json', 'yaml', 'yml', 'toml', 'ini', 'csv', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico', 'avif'],
       showHidden: false,
       exclude: ['.git', 'node_modules', 'target', '.venv', 'dist', 'build', '.cache'],
       watcherExclude: ['.git', 'node_modules', 'target', '.venv', 'dist', 'build', '.cache'],

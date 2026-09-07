@@ -32,7 +32,7 @@
   var DEFAULTS = {
     appearance: { theme: 'light', sidebarFontSize: 14, language: 'zh-CN', outlineSide: 'right' },
     files: {
-      visibleExts: ['md', 'markdown', 'txt', 'json', 'yaml', 'yml', 'toml', 'ini', 'csv'],
+      visibleExts: ['md', 'markdown', 'txt', 'json', 'yaml', 'yml', 'toml', 'ini', 'csv', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico', 'avif'],
       showHidden: false,
       exclude: ['.git', 'node_modules', 'target', '.venv', 'dist', 'build', '.cache'],
       watcherExclude: ['.git', 'node_modules', 'target', '.venv', 'dist', 'build', '.cache']

@@ -77,7 +77,16 @@ fn 默认过滤器与主计划阶段1默认值一致() {
             ".yml",
             ".toml",
             ".ini",
-            ".csv"
+            ".csv",
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".svg",
+            ".webp",
+            ".bmp",
+            ".ico",
+            ".avif"
         ]
     );
     assert_eq!(
@@ -158,7 +167,7 @@ fn 扩展名白名单过滤() {
         "tbl.csv",
         "大写.MD", // 扩展名不区分大小写
         "main.rs", // 不可见
-        "pic.png", // 不可见
+        "pic.png", // 图片后缀默认可见
         "LICENSE", // 无扩展名不可见
     ] {
         write(&dir, name, "x");
@@ -176,6 +185,7 @@ fn 扩展名白名单过滤() {
             "note.markdown",
             "note.md",
             "note.txt",
+            "pic.png",
             "tbl.csv",
             "大写.MD",
         ]

@@ -170,6 +170,26 @@
           <div id="preview"></div>
         </div>
       </div>
+
+      <div id="image-container">
+        <div id="image-viewer">
+          <div id="image-stage">
+            <img id="image-preview" alt="Image preview" draggable="false">
+          </div>
+          <div id="image-toolbar">
+            <button id="btn-img-zoom-out" title="Zoom Out (-)">
+              <svg viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.2"/><line x1="4.5" y1="7" x2="9.5" y2="7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="10.5" y1="10.5" x2="14.5" y2="14.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            </button>
+            <span id="image-zoom-val">100%</span>
+            <button id="btn-img-zoom-in" title="Zoom In (+)">
+              <svg viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.2"/><line x1="4.5" y1="7" x2="9.5" y2="7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="7" y1="4.5" x2="7" y2="9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="10.5" y1="10.5" x2="14.5" y2="14.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            </button>
+            <button id="btn-img-zoom-reset" title="Fit to Window (0)">Fit</button>
+            <button id="btn-img-zoom-actual" title="Actual Size (1)">1:1</button>
+            <div class="image-meta-pill" id="image-meta-info"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="panel-resizer" id="panel-outline-resizer" title="拖动调整宽度" aria-label="调整 Outline 面板宽度"></div>
@@ -186,26 +206,6 @@
       </div>
       <button id="panel-outline-expand" class="panel-expand-btn" type="button" title="展开面板" aria-label="展开 Outline 面板">Outline</button>
     </aside>
-
-    <div id="image-container">
-      <div id="image-viewer">
-        <div id="image-stage">
-          <img id="image-preview" alt="Image preview" draggable="false">
-        </div>
-        <div id="image-toolbar">
-          <button id="btn-img-zoom-out" title="Zoom Out (-)">
-            <svg viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.2"/><line x1="4.5" y1="7" x2="9.5" y2="7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="10.5" y1="10.5" x2="14.5" y2="14.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-          </button>
-          <span id="image-zoom-val">100%</span>
-          <button id="btn-img-zoom-in" title="Zoom In (+)">
-            <svg viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.2"/><line x1="4.5" y1="7" x2="9.5" y2="7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="7" y1="4.5" x2="7" y2="9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="10.5" y1="10.5" x2="14.5" y2="14.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-          </button>
-          <button id="btn-img-zoom-reset" title="Fit to Window (0)">Fit</button>
-          <button id="btn-img-zoom-actual" title="Actual Size (1)">1:1</button>
-          <div class="image-meta-pill" id="image-meta-info"></div>
-        </div>
-      </div>
-    </div>
   </div>
 
   <div id="image-lightbox" role="dialog" aria-modal="true" aria-label="图片预览" hidden>
@@ -215,7 +215,6 @@
       <div class="lightbox-caption" id="lightbox-caption"></div>
       <button class="lightbox-close" id="lightbox-close" aria-label="Close preview">&times;</button>
     </div>
-  </div>
   </div>
 
   <div id="zoom-toast"></div>

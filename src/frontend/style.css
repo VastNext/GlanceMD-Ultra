@@ -1890,24 +1890,76 @@ body.panel-resizing * { cursor: col-resize !important; }
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-.mermaid-block .code-copy-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 10;
+/* 图表块头栏：折叠按钮 + 标题 + 复制按钮 */
+.mermaid-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--mk-border);
+  color: var(--mk-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
 
-.mermaid-chart {
+.mermaid-head-title {
+  flex: 1;
+  user-select: none;
+}
+
+.mermaid-toggle {
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 2px;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.mermaid-toggle:hover {
+  color: var(--mk-heading);
+  background: var(--heading-soft);
+}
+
+.mermaid-toggle svg {
+  width: 12px;
+  height: 12px;
+  transition: transform 0.15s ease;
+}
+
+/* 折叠态：收起图表主体，箭头转为指向右侧 */
+.mermaid-block.collapsed .mermaid-toggle svg {
+  transform: rotate(-90deg);
+}
+
+.mermaid-block.collapsed .mermaid-chart {
+  display: none;
+}
+
+.mermaid-block.collapsed .mermaid-head {
+  border-bottom: none;
+}
+
+/* 复制按钮在 mermaid 头栏内随文档流排列（区别于普通代码块的绝对定位） */
+.mermaid-block .code-copy-btn {
+  position: static;
+}
+
+/* 尺寸策略：宽度撑满 100%，原生宽度超出容器时不缩小、由容器出横向滚动条；
+   svg 显式 px 宽度与 aspect-ratio 由 preview.js 渲染后写入 */
+.mermaid-chart {
   padding: 24px 16px;
   overflow-x: auto;
   min-height: 60px;
 }
 
 .mermaid-chart svg {
-  max-width: 100% !important;
+  display: block;
+  margin: 0 auto;
   height: auto !important;
 }
 

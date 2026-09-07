@@ -140,7 +140,7 @@ impl Default for Theme {
 #[serde(default, rename_all = "camelCase")]
 pub struct Files {
     /// 项目树可见扩展名（不带点、小写）。默认为主计划阶段 1 清单
-    /// （`.md .markdown .txt .json .yaml .yml .toml .ini .csv`）。
+    /// （`.md .markdown .txt .json .yaml .yml .toml .ini .csv` + 图片后缀）。
     pub visible_exts: Vec<String>,
     /// 是否显示隐藏文件（主计划阶段 1：默认隐藏）。
     pub show_hidden: bool,
@@ -293,10 +293,12 @@ impl Default for Recovery {
     }
 }
 
-/// 项目树可见扩展名默认值（主计划阶段 1 清单）。
+/// 项目树可见扩展名默认值（主计划阶段 1 清单 + 图片预览支持的基础图片后缀）。
 fn default_visible_exts() -> Vec<String> {
     [
         "md", "markdown", "txt", "json", "yaml", "yml", "toml", "ini", "csv",
+        // 图片后缀：图片预览为一等文件类型，资源管理器默认可见
+        "png", "jpg", "jpeg", "gif", "svg", "webp", "bmp", "ico", "avif",
     ]
     .iter()
     .map(|s| s.to_string())

@@ -4,7 +4,7 @@
 //! 项目树）逐层展开，本模块**不做递归遍历**，单次调用只返回一层内容。
 //!
 //! 过滤策略（主计划阶段 1 默认值，见 [`TreeFilter::default`]）：
-//! - 默认可见扩展名：`.md .markdown .txt .json .yaml .yml .toml .ini .csv`；
+//! - 默认可见扩展名：`.md .markdown .txt .json .yaml .yml .toml .ini .csv` + 图片后缀；
 //! - 默认排除目录：`.git node_modules target .venv dist build .cache`；
 //! - 默认隐藏 `.` 开头的隐藏文件与隐藏目录；
 //! - 文件符号链接显示并标注 [`EntryKind::SymLinkFile`]（受隐藏与扩展名过滤约束）；
@@ -27,7 +27,7 @@ use std::path::{Component, Path, PathBuf};
 
 use serde::Serialize;
 
-/// 默认可见扩展名（主计划阶段 1；全部小写、含前导点）。
+/// 默认可见扩展名（主计划阶段 1 + 图片预览支持的基础图片后缀；全部小写、含前导点）。
 pub const DEFAULT_VISIBLE_EXTS: &[&str] = &[
     ".md",
     ".markdown",
@@ -38,6 +38,15 @@ pub const DEFAULT_VISIBLE_EXTS: &[&str] = &[
     ".toml",
     ".ini",
     ".csv",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".svg",
+    ".webp",
+    ".bmp",
+    ".ico",
+    ".avif",
 ];
 
 /// 默认排除目录名（主计划阶段 1；匹配不区分大小写）。
@@ -354,7 +363,16 @@ mod tests {
                 ".yml",
                 ".toml",
                 ".ini",
-                ".csv"
+                ".csv",
+                ".png",
+                ".jpg",
+                ".jpeg",
+                ".gif",
+                ".svg",
+                ".webp",
+                ".bmp",
+                ".ico",
+                ".avif"
             ]
         );
         assert_eq!(

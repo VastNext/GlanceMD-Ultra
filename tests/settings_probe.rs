@@ -58,7 +58,10 @@ fn 默认值与主计划及基线一致() {
     // 阶段 1：默认可见扩展名与排除清单
     assert_eq!(
         s.files.visible_exts,
-        ["md", "markdown", "txt", "json", "yaml", "yml", "toml", "ini", "csv"]
+        [
+            "md", "markdown", "txt", "json", "yaml", "yml", "toml", "ini", "csv", "png", "jpg",
+            "jpeg", "gif", "svg", "webp", "bmp", "ico", "avif"
+        ]
     );
     assert_eq!(
         s.files.watcher_exclude,

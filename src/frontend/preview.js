@@ -15,11 +15,19 @@ renderer.code = function(token) {
       '<rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.2"/>' +
       '<path d="M11 5V3.5a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1H4.5" stroke="currentColor" stroke-width="1.2"/>' +
       '</svg></button>';
+    var toggleBtn =
+      '<button class="mermaid-toggle" type="button" aria-expanded="true" title="折叠/展开图表">' +
+      '<svg viewBox="0 0 12 12" fill="none"><path d="M3 4.5 6 7.5 9 4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+      '</button>';
     return (
       '<div class="mermaid-block" data-raw-code="' +
       encodeURIComponent(code) +
       '">' +
+      '<div class="mermaid-head">' +
+      toggleBtn +
+      '<span class="mermaid-head-title">Mermaid</span>' +
       copyBtn +
+      '</div>' +
       '<div class="mermaid-chart">' +
       esc +
       '</div>' +
@@ -139,6 +147,7 @@ function renderMermaidCharts(container) {
       var res = await mermaid.render('mermaid-svg-' + request, rawCode);
       if (!chartEl.isConnected || chartEl.mermaidRequest !== request) return;
       chartEl.innerHTML = res.svg;
+      applyMermaidSvgSize(chartEl.querySelector('svg'));
       chartEl.setAttribute('data-rendered', 'true');
       chartEl.classList.add('rendered');
     }).catch(function(err) {
@@ -153,6 +162,24 @@ function renderMermaidCharts(container) {
     });
   });
   return mermaidRenderQueue;
+}
+
+// 图表尺寸策略（用户确认）：宽度撑满容器（100%）；
+// 图表原生宽度超过容器时不缩小，改由容器出横向滚动条；高度按比例自适应。
+// 实现：按 viewBox 取原生宽度写成显式 px 宽度，min-width:100% 保证小图撑满，
+// max-width:none 禁止缩小，aspect-ratio 保证高度随宽等比变化。
+function applyMermaidSvgSize(svg) {
+  if (!svg) return;
+  var vb = (svg.getAttribute('viewBox') || '').split(/[\s,]+/);
+  var naturalW = vb.length === 4 && isFinite(parseFloat(vb[2])) ? parseFloat(vb[2]) : 0;
+  var naturalH = vb.length === 4 && isFinite(parseFloat(vb[3])) ? parseFloat(vb[3]) : 0;
+  svg.style.maxWidth = 'none';
+  svg.style.minWidth = '100%';
+  svg.style.height = 'auto';
+  if (naturalW > 0) {
+    svg.style.width = naturalW + 'px';
+    if (naturalH > 0) svg.style.aspectRatio = naturalW + ' / ' + naturalH;
+  }
 }
 
 function reRenderAllMermaid() {
@@ -384,6 +411,17 @@ document.getElementById('preview-container').addEventListener('click', function(
   var img = e.target.closest('img');
   if (img && img.src && !e.target.closest('.code-copy-btn')) {
     openImageLightbox(img.src, img.getAttribute('alt') || '');
+    return;
+  }
+
+  // Mermaid 图表折叠/展开（折叠状态保留在 tab.parsedHtml 缓存中，仅会话内有效）
+  var toggle = e.target.closest('.mermaid-toggle');
+  if (toggle) {
+    var block = toggle.closest('.mermaid-block');
+    if (block) {
+      var collapsed = block.classList.toggle('collapsed');
+      toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    }
     return;
   }
 

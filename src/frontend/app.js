@@ -177,11 +177,6 @@ function setToolbarForImage(isImage) {
   });
   if (isImage) {
     closeFind();
-    /* Ultra 使用 Outline 面板（layout.js 管理），图片标签下收起并禁用相关入口 */
-    var outlinePanel = document.getElementById('panel-outline');
-    if (outlinePanel && window.LayoutUI && typeof window.LayoutUI.collapse === 'function') {
-      window.LayoutUI.collapse('outline');
-    }
     document.getElementById('btn-toggle').classList.remove('active');
     document.getElementById('btn-split').classList.remove('active');
     var recentPanel = document.getElementById('recent-panel');

@@ -106,7 +106,7 @@
   var DEFAULT_SETTINGS = {
     appearance: { theme: 'light', sidebarFontSize: 14, outlineSide: 'right', language: 'zh-CN' },
     files: {
-      visibleExts: ['md', 'markdown', 'txt', 'json', 'yaml', 'yml', 'toml', 'ini', 'csv'],
+      visibleExts: ['md', 'markdown', 'txt', 'json', 'yaml', 'yml', 'toml', 'ini', 'csv', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico', 'avif'],
       showHidden: false,
       exclude: DEFAULT_EXCLUDES.slice(),
       watcherExclude: DEFAULT_EXCLUDES.slice(),
