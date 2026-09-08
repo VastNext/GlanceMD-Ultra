@@ -835,6 +835,7 @@ mod win_registry {
             lpdata: *const u8,
             cbdata: u32,
         ) -> i32;
+        fn RegDeleteValueW(hkey: isize, lpvaluename: *const u16) -> i32;
         fn RegCloseKey(hkey: isize) -> i32;
     }
 
@@ -956,6 +957,32 @@ mod win_registry {
                 return Err(format!("写入用户 PATH 失败（错误码 {rc}）"));
             }
             Ok(())
+        }
+    }
+
+    /// 删除 HKCU\Environment\Path（仅用于安装前该值不存在的精确回滚）。
+    pub fn delete_user_path() -> Result<(), String> {
+        unsafe {
+            let subkey = wide("Environment");
+            let mut hkey: isize = 0;
+            let rc = RegOpenKeyExW(
+                HKEY_CURRENT_USER,
+                subkey.as_ptr(),
+                0,
+                KEY_SET_VALUE,
+                &mut hkey,
+            );
+            if rc != ERROR_SUCCESS {
+                return Err(format!("打开注册表 Environment 失败（错误码 {rc}）"));
+            }
+            let name = wide("Path");
+            let rc = RegDeleteValueW(hkey, name.as_ptr());
+            let _ = RegCloseKey(hkey);
+            if rc == ERROR_SUCCESS || rc == ERROR_FILE_NOT_FOUND {
+                Ok(())
+            } else {
+                Err(format!("删除用户 PATH 失败（错误码 {rc}）"))
+            }
         }
     }
 
@@ -1107,6 +1134,10 @@ struct CliOwnership {
     target: String,
     /// 用户 PATH 的 bin 条目是否为本次安装新增（Windows）
     path_added: bool,
+    /// Windows 安装前的用户 PATH 原始值（None = 原值不存在）。
+    previous_user_path: Option<String>,
+    /// Windows 安装前的注册表类型（REG_SZ / REG_EXPAND_SZ）。
+    previous_user_path_type: u32,
 }
 
 /// 所有权记录存放路径（用户数据目录，跨安装位置持久）。
@@ -1173,17 +1204,18 @@ fn install_impl_at(exe: &Path, bin: &Path, record_path: Option<&Path>) -> Result
     // 用户级 PATH：精确加入 bin 目录（去重、保留原注册表类型）；
     // 是否为本次新增记入所有权记录，卸载时仅移除新增条目
     let mut path_added = false;
-    match win_registry::read_user_path() {
-        Ok(Some((value, ty))) => {
+    let original_path = win_registry::read_user_path()?;
+    match original_path.as_ref() {
+        Some((value, ty)) => {
             let (new_value, changed) = user_path_add(&value, &bin.to_string_lossy());
             if changed {
-                win_registry::write_user_path(&new_value, ty)
+                win_registry::write_user_path(&new_value, *ty)
                     .map_err(|e| format!("更新用户 PATH 失败：{e}"))?;
                 win_registry::broadcast_environment_change();
                 path_added = true;
             }
         }
-        Ok(None) => {
+        None => {
             // Path 值不存在（罕见）：以 REG_EXPAND_SZ 新建
             let (new_value, changed) = user_path_add("", &bin.to_string_lossy());
             if changed {
@@ -1193,7 +1225,6 @@ fn install_impl_at(exe: &Path, bin: &Path, record_path: Option<&Path>) -> Result
                 path_added = true;
             }
         }
-        Err(e) => return Err(e),
     }
     if let Some(rp) = record_path {
         save_ownership(
@@ -1202,6 +1233,11 @@ fn install_impl_at(exe: &Path, bin: &Path, record_path: Option<&Path>) -> Result
                 entry: bin.join(CLI_SHIM_FILE).to_string_lossy().into_owned(),
                 target: String::new(),
                 path_added,
+                previous_user_path: original_path.as_ref().map(|(value, _)| value.clone()),
+                previous_user_path_type: original_path
+                    .as_ref()
+                    .map(|(_, ty)| *ty)
+                    .unwrap_or(win_registry::REG_EXPAND_SZ),
             },
         );
     }
@@ -1229,25 +1265,18 @@ fn uninstall_impl_at(exe: &Path, bin: &Path, record_path: Option<&Path>) -> Resu
     remove_legacy_windowsapps_shims(&mut errors);
     // PATH 精确移除的门控：仅当所有权记录证明 bin 条目是本次安装新增时才移除；
     // 用户预先存在或记录缺失（无法证明归属）时保守保留，绝不误删用户 PATH 条目
-    let path_added = record_path
-        .and_then(load_ownership)
-        .map(|record| record.path_added)
-        .unwrap_or(false);
+    let ownership = record_path.and_then(load_ownership).unwrap_or_default();
+    let path_added = ownership.path_added;
     let mut kept_path_entry = false;
     if path_added {
-        match win_registry::read_user_path() {
-            Ok(Some((value, ty))) => {
-                let (new_value, changed) = user_path_remove(&value, &bin.to_string_lossy());
-                if changed {
-                    if let Err(e) = win_registry::write_user_path(&new_value, ty) {
-                        errors.push(format!("更新用户 PATH 失败：{e}"));
-                    } else {
-                        win_registry::broadcast_environment_change();
-                    }
-                }
-            }
-            Ok(None) => {}
-            Err(e) => errors.push(e),
+        let restore = match ownership.previous_user_path {
+            Some(value) => win_registry::write_user_path(&value, ownership.previous_user_path_type),
+            None => win_registry::delete_user_path(),
+        };
+        if let Err(e) = restore {
+            errors.push(format!("还原用户 PATH 失败：{e}"));
+        } else {
+            win_registry::broadcast_environment_change();
         }
     } else {
         // 记录缺失/非新增：检查是否仍有该条目，有则提示保留
@@ -1333,6 +1362,8 @@ fn install_impl_at(exe: &Path, bin: &Path, record_path: Option<&Path>) -> Result
                 entry: link.to_string_lossy().into_owned(),
                 target: target.to_string_lossy().into_owned(),
                 path_added: false,
+                previous_user_path: None,
+                previous_user_path_type: 0,
             },
         );
     }
@@ -1910,6 +1941,8 @@ mod tests {
                 entry: link.to_string_lossy().into_owned(),
                 target: foreign.to_string_lossy().into_owned(),
                 path_added: false,
+                previous_user_path: None,
+                previous_user_path_type: 0,
             },
         );
         symlink(&foreign, &link).unwrap();
@@ -1949,6 +1982,8 @@ mod tests {
                 entry: "/home/u/.local/bin/gmdu".into(),
                 target: "/home/u/app/GlanceMD-Ultra".into(),
                 path_added: true,
+                previous_user_path: Some("C:\\Existing".into()),
+                previous_user_path_type: 2,
             },
         );
         let record = load_ownership(&record_path).expect("记录应可读回");
