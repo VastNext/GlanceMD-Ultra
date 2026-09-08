@@ -215,6 +215,59 @@ fn attach_parent_console() {
 #[cfg(not(target_os = "windows"))]
 fn attach_parent_console() {}
 
+/// CLI 模式输出。Windows GUI 子系统下 Rust `println!` 可能没有可写 stdout，
+/// 即使父进程通过管道捕获也得到空串；直接写继承的标准句柄，失败再回退宏。
+#[cfg(target_os = "windows")]
+fn cli_output(message: &str, stderr: bool) {
+    extern "system" {
+        fn GetStdHandle(nStdHandle: u32) -> isize;
+        fn WriteFile(
+            hFile: isize,
+            lpBuffer: *const u8,
+            nNumberOfBytesToWrite: u32,
+            lpNumberOfBytesWritten: *mut u32,
+            lpOverlapped: *const core::ffi::c_void,
+        ) -> i32;
+    }
+    const STD_OUTPUT_HANDLE: u32 = 0xFFFF_FFF5;
+    const STD_ERROR_HANDLE: u32 = 0xFFFF_FFF4;
+    let mut bytes = message.as_bytes().to_vec();
+    bytes.push(b'\n');
+    let mut written = 0u32;
+    let ok = unsafe {
+        let handle = GetStdHandle(if stderr {
+            STD_ERROR_HANDLE
+        } else {
+            STD_OUTPUT_HANDLE
+        });
+        handle != 0
+            && handle != -1
+            && WriteFile(
+                handle,
+                bytes.as_ptr(),
+                bytes.len() as u32,
+                &mut written,
+                std::ptr::null(),
+            ) != 0
+    };
+    if !ok {
+        if stderr {
+            eprintln!("{message}");
+        } else {
+            println!("{message}");
+        }
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn cli_output(message: &str, stderr: bool) {
+    if stderr {
+        eprintln!("{message}");
+    } else {
+        println!("{message}");
+    }
+}
+
 /// 无 GUI 执行 CLI 控制旗标并退出：退出码 0=成功，
 /// 1=失败。--cli-status 无论安装与否均打印状态并正常退出 0。
 /// 不创建窗口、不进入事件循环、不触发单实例转发。
@@ -222,7 +275,10 @@ fn run_cli_control(flag: CliControlFlag) -> ! {
     attach_parent_console();
     match flag {
         CliControlFlag::Version => {
-            println!("GlanceMD-Ultra {}", env!("CARGO_PKG_VERSION"));
+            cli_output(
+                &format!("GlanceMD-Ultra {}", env!("CARGO_PKG_VERSION")),
+                false,
+            );
             std::process::exit(0);
         }
         CliControlFlag::InstallCli | CliControlFlag::UninstallCli => {
@@ -233,30 +289,33 @@ fn run_cli_control(flag: CliControlFlag) -> ! {
             };
             match commands::run_cli_action(action) {
                 Ok(message) => {
-                    println!("{message}");
+                    cli_output(&message, false);
                     std::process::exit(0);
                 }
                 Err(message) => {
-                    eprintln!("{message}");
+                    cli_output(&message, true);
                     std::process::exit(1);
                 }
             }
         }
         CliControlFlag::CliStatus => {
             let report = commands::cli_status_report();
-            println!(
-                "gmdu: {}",
-                if report.installed {
-                    "已安装"
-                } else {
-                    "未安装"
-                }
+            cli_output(
+                &format!(
+                    "gmdu: {}",
+                    if report.installed {
+                        "已安装"
+                    } else {
+                        "未安装"
+                    }
+                ),
+                false,
             );
             if !report.dir.is_empty() {
-                println!("dir: {}", report.dir);
+                cli_output(&format!("dir: {}", report.dir), false);
             }
             if !report.message.is_empty() {
-                println!("{}", report.message);
+                cli_output(&report.message, false);
             }
             std::process::exit(0);
         }
