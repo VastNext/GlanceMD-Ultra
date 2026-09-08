@@ -59,13 +59,15 @@ def run_command(
     cwd: Path | None = None,
     timeout: int = 30,
 ) -> subprocess.CompletedProcess[str]:
-    """运行子进程并捕获输出。"""
+    """运行子进程并捕获输出（强制 utf-8 与 errors='replace' 避免 Windows 默认 cp1252 解码中文奔溃）。"""
     return subprocess.run(
         cmd,
         env=env,
         cwd=cwd or REPO_ROOT,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=timeout,
     )
 
