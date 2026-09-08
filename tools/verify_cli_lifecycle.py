@@ -73,6 +73,26 @@ def run_command(
     )
 
 
+def resolve_binary_path(raw_path: str) -> Path:
+    """解析普通二进制或 macOS .app 内的主可执行文件。"""
+    matches = glob.glob(raw_path)
+    if not matches:
+        raise FileNotFoundError(f"未找到指定的二进制：{raw_path}")
+    path = Path(matches[0]).resolve()
+    if path.suffix == ".app" or (path.is_dir() and (path / "Contents" / "MacOS").is_dir()):
+        macos_dir = path / "Contents" / "MacOS"
+        preferred = macos_dir / "GlanceMD-Ultra"
+        if preferred.is_file():
+            return preferred
+        candidates = [p for p in macos_dir.iterdir() if p.is_file() and not p.name.startswith(".")]
+        if len(candidates) != 1:
+            raise RuntimeError(f"无法唯一确定 {path} 内的主可执行文件：{candidates}")
+        return candidates[0]
+    if not path.is_file():
+        raise FileNotFoundError(f"目标不是可执行文件：{path}")
+    return path
+
+
 def test_windows_lifecycle(binary: Path, expected_version: str) -> None:
     """Windows 平台 CLI 验收：包含空格路径、注册表检查与精确还原。"""
     import winreg
@@ -429,10 +449,7 @@ def main() -> int:
             extra_env={"APPIMAGE_EXTRACT_AND_RUN": "1"},
         )
     elif args.binary:
-        binary_matches = glob.glob(args.binary)
-        if not binary_matches:
-            raise FileNotFoundError(f"未找到指定的二进制：{args.binary}")
-        binary_path = Path(binary_matches[0]).resolve()
+        binary_path = resolve_binary_path(args.binary)
 
         if sys.platform == "win32" or binary_path.suffix.lower() == ".exe":
             test_windows_lifecycle(binary_path, expected_version)
