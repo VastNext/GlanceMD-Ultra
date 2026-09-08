@@ -1,0 +1,185 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "保存与外部修改冲突保护时序",
+    "subtitle": "从 Ctrl+S 到 file-changed：请求—确认往返链与防回环设计",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1240, 660],
+    "column_fit": "spread",
+    "views": [
+      {
+        "id": "segment-1",
+        "label": "保存往返",
+        "focus": ["user", "editor", "host", "fs"],
+        "note": "Ctrl+S → 落盘 → JS 端确认状态。"
+      },
+      {
+        "id": "segment-2",
+        "label": "监听回流",
+        "focus": ["fs", "watcher", "host", "editor"],
+        "note": "通知跨线程进入事件循环。"
+      },
+      {
+        "id": "segment-3",
+        "label": "冲突决策",
+        "focus": ["editor", "banner", "user"],
+        "note": "脏检查通过后下推非模态横幅。"
+      }
+    ]
+  },
+  "participants": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "用户"
+    },
+    {
+      "id": "editor",
+      "type": "frontend",
+      "label": "前端编辑器 app.js"
+    },
+    {
+      "id": "host",
+      "type": "backend",
+      "label": "Rust 宿主 ipc.rs"
+    },
+    {
+      "id": "fs",
+      "type": "database",
+      "label": "文件系统 file_ops"
+    },
+    {
+      "id": "watcher",
+      "type": "backend",
+      "label": "通知监听 notify"
+    },
+    {
+      "id": "banner",
+      "type": "external",
+      "label": "冲突横幅"
+    }
+  ],
+  "segments": [
+    { "from": 116, "to": 352, "label": "保存往返" },
+    { "from": 360, "to": 480, "label": "监听回流" },
+    { "from": 488, "to": 558, "label": "冲突决策" }
+  ],
+  "messages": [
+    {
+      "id": "m1",
+      "from": "user",
+      "to": "editor",
+      "y": 160,
+      "label": "Ctrl+S / 保存",
+      "variant": "default"
+    },
+    {
+      "id": "m2",
+      "from": "editor",
+      "to": "host",
+      "y": 202,
+      "label": "save_file { tabId, path, content, requestId }",
+      "variant": "emphasis"
+    },
+    {
+      "id": "m3",
+      "from": "host",
+      "to": "fs",
+      "y": 244,
+      "label": "fs::write(path, content)",
+      "variant": "default"
+    },
+    {
+      "id": "m4",
+      "from": "fs",
+      "to": "host",
+      "y": 286,
+      "label": "Ok",
+      "variant": "return"
+    },
+    {
+      "id": "m5",
+      "from": "host",
+      "to": "editor",
+      "y": 328,
+      "label": "save_reply → 清空 dirty",
+      "variant": "return"
+    },
+    {
+      "id": "m6",
+      "from": "fs",
+      "to": "watcher",
+      "y": 372,
+      "label": "notify 收到路径变更",
+      "variant": "default"
+    },
+    {
+      "id": "m7",
+      "from": "watcher",
+      "to": "host",
+      "y": 414,
+      "label": "emit(FileChanged) · 300ms 去抖",
+      "variant": "dashed"
+    },
+    {
+      "id": "m8",
+      "from": "host",
+      "to": "editor",
+      "y": 456,
+      "label": "workspace:file-changed { path, action }",
+      "variant": "dashed"
+    },
+    {
+      "id": "m9",
+      "from": "editor",
+      "to": "banner",
+      "y": 498,
+      "label": "下推非模态冲突横幅",
+      "variant": "emphasis"
+    },
+    {
+      "id": "m10",
+      "from": "banner",
+      "to": "user",
+      "y": 540,
+      "label": "覆盖保存 / 另存为 / 关闭 tab",
+      "variant": "return"
+    }
+  ],
+  "activations": [
+    { "participant": "user", "from": 153, "to": 547, "type": "external" },
+    { "participant": "editor", "from": 153, "to": 505, "type": "frontend" },
+    { "participant": "host", "from": 195, "to": 463, "type": "backend" },
+    { "participant": "fs", "from": 237, "to": 379, "type": "database" },
+    { "participant": "watcher", "from": 365, "to": 421, "type": "backend" },
+    { "participant": "banner", "from": 491, "to": 547, "type": "external" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "防回环",
+      "items": [
+        "LoopSuppressor 在写入前登记路径",
+        "watcher 命中已登记路径即静默跳过"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "请求—确认",
+      "items": [
+        "requestId + tabId 匹配慢速往返，防止旧回执覆盖新编辑",
+        "300ms 去抖窗口内同路径通知合并为一次"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "原子性待落地",
+      "items": [
+        "atomic_write 走 .tmp → sync_all → rename，已测试未接入",
+        "生产仍走 write_file"
+      ]
+    }
+  ]
+}

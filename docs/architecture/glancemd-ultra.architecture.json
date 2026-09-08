@@ -1,0 +1,226 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "GlanceMD Ultra 架构总览",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1300, 502],
+    "views": [
+      {
+        "id": "ipc-path",
+        "label": "IPC 主路径",
+        "focus": ["frontend", "host", "ipc", "workspace", "project"],
+        "note": "从前端指令到项目文件写入的主链路。"
+      },
+      {
+        "id": "event-return",
+        "label": "事件回流",
+        "focus": ["workspace", "eventbus", "host", "frontend"],
+        "note": "后台线程产生的变更如何回到前端。"
+      },
+      {
+        "id": "storage-platform",
+        "label": "存储与平台",
+        "focus": ["fsio", "data", "project", "platform"],
+        "note": "用户数据落在哪里，三平台如何分叉。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "frontend",
+      "type": "frontend",
+      "label": "前端应用",
+      "sublabel": "单 HTML · 32 个自研 JS 模块",
+      "tag": "零 npm 依赖",
+      "pos": [70, 218],
+      "size": [190, 76]
+    },
+    {
+      "id": "host",
+      "type": "backend",
+      "label": "Rust 宿主",
+      "sublabel": "tao 事件循环 · wry WebView",
+      "tag": "单实例 · 拖放",
+      "pos": [400, 218],
+      "size": [190, 76]
+    },
+    {
+      "id": "eventbus",
+      "type": "messagebus",
+      "label": "事件桥",
+      "sublabel": "EventLoopProxy → broadcast",
+      "pos": [400, 388],
+      "size": [190, 76]
+    },
+    {
+      "id": "ipc",
+      "type": "backend",
+      "label": "IPC 命令分发",
+      "sublabel": "commands 注册表 · 29 个命令 ID",
+      "pos": [700, 48],
+      "size": [195, 76]
+    },
+    {
+      "id": "workspace",
+      "type": "backend",
+      "label": "Workspace 子系统",
+      "sublabel": "tree · watcher · search · ops",
+      "pos": [700, 218],
+      "size": [195, 76]
+    },
+    {
+      "id": "data",
+      "type": "database",
+      "label": "便携数据目录",
+      "sublabel": "data/ 设置 · 会话 · 恢复区",
+      "pos": [700, 388],
+      "size": [195, 76]
+    },
+    {
+      "id": "fsio",
+      "type": "backend",
+      "label": "文件 I/O",
+      "sublabel": "file_ops · file_codec · rfd",
+      "tag": "atomic_save 待接线",
+      "pos": [1045, 48],
+      "size": [195, 76]
+    },
+    {
+      "id": "project",
+      "type": "database",
+      "label": "Markdown 项目文件",
+      "sublabel": "用户文件系统 · .md / .txt",
+      "pos": [1045, 218],
+      "size": [195, 76]
+    },
+    {
+      "id": "platform",
+      "type": "backend",
+      "label": "平台适配层",
+      "sublabel": "windows · macos · linux",
+      "pos": [1045, 388],
+      "size": [195, 76]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "WebView 进程",
+      "wraps": ["frontend"],
+      "pad": 18
+    },
+    {
+      "kind": "region",
+      "label": "Rust 进程",
+      "wraps": ["host", "eventbus", "ipc", "workspace", "data", "fsio", "platform"],
+      "pad": 18
+    }
+  ],
+  "connections": [
+    {
+      "id": "ui-post",
+      "from": "frontend",
+      "to": "host",
+      "label": "ipc.postMessage(JSON)",
+      "variant": "emphasis",
+      "labelDy": 20
+    },
+    {
+      "id": "rust-eval",
+      "from": "host",
+      "to": "frontend",
+      "label": "evaluate_script",
+      "variant": "dashed",
+      "labelDy": -20
+    },
+    {
+      "id": "host-dispatch",
+      "from": "host",
+      "to": "ipc",
+      "label": "handle_ipc_message"
+    },
+    {
+      "id": "cmd-dispatch",
+      "from": "ipc",
+      "to": "workspace",
+      "label": "dispatch(id, payload)",
+      "variant": "emphasis",
+      "labelDy": 24
+    },
+    {
+      "id": "cmd-fs",
+      "from": "ipc",
+      "to": "fsio",
+      "label": "read_file / write_file"
+    },
+    {
+      "id": "ws-emit",
+      "from": "workspace",
+      "to": "eventbus",
+      "label": "events::emit"
+    },
+    {
+      "id": "bus-deliver",
+      "from": "eventbus",
+      "to": "host",
+      "label": "EventLoopProxy 投递"
+    },
+    {
+      "id": "ws-terminal",
+      "from": "workspace",
+      "to": "platform",
+      "label": "terminal.scan"
+    },
+    {
+      "id": "ws-settings",
+      "from": "workspace",
+      "to": "data",
+      "label": "settings / session / recovery",
+      "labelDy": 24
+    },
+    {
+      "id": "ws-project",
+      "from": "workspace",
+      "to": "project",
+      "label": "tree / fs ops"
+    },
+    {
+      "id": "fsio-write",
+      "from": "fsio",
+      "to": "project",
+      "label": "写入项目文件",
+      "labelDy": 24
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "进程边界与 IPC",
+      "items": [
+        "前端全部 JS 经 include_str! 内嵌为单 HTML，跑在 WebView 进程内（WebView2 / WKWebView / WebKitGTK）",
+        "上行 window.ipc.postMessage(JSON) → UserEvent::IpcMessage，29 个命令 ID 经 commands 注册表分发",
+        "下行 workspace::events::emit → EventLoopProxy → broadcast_event → evaluate_script → window.__fromRust"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "数据保护",
+      "items": [
+        "生产保存仍走 file_ops::write_file（std::fs::write）",
+        "atomic_save 已实现同目录 .tmp → sync_all → rename 原子替换，tests/atomic_save_probe.rs 覆盖，尚未接线 ipc.rs",
+        "file_codec 统一编码探测与保序写回；LoopSuppressor 抑制自身写操作触发的监听回环"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "持久化与平台",
+      "items": [
+        "便携 data/：exe 同级可写即用，否则回退 config_dir/glancemd-ultra",
+        "全局设置、会话、崩溃恢复区、窗口状态与 WebView2 用户数据同目录收敛",
+        "Windows 单实例命名管道 + 无边框；macOS / Linux 允许多实例，CI build.yml 覆盖四平台"
+      ]
+    }
+  ]
+}
