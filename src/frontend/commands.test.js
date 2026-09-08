@@ -70,7 +70,7 @@ test('装载后暴露 window.Commands 并注册阶段 0 内置命令', () => {
   const { commands } = loadCommands();
   assert.ok(commands);
   // ids() 返回 vm 沙箱内的数组（原型与宿主不同），展开为宿主数组后比较
-  assert.deepEqual([...commands.ids()], ['file.open', 'workspace.open', 'settings.toggle']);
+  assert.deepEqual([...commands.ids()], ['file.open', 'workspace.open', 'settings.toggle', 'settings.keybindings', 'outline.focus', 'resource.open', 'editor.focus', 'focus.next', 'focus.previous']);
   assert.equal(commands.get('file.open').label, '打开文件…');
 });
 
@@ -82,6 +82,16 @@ test('run(file.open) 发送与原按钮等效的 open_file 上行消息', () => 
   commands.run('file.open', { path: 'D:/doc.md' });
   assert.equal(messages.length, 2);
   assert.deepEqual(messages[1], { command: 'open_file', path: 'D:/doc.md' });
+});
+
+test('导航命令注册并可在模块延迟加载后执行', () => {
+  const calls = [];
+  const h = loadCommands();
+  h.commands.register('demo', { run() {} });
+  h.commands.run('outline.focus');
+  h.commands.run('resource.open');
+  assert.equal(h.commands.has('focus.next'), true);
+  assert.equal(h.commands.has('focus.previous'), true);
 });
 
 test('register 保存 category, description, visibleInPalette 与 isEnabled 元数据', () => {

@@ -1,9 +1,10 @@
 // Vim Mode UI & Visual Adaptation Component —— window.VimUI
 // 契约与规范：
-// 1. 状态栏模式展示组件：支持在状态栏或独立容器显示 -- NORMAL --, -- INSERT --, -- VISUAL --, -- VISUAL LINE --, -- COMMAND -- 等，
+// 1. 状态栏模式展示组件：支持在状态栏 (#statusbar) 显示 -- NORMAL --, -- INSERT --, -- VISUAL --, -- VISUAL LINE --, -- COMMAND -- 等，
 //    以及 pending count / operator / macro recording / key buffer 徽章。
-// 2. 光标与选区样式联动：在关联的宿主容器/编辑器上应用 .vim-mode-active, .vim-normal-mode, .vim-visual-mode 等类，支持方块光标指示与紫粉高亮选区。
-// 3. 命令行输入浮层：支持 showCommandLine(options) 弹出 Ex 命令行 / 搜索栏，支持 prompt (:, /, ?)、历史记录与补全建议、Enter 提交、Esc 取消。
+// 2. 光标与选区样式联动：在关联的宿主容器/编辑器上应用 .vim-mode-active, .vim-normal-mode, .vim-visual-mode 等类，
+//    支持精确测量的 .vim-block-cursor 方块光标指示与紫粉高亮选区，并随滚动/resize/字体设置同步。
+// 3. 命令行输入底栏/浮层：支持 showCommandLine(options) 弹出 Ex 命令行 / 搜索栏，支持 prompt (:, /, ?)、实时按键显示、Enter 提交、Esc 取消。
 // 4. 提供完整生命周期与控制 API：VimUI.mount(options), VimUI.update(state), VimUI.unmount(), VimUI.showCommandLine(options), VimUI.hideCommandLine()。
 // 5. 国际化支持：优先从 window.I18n 获取文案，内建中英文双语字典回退，监听 'i18n-changed' 动态刷新。
 
@@ -28,12 +29,23 @@
       'vim.modeLabel.replace': '-- REPLACE --',
       'vim.modeLabel.command': '-- COMMAND --',
 
+      'vim.hint.normal': '[VIM] 普通模式（按 i 进入编辑）',
+      'vim.hint.insert': '[VIM] 编辑模式（按 Esc 返回普通模式）',
+      'vim.hint.visual': '[VIM] 可视模式（按 Esc 返回普通模式）',
+      'vim.hint.visualLine': '[VIM] 可视行模式（按 Esc 返回普通模式）',
+      'vim.hint.visualBlock': '[VIM] 可视块模式（按 Esc 返回普通模式）',
+      'vim.hint.replace': '[VIM] 替换模式（按 Esc 返回普通模式）',
+      'vim.hint.command': '[VIM] 命令行模式（按 Esc 取消）',
+
+      'vim.toast.enter': '已进入 Vim 模式（普通模式）',
+      'vim.toast.exit': '已退出 Vim 模式',
+
       'vim.status.recording': '录制中 @{reg}',
       'vim.status.count': '计数: {count}',
       'vim.status.operator': '操作符: {op}',
       'vim.status.keyBuffer': '待决按键: {keys}',
 
-      'vim.command.placeholder': '输入 Ex 命令 (:w, :q, :s/...)...',
+      'vim.command.placeholder': '输入 Ex 命令 (:w, :q, :wq)...',
       'vim.search.placeholder': '输入搜索模式 (Enter 查找, Esc 取消)...',
 
       'vim.aria.mode': 'Vim 模式指示器',
@@ -59,12 +71,23 @@
       'vim.modeLabel.replace': '-- REPLACE --',
       'vim.modeLabel.command': '-- COMMAND --',
 
+      'vim.hint.normal': '[VIM] Normal mode (press i to edit)',
+      'vim.hint.insert': '[VIM] Edit mode (press Esc for Normal)',
+      'vim.hint.visual': '[VIM] Visual mode (press Esc for Normal)',
+      'vim.hint.visualLine': '[VIM] Visual Line mode (press Esc for Normal)',
+      'vim.hint.visualBlock': '[VIM] Visual Block mode (press Esc for Normal)',
+      'vim.hint.replace': '[VIM] Replace mode (press Esc for Normal)',
+      'vim.hint.command': '[VIM] Command mode (press Esc to cancel)',
+
+      'vim.toast.enter': 'Entered Vim mode (Normal)',
+      'vim.toast.exit': 'Exited Vim mode',
+
       'vim.status.recording': 'recording @{reg}',
       'vim.status.count': 'Count: {count}',
       'vim.status.operator': 'Operator: {op}',
       'vim.status.keyBuffer': 'Pending keys: {keys}',
 
-      'vim.command.placeholder': 'Type Ex command (:w, :q, :s/...)...',
+      'vim.command.placeholder': 'Type Ex command (:w, :q, :wq)...',
       'vim.search.placeholder': 'Type search pattern (Enter to find, Esc to cancel)...',
 
       'vim.aria.mode': 'Vim Mode Indicator',
@@ -109,7 +132,7 @@
     if (m === 'v' || m === 'visual') return 'visual';
     if (m === 'i' || m === 'insert') return 'insert';
     if (m === 'r' || m === 'replace') return 'replace';
-    if (m === 'c' || m === ':' || m === 'cmd' || m === 'command') return 'command';
+    if (m === 'c' || m === ':' || m === 'cmd' || m === 'command' || m === 'commandline') return 'command';
     return 'normal';
   }
 
@@ -118,51 +141,65 @@
     'normal': {
       labelKey: 'vim.modeLabel.normal',
       nameKey: 'vim.mode.normal',
+      hintKey: 'vim.hint.normal',
       cssClass: 'mode-normal',
       editorClass: 'vim-normal-mode',
-      fallbackText: '-- NORMAL --'
+      fallbackText: '-- NORMAL --',
+      fallbackHint: '[VIM] 普通模式（按 i 进入编辑）'
     },
     'insert': {
       labelKey: 'vim.modeLabel.insert',
       nameKey: 'vim.mode.insert',
+      hintKey: 'vim.hint.insert',
       cssClass: 'mode-insert',
       editorClass: 'vim-insert-mode',
-      fallbackText: '-- INSERT --'
+      fallbackText: '-- INSERT --',
+      fallbackHint: '[VIM] 编辑模式（按 Esc 返回普通模式）'
     },
     'visual': {
       labelKey: 'vim.modeLabel.visual',
       nameKey: 'vim.mode.visual',
+      hintKey: 'vim.hint.visual',
       cssClass: 'mode-visual',
       editorClass: 'vim-visual-mode',
-      fallbackText: '-- VISUAL --'
+      fallbackText: '-- VISUAL --',
+      fallbackHint: '[VIM] 可视模式（按 Esc 返回普通模式）'
     },
     'visual-line': {
       labelKey: 'vim.modeLabel.visualLine',
       nameKey: 'vim.mode.visualLine',
+      hintKey: 'vim.hint.visualLine',
       cssClass: 'mode-visual-line',
       editorClass: 'vim-visual-line-mode',
-      fallbackText: '-- VISUAL LINE --'
+      fallbackText: '-- VISUAL LINE --',
+      fallbackHint: '[VIM] 可视行模式（按 Esc 返回普通模式）'
     },
     'visual-block': {
       labelKey: 'vim.modeLabel.visualBlock',
       nameKey: 'vim.mode.visualBlock',
+      hintKey: 'vim.hint.visualBlock',
       cssClass: 'mode-visual-block',
       editorClass: 'vim-visual-block-mode',
-      fallbackText: '-- VISUAL BLOCK --'
+      fallbackText: '-- VISUAL BLOCK --',
+      fallbackHint: '[VIM] 可视块模式（按 Esc 返回普通模式）'
     },
     'replace': {
       labelKey: 'vim.modeLabel.replace',
       nameKey: 'vim.mode.replace',
+      hintKey: 'vim.hint.replace',
       cssClass: 'mode-replace',
       editorClass: 'vim-replace-mode',
-      fallbackText: '-- REPLACE --'
+      fallbackText: '-- REPLACE --',
+      fallbackHint: '[VIM] 替换模式（按 Esc 返回普通模式）'
     },
     'command': {
       labelKey: 'vim.modeLabel.command',
       nameKey: 'vim.mode.command',
+      hintKey: 'vim.hint.command',
       cssClass: 'mode-command',
       editorClass: 'vim-command-mode',
-      fallbackText: '-- COMMAND --'
+      fallbackText: '-- COMMAND --',
+      fallbackHint: '[VIM] 命令行模式（按 Esc 取消）'
     }
   };
 
@@ -170,6 +207,8 @@
     mounted: false,
     enabled: true,
     mode: 'normal',
+    cursor: 0,
+    commandLine: '',
     pendingCount: null,
     pendingOperator: null,
     keyBuffer: '',
@@ -186,6 +225,7 @@
       container: null,
       editorTarget: null,
       commandContainer: null,
+      editorElement: null,
       statusWidget: null,
       modeBadge: null,
       badgesGroup: null,
@@ -194,10 +234,13 @@
       recordingBadge: null,
       keyBufferBadge: null,
       statusMessageEl: null,
+      enabledHintEl: null,
       commandOverlay: null,
       cmdPromptEl: null,
       cmdInputEl: null,
-      cmdSuggestionsEl: null
+      cmdSuggestionsEl: null,
+      blockCursor: null,
+      cursorMirror: null
     },
     previousActiveElement: null,
     listeners: []
@@ -298,8 +341,19 @@
       }
     }
 
+    // 6.5 常驻提示文案联动当前模式
+    if (state.dom.enabledHintEl) {
+      var hintKey = conf.hintKey || 'vim.hint.normal';
+      var hintText = t(hintKey) || conf.fallbackHint || '[VIM] 普通模式（按 i 进入编辑）';
+      state.dom.enabledHintEl.textContent = hintText;
+      state.dom.enabledHintEl.className = 'vim-enabled-hint vim-persistent-hint ' + (conf.cssClass || 'mode-normal');
+    }
+
     // 7. 同步 Editor 容器的模式 CSS 类
     syncEditorClasses();
+
+    // 8. 同步方块光标位置
+    updateBlockCursorPosition();
   }
 
   // 同步 editorTarget 上的模式样式类
@@ -327,6 +381,129 @@
     });
   }
 
+  // 计算并同步方块光标位置
+  function updateBlockCursorPosition() {
+    var cursorEl = state.dom.blockCursor;
+    var mirrorEl = state.dom.cursorMirror;
+    var editorEl = state.dom.editorElement;
+    if (!cursorEl || !editorEl) return;
+
+    var normalized = normalizeMode(state.mode);
+    if (!state.enabled || normalized === 'insert') {
+      cursorEl.style.display = 'none';
+      if (root.CustomCaret && typeof root.CustomCaret.update === 'function') {
+        root.CustomCaret.update();
+      }
+      return;
+    }
+
+    var doc = editorEl.ownerDocument || (typeof document !== 'undefined' ? document : null);
+    if (!doc || !mirrorEl) return;
+
+    var text = String(editorEl.value || '');
+    var pos = typeof state.cursor === 'number' ? state.cursor : (editorEl.selectionStart || 0);
+    pos = Math.max(0, Math.min(pos, text.length));
+
+    // 同步 textarea 样式到 mirror 元素
+    var win = doc.defaultView || root;
+    if (win && typeof win.getComputedStyle === 'function') {
+      try {
+        var cs = win.getComputedStyle(editorEl);
+        mirrorEl.style.fontFamily = cs.fontFamily;
+        mirrorEl.style.fontSize = cs.fontSize;
+        mirrorEl.style.fontWeight = cs.fontWeight;
+        mirrorEl.style.fontStyle = cs.fontStyle;
+        mirrorEl.style.letterSpacing = cs.letterSpacing;
+        mirrorEl.style.lineHeight = cs.lineHeight;
+        mirrorEl.style.paddingTop = cs.paddingTop;
+        mirrorEl.style.paddingRight = cs.paddingRight;
+        mirrorEl.style.paddingBottom = cs.paddingBottom;
+        mirrorEl.style.paddingLeft = cs.paddingLeft;
+        mirrorEl.style.borderTopWidth = cs.borderTopWidth;
+        mirrorEl.style.borderLeftWidth = cs.borderLeftWidth;
+        mirrorEl.style.borderRightWidth = cs.borderRightWidth;
+        mirrorEl.style.borderBottomWidth = cs.borderBottomWidth;
+        mirrorEl.style.boxSizing = cs.boxSizing;
+        mirrorEl.style.whiteSpace = cs.whiteSpace || 'pre-wrap';
+        mirrorEl.style.wordBreak = cs.wordBreak || 'break-word';
+        mirrorEl.style.tabSize = cs.tabSize || cs.MozTabSize || '4';
+        var w = editorEl.clientWidth || parseFloat(cs.width);
+        if (w > 0) mirrorEl.style.width = w + 'px';
+        mirrorEl.style.height = editorEl.clientHeight + 'px';
+      } catch (e) {}
+    }
+
+    // 填充 mirror
+    var before = text.slice(0, pos);
+    var charUnder = text.charAt(pos);
+    var after = text.slice(pos + 1);
+
+    mirrorEl.innerHTML = '';
+    var spanBefore = doc.createTextNode ? doc.createTextNode(before) : null;
+    if (spanBefore) mirrorEl.appendChild(spanBefore);
+
+    var markerSpan = doc.createElement('span');
+    markerSpan.className = 'vim-cursor-marker';
+    markerSpan.textContent = (!charUnder || charUnder === '\n') ? ' ' : charUnder;
+    mirrorEl.appendChild(markerSpan);
+
+    var spanAfter = doc.createTextNode ? doc.createTextNode(after) : null;
+    if (spanAfter) mirrorEl.appendChild(spanAfter);
+
+    // 测量 marker
+    var markerLeft = markerSpan.offsetLeft || 0;
+    var markerTop = markerSpan.offsetTop || 0;
+    var markerW = markerSpan.offsetWidth || 8.5;
+    var markerH = markerSpan.offsetHeight || 19;
+
+    // Normal / Visual 下 j/k 移动边缘自动 scroll 留 2 行边距
+    var lineHeight = markerH || 19;
+    var margin = lineHeight * 2;
+    var sTop = editorEl.scrollTop || 0;
+    var cHeight = editorEl.clientHeight || 0;
+    var sHeight = editorEl.scrollHeight || 0;
+    var maxScroll = Math.max(0, sHeight - cHeight);
+
+    if (cHeight > 0 && maxScroll > 0) {
+      if (markerTop - margin < sTop) {
+        editorEl.scrollTop = Math.max(0, markerTop - margin);
+        sTop = editorEl.scrollTop;
+      } else if (markerTop + lineHeight + margin > sTop + cHeight) {
+        editorEl.scrollTop = Math.min(maxScroll, markerTop + lineHeight + margin - cHeight);
+        sTop = editorEl.scrollTop;
+      }
+    }
+
+    var edOffsetLeft = editorEl.offsetLeft || 0;
+    var edOffsetTop = editorEl.offsetTop || 0;
+    var sLeft = editorEl.scrollLeft || 0;
+
+    var posX = edOffsetLeft + markerLeft - sLeft;
+    var posY = edOffsetTop + markerTop - sTop;
+
+    // 视口溢出检查
+    var edClientW = editorEl.clientWidth;
+    var edClientH = editorEl.clientHeight;
+    if (edClientW > 0 && edClientH > 0) {
+      if (posX + markerW < edOffsetLeft || posX > edOffsetLeft + edClientW ||
+          posY + markerH < edOffsetTop || posY > edOffsetTop + edClientH) {
+        cursorEl.style.display = 'none';
+        return;
+      }
+    }
+
+    cursorEl.style.display = 'block';
+    cursorEl.textContent = (!charUnder || charUnder === '\n') ? '\u00A0' : charUnder;
+    cursorEl.style.left = posX + 'px';
+    cursorEl.style.top = posY + 'px';
+    cursorEl.style.width = markerW + 'px';
+    cursorEl.style.height = markerH + 'px';
+
+    if (root.CustomCaret && typeof root.CustomCaret.update === 'function') {
+      root.CustomCaret.update();
+    }
+  }
+
   function escapeHtml(s) {
     return String(s || '').replace(/[&<>"']/g, function (c) {
       return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
@@ -349,7 +526,7 @@
       container = doc.querySelector(container);
     }
     if (!container) {
-      container = doc.getElementById('status-bar') || doc.body;
+      container = doc.getElementById('statusbar') || doc.getElementById('status-bar') || doc.body;
     }
 
     var editorTarget = options.editorTarget;
@@ -366,6 +543,14 @@
     }
     if (!commandContainer) {
       commandContainer = editorTarget || doc.body;
+    }
+
+    var editorElement = options.editorElement || options.target;
+    if (typeof editorElement === 'string') {
+      editorElement = doc.querySelector(editorElement);
+    }
+    if (!editorElement) {
+      editorElement = doc.getElementById('editor') || (editorTarget ? editorTarget.querySelector('textarea') : null);
     }
 
     // 1. 创建状态栏组件
@@ -411,6 +596,12 @@
     statusMessageEl.style.display = 'none';
     widget.appendChild(statusMessageEl);
 
+    var enabledHint = doc.createElement('span');
+    enabledHint.className = 'vim-enabled-hint vim-persistent-hint mode-normal';
+    enabledHint.textContent = t('vim.hint.normal') || '[VIM] 普通模式（按 i 进入编辑）';
+    enabledHint.setAttribute('title', 'Vim 模式');
+    widget.appendChild(enabledHint);
+
     container.appendChild(widget);
 
     // 2. 创建命令行浮层
@@ -445,10 +636,32 @@
 
     commandContainer.appendChild(cmdOverlay);
 
+    // 3. 创建方块光标与测量镜像
+    var blockCursor = doc.createElement('div');
+    blockCursor.className = 'vim-block-cursor';
+    blockCursor.setAttribute('aria-hidden', 'true');
+    blockCursor.style.display = 'none';
+    editorTarget.appendChild(blockCursor);
+
+    var cursorMirror = doc.createElement('div');
+    cursorMirror.className = 'vim-cursor-mirror';
+    cursorMirror.setAttribute('aria-hidden', 'true');
+    cursorMirror.style.position = 'absolute';
+    cursorMirror.style.top = '0';
+    cursorMirror.style.left = '0';
+    cursorMirror.style.visibility = 'hidden';
+    cursorMirror.style.pointerEvents = 'none';
+    cursorMirror.style.whiteSpace = 'pre-wrap';
+    cursorMirror.style.wordBreak = 'break-word';
+    cursorMirror.style.overflow = 'hidden';
+    cursorMirror.style.zIndex = '-1';
+    editorTarget.appendChild(cursorMirror);
+
     // 保存 DOM 引用
     state.dom.container = container;
     state.dom.editorTarget = editorTarget;
     state.dom.commandContainer = commandContainer;
+    state.dom.editorElement = editorElement;
     state.dom.statusWidget = widget;
     state.dom.modeBadge = modeBadge;
     state.dom.badgesGroup = badgesGroup;
@@ -457,16 +670,26 @@
     state.dom.recordingBadge = recordingBadge;
     state.dom.keyBufferBadge = keyBufferBadge;
     state.dom.statusMessageEl = statusMessageEl;
+    state.dom.enabledHintEl = enabledHint;
     state.dom.commandOverlay = cmdOverlay;
     state.dom.cmdPromptEl = cmdPrompt;
     state.dom.cmdInputEl = cmdInput;
     state.dom.cmdSuggestionsEl = cmdSuggestions;
+    state.dom.blockCursor = blockCursor;
+    state.dom.cursorMirror = cursorMirror;
 
     state.mounted = true;
     state.enabled = options.enabled !== undefined ? !!options.enabled : true;
 
-    // 绑定命令行事件
+    // 绑定命令行事件与光标同步监听
     setupCommandLineEvents();
+    if (editorElement) {
+      addEventListenerHelper(editorElement, 'scroll', updateBlockCursorPosition);
+      addEventListenerHelper(editorElement, 'selectionchange', updateBlockCursorPosition);
+    }
+    if (typeof root.addEventListener === 'function') {
+      addEventListenerHelper(root, 'resize', updateBlockCursorPosition);
+    }
 
     // 监听 i18n 变更
     if (typeof root.addEventListener === 'function') {
@@ -631,6 +854,14 @@
       state.mode = next.mode;
     }
 
+    if (next.cursor !== undefined) {
+      state.cursor = next.cursor;
+    }
+
+    if (next.commandLine !== undefined) {
+      state.commandLine = next.commandLine;
+    }
+
     if (next.pendingCount !== undefined) {
       state.pendingCount = next.pendingCount;
     } else if (next.count !== undefined) {
@@ -671,6 +902,35 @@
       state.statusMessageType = 'info';
     }
 
+    // 处理 CommandLine 模式的实时展示
+    var normalizedMode = normalizeMode(state.mode);
+    if (normalizedMode === 'command') {
+      if (state.dom.commandOverlay) {
+        state.dom.commandOverlay.classList.add('active');
+      }
+      state.commandLineOpen = true;
+      var rawCmd = state.commandLine !== undefined ? String(state.commandLine) : ':';
+      var promptChar = rawCmd.length > 0 ? rawCmd.charAt(0) : ':';
+      var inputVal = rawCmd.length > 0 ? rawCmd.slice(1) : '';
+      state.commandPrompt = promptChar;
+      state.commandValue = inputVal;
+      if (state.dom.cmdPromptEl) {
+        state.dom.cmdPromptEl.textContent = promptChar;
+      }
+      if (state.dom.cmdInputEl && state.dom.cmdInputEl !== (state.dom.container ? state.dom.container.ownerDocument.activeElement : null)) {
+        state.dom.cmdInputEl.value = inputVal;
+      }
+    } else if (state.commandLineOpen && !state.commandOptions) {
+      // 非由 showCommandLine 显式弹出的 CommandLine 自动隐藏
+      if (state.dom.commandOverlay) {
+        state.dom.commandOverlay.classList.remove('active');
+      }
+      state.commandLineOpen = false;
+      if (state.dom.cmdInputEl) {
+        state.dom.cmdInputEl.value = '';
+      }
+    }
+
     renderStatusWidget();
     return VimUI;
   }
@@ -706,7 +966,7 @@
     state.commandLineOpen = true;
 
     // 切换模式徽章到 command
-    update({ mode: 'command' });
+    update({ mode: 'command', commandLine: prompt + (options.initialValue || '') });
 
     try {
       if (typeof inputEl.focus === 'function') {
@@ -739,8 +999,8 @@
     state.commandLineOpen = false;
     state.commandOptions = null;
 
-    if (state.mode === 'command') {
-      update({ mode: 'normal' });
+    if (normalizeMode(state.mode) === 'command') {
+      update({ mode: 'normal', commandLine: '' });
     }
 
     if (state.previousActiveElement && typeof state.previousActiveElement.focus === 'function') {
@@ -754,15 +1014,45 @@
   }
 
   /* ── 卸载与清理 ── */
-  function unmount() {
+  function unmount(options) {
     removeAllListeners();
 
-    if (state.dom.statusWidget && state.dom.statusWidget.parentNode) {
-      state.dom.statusWidget.parentNode.removeChild(state.dom.statusWidget);
+    if (state.dom.enabledHintEl) {
+      state.dom.enabledHintEl.style.display = 'none';
+      if (state.dom.enabledHintEl.parentNode) {
+        state.dom.enabledHintEl.parentNode.removeChild(state.dom.enabledHintEl);
+      }
     }
 
-    if (state.dom.commandOverlay && state.dom.commandOverlay.parentNode) {
-      state.dom.commandOverlay.parentNode.removeChild(state.dom.commandOverlay);
+    if (state.dom.statusWidget) {
+      state.dom.statusWidget.style.display = 'none';
+      state.dom.statusWidget.setAttribute('hidden', '');
+      if (state.dom.statusWidget.parentNode) {
+        state.dom.statusWidget.parentNode.removeChild(state.dom.statusWidget);
+      }
+    }
+
+    if (state.dom.commandOverlay) {
+      state.dom.commandOverlay.classList.remove('active');
+      state.dom.commandOverlay.style.display = 'none';
+      state.dom.commandOverlay.setAttribute('hidden', '');
+      if (state.dom.commandOverlay.parentNode) {
+        state.dom.commandOverlay.parentNode.removeChild(state.dom.commandOverlay);
+      }
+    }
+
+    if (state.dom.blockCursor) {
+      state.dom.blockCursor.style.display = 'none';
+      if (state.dom.blockCursor.parentNode) {
+        state.dom.blockCursor.parentNode.removeChild(state.dom.blockCursor);
+      }
+    }
+
+    if (state.dom.cursorMirror) {
+      state.dom.cursorMirror.style.display = 'none';
+      if (state.dom.cursorMirror.parentNode) {
+        state.dom.cursorMirror.parentNode.removeChild(state.dom.cursorMirror);
+      }
     }
 
     if (state.dom.editorTarget && state.dom.editorTarget.classList) {
@@ -772,12 +1062,18 @@
       });
     }
 
+    if (options && options.clearToast) {
+      hideToast();
+    }
+
     state.mounted = false;
+    state.enabled = false;
     state.commandLineOpen = false;
     state.dom = {
       container: null,
       editorTarget: null,
       commandContainer: null,
+      editorElement: null,
       statusWidget: null,
       modeBadge: null,
       badgesGroup: null,
@@ -786,12 +1082,110 @@
       recordingBadge: null,
       keyBufferBadge: null,
       statusMessageEl: null,
+      enabledHintEl: null,
       commandOverlay: null,
       cmdPromptEl: null,
       cmdInputEl: null,
-      cmdSuggestionsEl: null
+      cmdSuggestionsEl: null,
+      blockCursor: null,
+      cursorMirror: null
     };
 
+    return VimUI;
+  }
+
+  /* ── 轻量 Toast 提示机制 ── */
+  var toastTimer = null;
+
+  function safeSetTimeout(fn, ms) {
+    if (typeof setTimeout === 'function') {
+      return setTimeout(fn, ms);
+    }
+    if (root && typeof root.setTimeout === 'function') {
+      return root.setTimeout(fn, ms);
+    }
+    if (typeof globalThis !== 'undefined' && typeof globalThis.setTimeout === 'function') {
+      return globalThis.setTimeout(fn, ms);
+    }
+    return null;
+  }
+
+  function safeClearTimeout(id) {
+    if (!id) return;
+    if (typeof clearTimeout === 'function') {
+      clearTimeout(id);
+      return;
+    }
+    if (root && typeof root.clearTimeout === 'function') {
+      root.clearTimeout(id);
+      return;
+    }
+    if (typeof globalThis !== 'undefined' && typeof globalThis.clearTimeout === 'function') {
+      globalThis.clearTimeout(id);
+    }
+  }
+
+  function showToast(message, duration) {
+    var doc = (state.dom.container && state.dom.container.ownerDocument) ||
+      (typeof document !== 'undefined' ? document : null);
+    if (!doc || !doc.createElement) return VimUI;
+
+    var toastEl = doc.getElementById('vim-toast');
+    if (!toastEl) {
+      toastEl = doc.createElement('div');
+      toastEl.id = 'vim-toast';
+      toastEl.className = 'vim-toast';
+      toastEl.setAttribute('role', 'status');
+      toastEl.setAttribute('aria-live', 'polite');
+      var host = doc.body || (state.dom.editorTarget && state.dom.editorTarget.parentNode) || state.dom.container;
+      if (host) host.appendChild(toastEl);
+    }
+
+    var text = message || t('vim.toast.enter') || '已进入 Vim 模式（普通模式）';
+    toastEl.textContent = text;
+    toastEl.style.display = 'block';
+    if (typeof toastEl.getBoundingClientRect === 'function') {
+      try { toastEl.getBoundingClientRect(); } catch (e) {}
+    }
+    toastEl.classList.add('visible');
+
+    if (toastTimer) {
+      safeClearTimeout(toastTimer);
+      toastTimer = null;
+    }
+
+    var dur = typeof duration === 'number' && duration > 0 ? duration : 1500;
+    toastTimer = safeSetTimeout(function () {
+      if (toastEl) {
+        toastEl.classList.remove('visible');
+        safeSetTimeout(function () {
+          if (toastEl && !toastEl.classList.contains('visible')) {
+            toastEl.style.display = 'none';
+          }
+        }, 200);
+      }
+      toastTimer = null;
+    }, dur);
+
+    return VimUI;
+  }
+
+  function hideToast() {
+    if (toastTimer) {
+      safeClearTimeout(toastTimer);
+      toastTimer = null;
+    }
+    var doc = (state.dom.container && state.dom.container.ownerDocument) ||
+      (typeof document !== 'undefined' ? document : null);
+    if (!doc) return VimUI;
+    var toastEl = doc.getElementById('vim-toast');
+    if (toastEl) {
+      toastEl.classList.remove('visible');
+      toastEl.style.display = 'none';
+      if (toastEl.parentNode) {
+        toastEl.parentNode.removeChild(toastEl);
+      }
+    }
     return VimUI;
   }
 
@@ -813,6 +1207,7 @@
       mounted: state.mounted,
       enabled: state.enabled,
       mode: state.mode,
+      cursor: state.cursor,
       pendingCount: state.pendingCount,
       pendingOperator: state.pendingOperator,
       keyBuffer: state.keyBuffer,
@@ -820,7 +1215,8 @@
       statusMessage: state.statusMessage,
       statusMessageType: state.statusMessageType,
       commandLineOpen: state.commandLineOpen,
-      commandPrompt: state.commandPrompt
+      commandPrompt: state.commandPrompt,
+      commandValue: state.commandValue
     };
   }
 
@@ -830,11 +1226,14 @@
     unmount: unmount,
     showCommandLine: showCommandLine,
     hideCommandLine: hideCommandLine,
+    showToast: showToast,
+    hideToast: hideToast,
     setMode: setMode,
     setMessage: setMessage,
     clearMessage: clearMessage,
     getState: getState,
     normalizeMode: normalizeMode,
+    updateBlockCursorPosition: updateBlockCursorPosition,
     MODE_CONFIG: MODE_CONFIG,
     FALLBACK_LOCALES: FALLBACK_LOCALES
   };

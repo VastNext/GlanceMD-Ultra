@@ -1048,6 +1048,7 @@
 
   function open() {
     state.open = true;
+    if (window.contextKeys) { window.contextKeys.set('settingsFocus', true); window.contextKeys.set('dialogOpen', true); }
     if (typeof document !== 'undefined' && document.activeElement) {
       lastFocusedEl = document.activeElement;
     }
@@ -1066,6 +1067,7 @@
 
   function close() {
     state.open = false;
+    if (window.contextKeys) { window.contextKeys.remove('settingsFocus'); window.contextKeys.remove('dialogOpen'); }
     cancelKbRecording();
     closeCustomSelect();
     var p = document.getElementById('settings-panel');
@@ -1132,6 +1134,16 @@
     open: open,
     close: close,
     toggle: function () { state.open ? close() : open(); },
+    refresh: refresh,
+    setCategory: function (category) {
+      if (CATEGORIES.some(function (item) { return item.key === category; })) {
+        state.category = category;
+        if (state.open) {
+          renderCategories();
+          render();
+        }
+      }
+    },
     receive: receive,
     getState: function () { return state; }
   };

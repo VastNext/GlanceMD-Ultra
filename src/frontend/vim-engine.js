@@ -24,15 +24,33 @@
     this.commandRunner = options.commandRunner || (options.Commands && typeof options.Commands.run === 'function' ? options.Commands.run.bind(options.Commands) : function() {});
     this.textarea = options.textarea || null; this._sync();
   }
-  VimEngine.prototype._sync = function() { if (this.textarea) { this.textarea.value=this.text; if (this.textarea.setSelectionRange) this.textarea.setSelectionRange(this.cursor, this.mode.indexOf('Visual')===0 && this.selection ? this.selection.head : this.cursor); } };
+  VimEngine.prototype._sync = function() {
+    if (this.textarea) {
+      if (this.textarea.value !== this.text) this.textarea.value = this.text;
+      if (this.textarea.setSelectionRange) {
+        var head = (this.mode.indexOf('Visual') === 0 && this.selection) ? this.selection.head : this.cursor;
+        this.textarea.setSelectionRange(this.cursor, head);
+      }
+    }
+  };
   VimEngine.prototype._save = function() { this.undoStack.push({text:this.text,cursor:this.cursor}); if(this.undoStack.length>100)this.undoStack.shift(); this.redoStack=[]; };
   VimEngine.prototype._replace = function(a,b,value,record) { if(record!==false)this._save(); this.text=this.text.slice(0,a)+value+this.text.slice(b); this.cursor=clamp(a,0,this.text.length); this._sync(); };
   VimEngine.prototype.setText = function(s) { this._save(); this.text=String(s); this.cursor=clamp(this.cursor,0,this.text.length); this._sync(); };
-  VimEngine.prototype.getState = function() { return { text:this.text,cursor:this.cursor,mode:this.mode,selection:this.selection,commandLine:this.commandLine,registers:this.registers,marks:this.marks,composing:this.composing }; };
+  VimEngine.prototype.getState = function() { return { text:this.text,cursor:this.cursor,mode:this.mode,selection:this.selection,commandLine:this.commandLine,registers:this.registers,marks:this.marks,composing:this.composing,wrap:this.wrap }; };
   VimEngine.prototype.setComposing = function(v) { this.composing=!!v; };
   VimEngine.prototype.getRegister = function(name) { return this.registers[name || '"'] || ''; };
   VimEngine.prototype.setRegister = function(name, value) { name=name || '"'; if (name === '+') this.registers['+']=String(value); else if (this.registers[name] !== undefined) this.registers[name]=String(value); return this.getRegister(name); };
-  VimEngine.prototype._search = function(query, direction) { query=String(query || ''); if (!query) return false; var pos=direction < 0 ? this.text.lastIndexOf(query, Math.max(0,this.cursor-1)) : this.text.indexOf(query, this.cursor+1); if (pos < 0 && this.wrap) pos=direction < 0 ? this.text.lastIndexOf(query) : this.text.indexOf(query); if (pos < 0) return false; this.cursor=pos; this.lastSearch={query:query,direction:direction}; this._sync(); return true; };
+  VimEngine.prototype._search = function(query, direction) {
+    query=String(query || '');
+    if (!query) return false;
+    var pos=direction < 0 ? this.text.lastIndexOf(query, Math.max(0,this.cursor-1)) : this.text.indexOf(query, this.cursor+1);
+    if (pos < 0 && this.wrap) pos=direction < 0 ? this.text.lastIndexOf(query) : this.text.indexOf(query);
+    if (pos < 0) return false;
+    this.cursor=pos;
+    this.lastSearch={query:query,direction:direction};
+    this._sync();
+    return true;
+  };
   VimEngine.prototype.undo = function() { if(!this.undoStack.length)return false; this.redoStack.push({text:this.text,cursor:this.cursor}); var x=this.undoStack.pop(); this.text=x.text;this.cursor=x.cursor;this._sync();return true; };
   VimEngine.prototype.redo = function() { if(!this.redoStack.length)return false; this.undoStack.push({text:this.text,cursor:this.cursor}); var x=this.redoStack.pop();this.text=x.text;this.cursor=x.cursor;this._sync();return true; };
   VimEngine.prototype._count = function() { var n=Number(this.count)||1;this.count='';return n; };
@@ -54,7 +72,20 @@
   VimEngine.prototype._operator = function(op, motion, count) { var start=this.cursor, end=this.motion(motion,count), a=Math.min(start,end), b=Math.max(start,end); if(motion==='0')a=lineStart(this.text,start); if(motion==='$')b=lineEnd(this.text,start); if(end===start&&motion!=='$')return; if(op==='>'||op==='<'){var chunk=this.text.slice(a,b), indent=op==='>'?'  ':'', out=chunk.split('\n').map(function(x){return op==='>'?indent+x:x.replace(/^ {1,2}/,'');}).join('\n');this._replace(a,b,out);this.cursor=a;return;} var val=this.text.slice(a,b+(end>start?0:1)); if(op==='d'||op==='c')this.registers['"']=val; if(op==='y') {this.registers['"']=val;this.registers['0']=val;} if(op!=='y')this._replace(a,b+(end>start?0:1),''); else {this.cursor=a;this._sync();} if(op==='c'){this.mode='Insert';} this.lastChange={type:'operator',op:op,motion:motion,count:count}; };
   VimEngine.prototype._textObject = function(obj) { var p=this.cursor, a=this.text, pairs={'(':')','[':']','{':'}','"':'"',"'":"'",'`':'`'}, ch=obj.slice(-1); if(obj==='iw'||obj==='aw'){var s=p,e=p;while(s>0&&wordChar(a[s-1]))s--;while(e<a.length&&wordChar(a[e]))e++;if(obj==='aw')while(e<a.length&&/\s/.test(a[e]))e++;return {start:s,end:e};} if(obj==='ip'||obj==='ap'){var s2=lineStart(a,p),e2=lineEnd(a,p)+(obj==='ap'&&a[lineEnd(a,p)]==='\n'?1:0);return {start:s2,end:e2};} var close=pairs[ch], s3=p,e3=p;while(s3>=0&&a[s3]!==ch)s3--;while(e3<a.length&&a[e3]!==close)e3++;if(s3>=0&&e3<a.length)return {start:s3,end:e3+1};return null; };
   VimEngine.prototype._visualAction = function(k) { var r=makeRange(this.selection.anchor,this.cursor), a=r.start,b=r.end; if(this.mode==='VisualLine'){a=lineStart(this.text,a);b=Math.min(this.text.length,lineEnd(this.text,b)+1);} if(k==='d'||k==='x'||k==='c'||k==='y'){var v=this.text.slice(a,b);this.registers['"']=v;if(k==='y'){this.cursor=a;}else{this._replace(a,b,'');if(k==='c')this.mode='Insert';} if(k==='d'||k==='x')this.lastChange={type:'visual',op:'d',value:v}; if(k==='y')this.lastChange={type:'visual',op:'y',value:v};if(this.mode!=='Insert')this.mode='Normal';this.selection=null;return true;} if(k==='>'||k==='<'){this._operator(k,'$',1);this.mode='Normal';this.selection=null;return true;} return false; };
-  VimEngine.prototype.ex = function(cmd) { var raw=String(cmd).replace(/^:/,'').trim(), bang=/!$/.test(raw), name=raw.replace(/!$/,'').split(/\s+/)[0], args=raw.slice(name.length).trim(); if(name==='set'){this.wrap=args!=='nowrap';} this.commandRunner(name,{command:raw,args:args,bang:bang,engine:this}); return raw; };
+  VimEngine.prototype.ex = function(cmd) {
+    var raw=String(cmd).replace(/^:/,'').trim();
+    var bang=/!$/.test(raw);
+    var name=raw.replace(/!$/,'').split(/\s+/)[0];
+    var args=raw.slice(name.length).trim();
+    if(name==='set'){
+      this.wrap=args!=='nowrap';
+    } else if(name==='noh'||name==='nohlsearch'){
+      this.lastSearch=null;
+    }
+    var callerName = bang ? name + '!' : name;
+    this.commandRunner(callerName,{command:raw,name:name,args:args,bang:bang,engine:this});
+    return raw;
+  };
   VimEngine.prototype.handleKey = function(key, event) {
     if(this.composing || (event&&event.isComposing) || key==='Process')return {handled:false,composing:true};
     // 允许应用全局快捷键与 chord 放行（如 Alt+Shift+E 等组合，或处于 chord 等待态时不被 Vim 当单字母截获）
@@ -66,7 +97,33 @@
       return {handled:false};
     }
     key=String(key); var n, p;
-    if(this.mode==='CommandLine'){if(key==='Escape'){this.mode='Normal';this.commandLine='';}else if(key==='Enter'){var c=this.commandLine;this.ex(c);this.mode='Normal';this.commandLine='';}else if(key==='Backspace')this.commandLine=this.commandLine.slice(0,-1);else if(key.length===1)this.commandLine+=key;return {handled:true};}
+    if(this.mode==='CommandLine'){
+      if(key==='Escape'){
+        this.mode='Normal';
+        this.commandLine='';
+      } else if(key==='Enter'){
+        var c=this.commandLine;
+        if(c.charAt(0)==='/'||c.charAt(0)==='?'){
+          var dir=c.charAt(0)==='/'?1:-1;
+          var q=c.slice(1);
+          if(q){
+            this._search(q,dir);
+          }
+        } else {
+          this.ex(c);
+        }
+        this.mode='Normal';
+        this.commandLine='';
+      } else if(key==='Backspace'){
+        this.commandLine=this.commandLine.slice(0,-1);
+        if(!this.commandLine){
+          this.mode='Normal';
+        }
+      } else if(key.length===1){
+        this.commandLine+=key;
+      }
+      return {handled:true};
+    }
     if(this.mode==='Insert'){if(key==='Escape'){this.mode='Normal';this.cursor=clamp(this.cursor-1,0,this.text.length);this._sync();return {handled:true};} if(key.length===1||key==='Enter'||key==='Tab'){this._replace(this.cursor,this.cursor,key==='Enter'?'\n':key);this.cursor++;this._sync();return {handled:true};} return {handled:false};}
     if(this.mode.indexOf('Visual')===0){if(key==='Escape'){this.mode='Normal';this.selection=null;return {handled:true};}if(MOTIONS[key]){this.cursor=this.motion(key,this._count());this._sync();return {handled:true};}if(this._visualAction(key))return {handled:true};}
     if(/^\d$/.test(key)&&(key!=='0'||this.count)){this.count+=key;return {handled:true};}
@@ -75,9 +132,9 @@
     if(key==='J'){var e=lineEnd(this.text,this.cursor);if(this.text[e]==='\n'){this._replace(e,e+1,' ');this.cursor=e;};return {handled:true};} if(key==='~'){var ch=this.text[this.cursor];if(ch){this._replace(this.cursor,this.cursor+1,ch===ch.toUpperCase()?ch.toLowerCase():ch.toUpperCase());this.cursor++;}return {handled:true};}
     if(key==='m'){this.pending='mark';return {handled:true};} if(key==="'"||key==='`'){this.pending=key;return {handled:true};}
     if(this.pending==='mark'){if(/^[a-z]$/.test(key))this.marks[key]=this.cursor;this.pending='';return {handled:true};} if((this.pending==="'"||this.pending==='`')&&/^[a-z]$/.test(key)){this.cursor=clamp(this.marks[key]||0,0,this.text.length);this.pending='';this._sync();return {handled:true};}
-    if(key==='/'||key==='?'){this.lastSearch={direction:key==='/'?1:-1,query:''};this.mode='CommandLine';this.commandLine=key;return {handled:true};} if((key==='n'||key==='N')&&this.lastSearch)return {handled:true}; if(key==='*'||key==='#'){this.lastSearch={direction:key==='*'?1:-1,query:this.text.slice(this.cursor).match(/^\w+/)?.[0]||''};return {handled:true};}
-    if(this.pending==='mark'){if(/^[a-z]$/.test(key))this.marks[key]=this.cursor;this.pending='';return {handled:true};}
-    if((this.pending==="'"||this.pending==='`')&&/^[a-z]$/.test(key)){this.cursor=clamp(this.marks[key]||0,0,this.text.length);this.pending='';this._sync();return {handled:true};}
+    if(key==='/'||key==='?'){this.lastSearch={direction:key==='/'?1:-1,query:''};this.mode='CommandLine';this.commandLine=key;return {handled:true};}
+    if((key==='n'||key==='N')&&this.lastSearch){var sdir=this.lastSearch.direction*(key==='n'?1:-1);this._search(this.lastSearch.query,sdir);return {handled:true};}
+    if(key==='*'||key==='#'){var wm=this.text.slice(this.cursor).match(/^\w+/);var w=wm?wm[0]:'';if(w){this.lastSearch={direction:key==='*'?1:-1,query:w};this._search(w,key==='*'?1:-1);}return {handled:true};}
     if(this.pending==='f'||this.pending==='F'||this.pending==='t'||this.pending==='T') { this.find={ch:key}; var fk=this.pending; this.pending=''; this.cursor=this.motion(fk,1); this._sync(); return {handled:true}; }
     if((this.pending==='d'||this.pending==='y'||this.pending==='c')&&(key===this.pending)){var dop=this.pending;this.pending='';var ls=lineStart(this.text,this.cursor), le=lineEnd(this.text,this.cursor);if(dop==='y'){this.registers['"']=this.text.slice(ls,le+1);this.registers['0']=this.registers['"'];this.cursor=ls;this._sync();}else{this._replace(ls,Math.min(this.text.length,le+1),'');if(dop==='c')this.mode='Insert';}this.lastChange={type:'operator',op:dop,motion:'$ ',count:1};return {handled:true};}
     if((this.pending==='c'||this.pending==='d'||this.pending==='y')&&(key==='i'||key==='a')){this.pending=this.pending+key;return {handled:true};}

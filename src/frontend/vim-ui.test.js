@@ -243,10 +243,14 @@ function setupEnvironment() {
     window: win,
     document: doc,
     console: console,
+    setTimeout: setTimeout,
+    clearTimeout: clearTimeout,
     module: { exports: {} },
     exports: {}
   };
   context.globalThis = win;
+  win.setTimeout = setTimeout;
+  win.clearTimeout = clearTimeout;
 
   const filePath = path.join(__dirname, 'vim-ui.js');
   const code = fs.readFileSync(filePath, 'utf8');
@@ -564,4 +568,199 @@ test('VimUI: unmount 卸载清理 DOM 与样式类', () => {
   assert.ok(!editorContainer.classList.contains('vim-mode-active'));
   assert.ok(!editorContainer.classList.contains('vim-normal-mode'));
   assert.equal(VimUI.getState().mounted, false);
+});
+
+test('VimUI: 默认容器解析优先匹配 #statusbar 并挂载方块光标', () => {
+  const { VimUI, doc } = setupEnvironment();
+  const statusbar = doc.createElement('div');
+  statusbar.id = 'statusbar';
+  doc.body.appendChild(statusbar);
+
+  const editorCont = doc.createElement('div');
+  editorCont.id = 'editor-container';
+  doc.body.appendChild(editorCont);
+
+  const textarea = doc.createElement('textarea');
+  textarea.id = 'editor';
+  textarea.value = 'hello world\nline 2';
+  editorCont.appendChild(textarea);
+
+  VimUI.mount({ document: doc });
+
+  const widget = statusbar.querySelector('.vim-status-widget');
+  assert.ok(widget, '挂载到 #statusbar');
+
+  const cursorEl = editorCont.querySelector('.vim-block-cursor');
+  assert.ok(cursorEl, '在编辑器容器内挂载方块光标 .vim-block-cursor');
+
+  const mirrorEl = editorCont.querySelector('.vim-cursor-mirror');
+  assert.ok(mirrorEl, '在编辑器容器内挂载测量镜像 .vim-cursor-mirror');
+});
+
+test('VimUI: CommandLine 模式统一归一化与实时命令行同步', () => {
+  const { VimUI, doc } = setupEnvironment();
+  const statusbar = doc.createElement('div');
+  statusbar.id = 'statusbar';
+  doc.body.appendChild(statusbar);
+
+  const editorCont = doc.createElement('div');
+  editorCont.id = 'editor-container';
+  doc.body.appendChild(editorCont);
+
+  VimUI.mount({ container: statusbar, editorTarget: editorCont, document: doc });
+
+  // 1. update 传入 mode: CommandLine 与 commandLine: ':wq'
+  VimUI.update({ mode: 'CommandLine', commandLine: ':wq' });
+  assert.equal(VimUI.normalizeMode('CommandLine'), 'command');
+
+  const modeBadge = statusbar.querySelector('.vim-mode-badge');
+  assert.equal(modeBadge.textContent, '-- COMMAND --');
+  assert.ok(modeBadge.classList.contains('mode-command'));
+
+  const overlay = editorCont.querySelector('.vim-command-line-overlay');
+  assert.ok(overlay.classList.contains('active'), '命令行底栏实时显示');
+
+  const prompt = overlay.querySelector('.vim-cmd-prompt');
+  assert.equal(prompt.textContent, ':');
+
+  const input = overlay.querySelector('.vim-cmd-input');
+  assert.equal(input.value, 'wq');
+
+  // 2. 切回 Normal 模式自动关闭命令行底栏
+  VimUI.update({ mode: 'Normal', commandLine: '' });
+  assert.equal(modeBadge.textContent, '-- NORMAL --');
+  assert.ok(!overlay.classList.contains('active'), '切回 Normal 模式后命令行底栏自动隐藏');
+});
+
+test('VimUI: 方块光标在 Normal 模式显示、Insert 模式隐藏', () => {
+  const { VimUI, doc } = setupEnvironment();
+  const statusbar = doc.createElement('div');
+  statusbar.id = 'statusbar';
+  doc.body.appendChild(statusbar);
+
+  const editorCont = doc.createElement('div');
+  editorCont.id = 'editor-container';
+  doc.body.appendChild(editorCont);
+
+  const textarea = doc.createElement('textarea');
+  textarea.id = 'editor';
+  textarea.value = 'hello vim';
+  editorCont.appendChild(textarea);
+
+  VimUI.mount({
+    container: statusbar,
+    editorTarget: editorCont,
+    editorElement: textarea,
+    document: doc
+  });
+
+  const cursorEl = editorCont.querySelector('.vim-block-cursor');
+  assert.ok(cursorEl);
+
+  // Normal 模式下有光标显示
+  VimUI.update({ mode: 'normal', cursor: 4 });
+  assert.equal(cursorEl.style.display, 'block');
+
+  // Insert 模式下隐藏光标
+  VimUI.update({ mode: 'insert', cursor: 4 });
+  assert.equal(cursorEl.style.display, 'none');
+
+  // 切回 Visual 模式恢复显示
+  VimUI.update({ mode: 'visual', cursor: 4 });
+  assert.equal(cursorEl.style.display, 'block');
+});
+
+test('VimUI: 常驻提示栏联动当前模式 (普通模式按i编辑 / 编辑模式按Esc返回)', () => {
+  const { VimUI, doc } = setupEnvironment();
+  const statusbar = doc.createElement('div');
+  statusbar.id = 'statusbar';
+  doc.body.appendChild(statusbar);
+
+  const editorCont = doc.createElement('div');
+  editorCont.id = 'editor-container';
+  doc.body.appendChild(editorCont);
+
+  const textarea = doc.createElement('textarea');
+  textarea.id = 'editor';
+  textarea.value = 'hello vim mode';
+  editorCont.appendChild(textarea);
+
+  VimUI.mount({
+    container: statusbar,
+    editorTarget: editorCont,
+    editorElement: textarea,
+    document: doc
+  });
+
+  const hintEl = statusbar.querySelector('.vim-persistent-hint');
+  assert.ok(hintEl, '应在状态栏创建 .vim-persistent-hint 元素');
+  assert.equal(hintEl.textContent, '[VIM] 普通模式（按 i 进入编辑）', 'Normal 模式提示语正确');
+
+  // 切换到 Insert 模式
+  VimUI.update({ mode: 'insert' });
+  assert.equal(hintEl.textContent, '[VIM] 编辑模式（按 Esc 返回普通模式）', 'Insert 模式提示语正确');
+
+  // 切换到 Command 模式
+  VimUI.update({ mode: 'command', commandLine: ':' });
+  assert.equal(hintEl.textContent, '[VIM] 命令行模式（按 Esc 取消）', 'Command 模式提示语正确');
+
+  // 切回 Normal 模式
+  VimUI.update({ mode: 'normal' });
+  assert.equal(hintEl.textContent, '[VIM] 普通模式（按 i 进入编辑）', '切回 Normal 模式提示语正确');
+});
+
+test('VimUI: showToast 进出通知创建与自动渐隐 / hideToast 显式清理', () => {
+  const { VimUI, doc } = setupEnvironment();
+  const statusbar = doc.createElement('div');
+  statusbar.id = 'statusbar';
+  doc.body.appendChild(statusbar);
+
+  VimUI.mount({ container: statusbar, document: doc });
+
+  VimUI.showToast('已进入 Vim 模式（普通模式）', 1500);
+  const toastEl = doc.getElementById('vim-toast');
+  assert.ok(toastEl, '应创建 #vim-toast 元素');
+  assert.equal(toastEl.textContent, '已进入 Vim 模式（普通模式）');
+  assert.ok(toastEl.classList.contains('visible'));
+
+  // 退出 Toast
+  VimUI.showToast('已退出 Vim 模式', 1500);
+  assert.equal(toastEl.textContent, '已退出 Vim 模式');
+
+  // 彻底 unmount 时清理底栏与指示器，无任何残留
+  VimUI.unmount();
+  assert.equal(statusbar.children.length, 0, '状态栏无残留组件');
+});
+
+test('VimUI: 实心方块光标承载当前字符内容', () => {
+  const { VimUI, doc } = setupEnvironment();
+  const statusbar = doc.createElement('div');
+  statusbar.id = 'statusbar';
+  doc.body.appendChild(statusbar);
+
+  const editorCont = doc.createElement('div');
+  editorCont.id = 'editor-container';
+  doc.body.appendChild(editorCont);
+
+  const textarea = doc.createElement('textarea');
+  textarea.id = 'editor';
+  textarea.value = 'hello';
+  editorCont.appendChild(textarea);
+
+  VimUI.mount({
+    container: statusbar,
+    editorTarget: editorCont,
+    editorElement: textarea,
+    document: doc
+  });
+
+  const cursorEl = editorCont.querySelector('.vim-block-cursor');
+
+  // cursor = 0 -> 'h'
+  VimUI.update({ mode: 'normal', cursor: 0 });
+  assert.equal(cursorEl.textContent, 'h', '方块光标内应展示字符 h');
+
+  // cursor = 1 -> 'e'
+  VimUI.update({ mode: 'normal', cursor: 1 });
+  assert.equal(cursorEl.textContent, 'e', '方块光标内应展示字符 e');
 });

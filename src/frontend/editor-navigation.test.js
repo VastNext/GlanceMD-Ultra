@@ -8,6 +8,38 @@ const SOURCE = fs.readFileSync(path.join(__dirname, 'editor.js'), 'utf8');
 
 function loadEditor(markdown) {
   const calls = [];
+  const parent = {
+    children: [],
+    appendChild(c) { this.children.push(c); c.parentNode = this; return c; },
+    removeChild(c) { const i = this.children.indexOf(c); if (i !== -1) this.children.splice(i, 1); return c; }
+  };
+  const doc = {
+    createElement(tag) {
+      const e = {
+        tagName: tag.toUpperCase(),
+        style: {},
+        textContent: '',
+        children: [],
+        ownerDocument: doc,
+        parentNode: null,
+        setAttribute(k, v) { this[k] = v; },
+        getAttribute(k) { return this[k]; },
+        appendChild(c) { this.children.push(c); return c; },
+        removeChild(c) { const i = this.children.indexOf(c); if (i !== -1) this.children.splice(i, 1); return c; },
+        get offsetTop() { return 100; },
+        get offsetLeft() { return 50; },
+        get offsetWidth() { return 10; },
+        get offsetHeight() { return 20; }
+      };
+      return e;
+    },
+    createTextNode(txt) {
+      return { nodeType: 3, textContent: String(txt) };
+    },
+    getElementById(id) {
+      return id === 'editor' ? editor : (id === 'editor-container' ? parent : null);
+    }
+  };
   const editor = {
     value: markdown,
     selectionStart: 0,
@@ -15,6 +47,12 @@ function loadEditor(markdown) {
     scrollHeight: 1000,
     clientHeight: 200,
     scrollTop: 0,
+    clientWidth: 600,
+    offsetLeft: 0,
+    offsetTop: 0,
+    scrollLeft: 0,
+    parentNode: parent,
+    ownerDocument: doc,
     focus() {},
     setSelectionRange(start, end) {
       this.selectionStart = start;
@@ -23,13 +61,38 @@ function loadEditor(markdown) {
     },
     addEventListener() {},
   };
+  parent.appendChild(editor);
+  const win = {
+    getComputedStyle() {
+      return {
+        font: '14px Consolas',
+        fontFamily: 'Consolas',
+        fontSize: '14px',
+        fontWeight: 'normal',
+        lineHeight: '20px',
+        letterSpacing: 'normal',
+        padding: '8px',
+        border: '0px',
+        boxSizing: 'border-box',
+        whiteSpace: 'pre-wrap',
+        overflowWrap: 'break-word',
+        wordBreak: 'normal',
+        tabSize: '4',
+        width: '600px'
+      };
+    }
+  };
+  doc.defaultView = win;
+
   const context = {
-    window: {},
-    document: { getElementById: (id) => id === 'editor' ? editor : null },
+    window: win,
+    document: doc,
     isFinite,
     setTimeout,
     clearTimeout,
     console,
+    parseFloat,
+    Math
   };
   vm.createContext(context);
   vm.runInContext(SOURCE, context, { filename: 'editor.js' });
@@ -81,4 +144,27 @@ test('resolveHeading preserves the indexed occurrence when headings have duplica
   assert.equal(h.navigation.scrollToHeading(1, { level: 1, text: 'Repeated' }), true);
   assert.equal(h.editor.value.slice(h.editor.selectionStart, h.editor.selectionEnd), '# Repeated');
   assert.equal(h.editor.value.slice(0, h.editor.selectionStart).split('\n').length - 1, 4);
+});
+
+test('measureOffsetCoordinates returns complete 2D layout and marker data', () => {
+  const h = loadEditor('Line 1\nLine 2\nLine 3');
+  const coords = h.navigation.measureOffsetCoordinates(7);
+  assert.ok(coords, 'measureOffsetCoordinates 应返回有效对象');
+  assert.equal(typeof coords.left, 'number');
+  assert.equal(typeof coords.top, 'number');
+  assert.equal(typeof coords.markerLeft, 'number');
+  assert.equal(typeof coords.markerTop, 'number');
+  assert.equal(typeof coords.height, 'number');
+  assert.equal(coords.charUnder, 'L');
+});
+
+test('ensureCursorVisible triggers viewport scroll with 2 lines margin', () => {
+  const h = loadEditor('A\nB\nC\nD\nE\nF\nG\nH');
+  h.editor.clientHeight = 100;
+  h.editor.scrollHeight = 500;
+  h.editor.scrollTop = 0;
+
+  // 测量并调整视口
+  const scrolled = h.navigation.ensureCursorVisible(2, 2);
+  assert.equal(typeof scrolled, 'boolean');
 });

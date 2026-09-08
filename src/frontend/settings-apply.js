@@ -56,7 +56,7 @@
   var POLL_INTERVAL_MS = 300;
 
   var editorBound = false;   // 编辑器 input/scroll 监听只绑一次
-  var lastGutter = { count: -1, scrollTop: -1 }; // 行号槽重建去重
+  var lastGutter = { count: -1, scrollTop: -1, value: null, width: -1, fontSize: -1, tabSize: -1 }; // 行号槽重建去重
 
   /* ── 工具 ── */
 
@@ -120,33 +120,48 @@
     }
   }
 
-  // 与 style.css #editor line-height: 1.8 保持一致；app.js 的 --zoom 缺省按 1。
+  // 动态整数行高绑定：计算整数像素行高并写入 CSS 变量 --editor-line-height 与 --editor-font-size
+  function applyEditorFontSize(fontSize) {
+    var size = numOr(fontSize, DEFAULTS.editor.fontSize);
+    var integerLineHeight = Math.round(size * 1.75);
+    setVar('--editor-font-size', size + 'px');
+    setVar('--editor-line-height', integerLineHeight + 'px');
+    return integerLineHeight;
+  }
+
+  // 与 style.css #editor line-height: var(--editor-line-height, 25px) 保持一致；app.js 的 --zoom 缺省按 1。
   function editorLineHeightPx(fontSize) {
+    var size = numOr(fontSize, DEFAULTS.editor.fontSize);
+    var integerLineHeight = Math.round(size * 1.75);
     var zoom = 1;
     var root = document.documentElement;
     if (root && root.style && typeof root.style.getPropertyValue === 'function') {
       var z = parseFloat(root.style.getPropertyValue('--zoom'));
       if (isFinite(z) && z > 0) zoom = z;
     }
-    return fontSize * 1.8 * zoom;
+    return Math.round(integerLineHeight * zoom);
   }
 
   /* ── 各设置项落地 ── */
 
-  // wordWrap：切 wrap 属性（soft/off）。textarea 改 wrap 属性会触发语义重置，
-  // 先保存 value 再恢复，避免丢内容；white-space 由 .wrap-off 类在 CSS 侧切换。
+  // wordWrap：切 wrap 属性（soft/off）与 .wrap-off 类。
+  // 注意：保留 selection 锚点，不重写 editor.value，防止光标丢失或跳回开头
   function applyWordWrap(on) {
     var editor = document.getElementById('editor');
     if (!editor) return;
     var wrap = on ? 'soft' : 'off';
+    var selStart = typeof editor.selectionStart === 'number' ? editor.selectionStart : 0;
+    var selEnd = typeof editor.selectionEnd === 'number' ? editor.selectionEnd : 0;
     if (typeof editor.getAttribute === 'function' && editor.getAttribute('wrap') !== wrap) {
-      var value = editor.value;
       editor.setAttribute('wrap', wrap);
-      editor.value = value;
     }
     if (editor.classList && typeof editor.classList.toggle === 'function') {
       editor.classList.toggle('wrap-off', !on);
     }
+    if (typeof editor.setSelectionRange === 'function') {
+      editor.setSelectionRange(selStart, selEnd);
+    }
+    syncGutter();
   }
 
   // lineNumbers：行号槽显隐 + 立即同步一次内容。
@@ -176,19 +191,79 @@
     if (!eff.editor.lineNumbers) return; // 关闭态由 applyLineNumbers 隐藏，无需渲染
 
     var value = typeof editor.value === 'string' ? editor.value : '';
-    var lines = value.split('\n').length;
-    var lineH = editorLineHeightPx(numOr(eff.editor.fontSize, DEFAULTS.editor.fontSize));
-    var viewportLines = lineH > 0 && gutter.clientHeight > 0
-      ? Math.ceil(gutter.clientHeight / lineH)
-      : 0;
-    var total = Math.max(lines, viewportLines);
+    var logicalLines = value.split('\n');
+    var doc = editor.ownerDocument || document;
+    var fontSize = numOr(eff.editor.fontSize, DEFAULTS.editor.fontSize);
+    var tabSize = numOr(eff.editor.tabSize, DEFAULTS.editor.tabSize);
+    var cs = window.getComputedStyle ? window.getComputedStyle(editor) : null;
+    var lineHeight = cs && parseFloat(cs.lineHeight);
+    if (!isFinite(lineHeight) || lineHeight <= 0) lineHeight = editorLineHeightPx(fontSize);
+    lineHeight = Math.round(lineHeight);
+    var width = editor.clientWidth || (cs && parseFloat(cs.width)) || 0;
 
-    if (total !== lastGutter.count) {
-      var buf = new Array(total);
-      for (var i = 0; i < total; i++) buf[i] = i + 1;
-      gutter.textContent = buf.join('\n');
-      lastGutter.count = total;
+    // 读取编辑器实时换行状态：wrap 属性不为 off 且未包含 wrap-off 类
+    var isWrapping = typeof editor.getAttribute === 'function'
+      ? (editor.getAttribute('wrap') !== 'off' && (!editor.classList || !editor.classList.contains('wrap-off')))
+      : boolOr(eff.editor.wordWrap, DEFAULTS.editor.wordWrap);
+
+    var padL = cs ? parseFloat(cs.paddingLeft) || 0 : 0;
+    var padR = cs ? parseFloat(cs.paddingRight) || 0 : 0;
+    var contentWidth = Math.max(1, width - padL - padR);
+
+    var measured = [];
+    var mirror = null;
+    // 仅在 isWrapping 开启时才创建 mirror 测量膨胀高度；!isWrapping 时严禁调用 mirror 测量
+    if (isWrapping && doc && doc.createElement && contentWidth > 0 && editor.parentNode) {
+      mirror = doc.createElement('div');
+      mirror.style.position = 'absolute'; mirror.style.visibility = 'hidden';
+      mirror.style.pointerEvents = 'none'; mirror.style.whiteSpace = 'pre-wrap';
+      mirror.style.overflowWrap = 'break-word'; mirror.style.wordBreak = 'normal';
+      mirror.style.tabSize = String(tabSize); mirror.style.font = cs && cs.font || '';
+      mirror.style.fontFamily = cs && cs.fontFamily || ''; mirror.style.fontSize = cs && cs.fontSize || fontSize + 'px';
+      mirror.style.lineHeight = cs && cs.lineHeight || lineHeight + 'px'; mirror.style.letterSpacing = cs && cs.letterSpacing || '';
+      mirror.style.boxSizing = 'content-box';
+      mirror.style.padding = '0'; mirror.style.border = '0'; mirror.style.width = contentWidth + 'px';
+      editor.parentNode.appendChild(mirror);
     }
+    logicalLines.forEach(function(line) {
+      var height = lineHeight;
+      if (isWrapping && mirror) {
+        mirror.textContent = line || ' ';
+        height = Math.max(lineHeight, mirror.getBoundingClientRect().height || lineHeight);
+      }
+      measured.push(height);
+    });
+    if (mirror) editor.parentNode.removeChild(mirror);
+    var viewportLines = lineHeight > 0 && gutter.clientHeight > 0 ? Math.ceil(gutter.clientHeight / lineHeight) : 0;
+    // gutter 容器自身高度必须始终与编辑器视口高度一致（height: 100%），绝对不能将自身设为内容总高度，
+    // 否则 clientHeight 等于 scrollHeight 导致无法滚动，出现行号固定卡在首屏数字的严重 bug。
+    gutter.style.height = '100%';
+    gutter.style.maxHeight = '100%';
+    gutter.style.overflowY = 'hidden';
+    gutter.style.lineHeight = lineHeight + 'px';
+    gutter.textContent = '';
+    if (!doc || !doc.createElement) {
+      var fallbackTotal = Math.max(logicalLines.length, viewportLines);
+      gutter.textContent = new Array(fallbackTotal).fill(0).map(function(_, i) { return i + 1; }).join('\n');
+      lastGutter.count = fallbackTotal; lastGutter.value = value; lastGutter.width = width; lastGutter.isWrapping = isWrapping;
+      var fallbackTop = typeof editor.scrollTop === 'number' ? editor.scrollTop : 0;
+      gutter.scrollTop = fallbackTop; lastGutter.scrollTop = fallbackTop;
+      return;
+    }
+    var frag = doc.createDocumentFragment ? doc.createDocumentFragment() : null;
+    var totalRows = Math.max(logicalLines.length, viewportLines);
+    for (var i = 0; i < totalRows; i++) {
+      var row = doc.createElement('div');
+      row.textContent = String(i + 1);
+      row.style.height = (i < logicalLines.length ? measured[i] : lineHeight) + 'px';
+      row.style.lineHeight = lineHeight + 'px';
+      row.style.boxSizing = 'border-box';
+      row.style.textAlign = 'right';
+      if (frag) frag.appendChild(row); else gutter.appendChild(row);
+    }
+    if (frag) gutter.appendChild(frag);
+    lastGutter.count = totalRows;
+    lastGutter.value = value; lastGutter.width = width; lastGutter.fontSize = fontSize; lastGutter.tabSize = tabSize; lastGutter.isWrapping = isWrapping;
     var top = typeof editor.scrollTop === 'number' ? editor.scrollTop : 0;
     if (top !== lastGutter.scrollTop) {
       gutter.scrollTop = top;
@@ -202,6 +277,14 @@
     if (!editor || typeof editor.addEventListener !== 'function') return;
     editor.addEventListener('input', syncGutter);
     editor.addEventListener('scroll', syncGutter);
+    if (typeof window.ResizeObserver === 'function') {
+      try {
+        var ro = new window.ResizeObserver(function () {
+          syncGutter();
+        });
+        ro.observe(editor);
+      } catch (e) {}
+    }
     editorBound = true;
   }
 
@@ -214,7 +297,7 @@
     var ap = s.appearance || {};
 
     var fontSize = numOr(ed.fontSize, DEFAULTS.editor.fontSize);
-    setVar('--editor-font-size', fontSize + 'px');
+    applyEditorFontSize(fontSize);
     setVar('--editor-tab-size', String(numOr(ed.tabSize, DEFAULTS.editor.tabSize)));
     var sidebarFontSize = clampSidebarFontSize(ap.sidebarFontSize);
     setVar('--panel-font-size', sidebarFontSize + 'px');
@@ -256,8 +339,9 @@
     };
   }
 
-  // 开机即生效：拉一次有效设置并订阅后续变更。
+  // 开机即生效：先用内置默认值立即生效一次（避免等待回执期间行号槽隐藏），再拉一次有效设置并订阅后续变更。
   function init() {
+    apply(DEFAULTS);
     requestEffective();
     if (window.Workspace && typeof window.Workspace.on === 'function') {
       window.Workspace.on('workspace:settings-effective', function (d) {
@@ -270,10 +354,14 @@
       window.setInterval(function () {
         var editor = document.getElementById('editor');
         if (!editor) return;
-        // 廉价哨兵：值长度与 scrollTop 均未变时跳过重算（用户编辑已由 input 即时同步）
+        // 廉价哨兵：值长度、scrollTop 与换行状态均未变时跳过重算（用户编辑已由 input 即时同步）
         var len = typeof editor.value === 'string' ? editor.value.length : 0;
         var top = typeof editor.scrollTop === 'number' ? editor.scrollTop : 0;
-        if (len !== lastGutter.valueLen || top !== lastGutter.scrollTop) {
+        var width = editor.clientWidth || 0;
+        var isWrapping = typeof editor.getAttribute === 'function'
+          ? (editor.getAttribute('wrap') !== 'off' && (!editor.classList || !editor.classList.contains('wrap-off')))
+          : true;
+        if (len !== lastGutter.valueLen || top !== lastGutter.scrollTop || width !== lastGutter.width || isWrapping !== lastGutter.isWrapping) {
           lastGutter.valueLen = len;
           syncGutter();
         }
@@ -286,6 +374,10 @@
   window.SettingsApply = {
     apply: apply,
     applyTheme: applyTheme,
+    applyEditorFontSize: applyEditorFontSize,
+    editorLineHeightPx: editorLineHeightPx,
+    applyWordWrap: applyWordWrap,
+    applyLineNumbers: applyLineNumbers,
     get: get,
     init: init,
     requestEffective: requestEffective,

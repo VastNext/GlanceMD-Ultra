@@ -51,6 +51,36 @@ function makeElement(id) {
     style: {},
   };
   el.classList = makeClassList();
+  el.children = [];
+  el.appendChild = (child) => {
+    el.children.push(child);
+    return child;
+  };
+  el.removeChild = (child) => {
+    const idx = el.children.indexOf(child);
+    if (idx >= 0) el.children.splice(idx, 1);
+    return child;
+  };
+  Object.defineProperty(el, 'textContent', {
+    get() {
+      if (el.children.length > 0) {
+        return el.children.map((c) => c.textContent).join('\n');
+      }
+      return el._textContent || '';
+    },
+    set(v) {
+      el._textContent = String(v);
+      el.children = [];
+    },
+  });
+  el.getBoundingClientRect = () => ({
+    width: 800,
+    height: 20,
+    top: 0,
+    bottom: 20,
+    left: 0,
+    right: 800,
+  });
   el.addEventListener = (type, handler) => {
     (el.listeners[type] = el.listeners[type] || []).push(handler);
   };
@@ -93,6 +123,7 @@ function load() {
     document: {
       documentElement,
       getElementById: (id) => (id in byId ? byId[id] : null),
+      createElement: (tag) => makeElement(tag),
     },
   };
   ctx.window = ctx;
@@ -273,6 +304,27 @@ function pressTab(h) {
     fn({ key: 'Tab', ctrlKey: false, metaKey: false, preventDefault() {} }),
   );
 }
+
+test('syncGutter 响应 editor 真实换行状态：关闭换行时行高严格等于 lineHeight', () => {
+  const h = load();
+  h.editor.value = 'line1\nline2\nline3';
+
+  // 1. 换行模式开启：子项创建
+  h.ctx.SettingsApply.applyWordWrap(true);
+  assert.equal(h.editor.getAttribute('wrap'), 'soft');
+  assert.equal(h.editor.classList.contains('wrap-off'), false);
+  assert.equal(h.gutter.children.length, 3);
+
+  // 2. 换行模式关闭（如 Alt+Shift+Y）：每个 row 的 style.height 严格设为 lineHeight + 'px'
+  h.ctx.SettingsApply.applyWordWrap(false);
+  assert.equal(h.editor.getAttribute('wrap'), 'off');
+  assert.equal(h.editor.classList.contains('wrap-off'), true);
+  assert.equal(h.gutter.children.length, 3);
+  h.gutter.children.forEach((row) => {
+    assert.match(row.style.height, /px$/);
+    assert.equal(row.style.height, row.style.lineHeight, '未开启换行时行号高度严格等于单行行高');
+  });
+});
 
 test('editor.js Tab 插入空格数读 SettingsApply：缺省 4、设置 2 生效', () => {
   const h = loadEditorWithSettingsApply();

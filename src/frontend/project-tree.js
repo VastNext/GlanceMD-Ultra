@@ -33,8 +33,8 @@
   var anchorRel = null;
   // 活动 tab 文件（rel，项目外为 null）；切换 tab 只同步高亮不滚动
   var activeFileRel = null;
-  // 定位当前文件：祖先展开中的暂挂目标（tree-listed 渲染出该行后选中并滚动）
-  var pendingReveal = null;
+  // 定位当前文件：级联展开中的目标路径（逐层 tree-listed 后继续推进）
+  var pendingRevealPath = null;
   // 树内剪贴板：{mode: 'copy'|'cut'|null, rels: string[]}
   var clipboard = { mode: null, rels: [] };
   // 行登记表（rel → row 元素）：渲染/移除/键盘导航的 DOM 索引
@@ -986,7 +986,7 @@
     activeRel = null;
     anchorRel = null;
     clipboard = { mode: null, rels: [] };
-    pendingReveal = null;
+    pendingRevealPath = null;
     expanded = loadExpanded();
     setAdd(expanded, ''); // 根恒展开（默认展开第一层）
     if (els.empty && els.empty.parentNode) els.empty.parentNode.removeChild(els.empty);
@@ -1118,38 +1118,49 @@
 
   /* ══════════ 定位当前文件 ══════════ */
 
+  // 逐层推进定位队列。懒加载目录的子行只有在其父目录收到 tree-listed
+  // 后才会存在，因此不能同时请求所有祖先目录。
   function maybeCompleteReveal() {
-    if (pendingReveal === null) return;
-    var row = rowByRel[pendingReveal];
-    if (row) {
-      selectSingle(pendingReveal);
-      if (typeof row.scrollIntoView === 'function') row.scrollIntoView({ block: 'nearest' });
-      pendingReveal = null;
-    }
-  }
+    if (pendingRevealPath === null) return;
+    var rel = pendingRevealPath;
 
-  // 展开祖先 → 选中 → 滚动到位；行未渲染（懒加载在途）时挂 pendingReveal，
-  // 每次条目渲染完成后补齐。
-  function revealCurrent() {
-    if (root === null || activeFileRel === null) return;
-    var rel = activeFileRel;
     var parts = rel === '' ? [] : rel.split('/');
     parts.pop();
     var acc = '';
+    var ancestors = [''];
     for (var i = 0; i < parts.length; i++) {
       acc = acc === '' ? parts[i] : acc + '/' + parts[i];
-      setAdd(expanded, acc);
-      if (!hasKey(loadedDirs, acc)) requestList(acc);
+      ancestors.push(acc);
     }
-    saveExpanded();
+
+    for (var j = 0; j < ancestors.length; j++) {
+      var ancestor = ancestors[j];
+      if (!setHas(expanded, ancestor) || !hasKey(loadedDirs, ancestor)) {
+        expandDir(ancestor);
+        // 已加载目录由 expandDir 同步挂载子行；继续处理后续祖先。
+        // 未加载目录则等待 workspace:tree-listed 事件，避免越过懒加载边界。
+        if (hasKey(loadedDirs, ancestor)) maybeCompleteReveal();
+        return;
+      }
+    }
+
     var row = rowByRel[rel];
     if (row) {
       selectSingle(rel);
       if (typeof row.scrollIntoView === 'function') row.scrollIntoView({ block: 'nearest' });
-      pendingReveal = null;
-    } else {
-      pendingReveal = rel;
+      pendingRevealPath = null;
     }
+  }
+
+  // 展开祖先 → 选中 → 滚动到位。每次 tree-listed 挂载完当前层后，
+  // maybeCompleteReveal 会继续展开下一个尚未加载的祖先目录。
+  function revealCurrent() {
+    if (root === null || activeFileRel === null) return;
+    pendingRevealPath = activeFileRel;
+    // 不直接写入根的展开状态：让队列通过 expandDir 处理已加载根目录的
+    // 子行重渲染，以及未加载根目录的请求。
+    maybeCompleteReveal();
+    saveExpanded();
     syncStates();
   }
 

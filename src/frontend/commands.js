@@ -122,6 +122,110 @@
       }
     }
   });
+  register('settings.keybindings', {
+    label: '打开快捷键设置', category: 'Settings',
+    run: function() {
+      if (window.SettingsUI && typeof window.SettingsUI.open === 'function') {
+        window.SettingsUI.open();
+        if (typeof window.SettingsUI.setCategory === 'function') {
+          window.SettingsUI.setCategory('keybindings');
+        }
+        if (window.SettingsUI.refresh && typeof window.SettingsUI.refresh === 'function') window.SettingsUI.refresh();
+      }
+    }
+  });
+
+  // 这些导航命令在模块装载前注册，执行时再解析模块，避免初始化时序丢失快捷键。
+  register('outline.focus', {
+    label: '切换并聚焦大纲', category: 'Navigation',
+    run: function() {
+      if (!window.Outline) return undefined;
+      if (typeof window.Outline.isOpen === 'function' && window.Outline.isOpen()) {
+        return typeof window.Outline.hide === 'function' ? window.Outline.hide() : undefined;
+      }
+      return typeof window.Outline.focus === 'function' ? window.Outline.focus() : undefined;
+    }
+  });
+  register('resource.open', {
+    label: '打开资源/文件…', category: 'Navigation',
+    run: function() {
+      if (window.QuickOpen && typeof window.QuickOpen.toggle === 'function') return window.QuickOpen.toggle('file');
+      if (window.QuickOpen && typeof window.QuickOpen.open === 'function') return window.QuickOpen.open('file');
+    }
+  });
+  register('editor.focus', {
+    label: '聚焦编辑器', category: 'Navigation',
+    run: function() {
+      var editor = document.getElementById('editor');
+      if (editor && typeof editor.focus === 'function') {
+        editor.focus();
+        editor.classList.remove('vim-focus-flash');
+        void editor.offsetWidth;
+        editor.classList.add('vim-focus-flash');
+        setTimeout(function() { editor.classList.remove('vim-focus-flash'); }, 700);
+        return editor;
+      }
+    }
+  });
+  register('focus.next', {
+    label: '聚焦下一个区域', category: 'Navigation',
+    run: function() { return focusWorkspace(1); }
+  });
+  register('focus.previous', {
+    label: '聚焦上一个区域', category: 'Navigation',
+    run: function() { return focusWorkspace(-1); }
+  });
+
+  function focusableElement(id) {
+    var e = document.getElementById(id);
+    if (!e || typeof e.focus !== 'function') return null;
+    if (e.hidden || (e.closest && e.closest('[hidden]'))) return null;
+    var node = e;
+    while (node && node !== document.body) {
+      if (typeof window.getComputedStyle === 'function') {
+        var style = window.getComputedStyle(node);
+        if (style && (style.display === 'none' || style.visibility === 'hidden')) return null;
+      }
+      node = node.parentElement;
+    }
+    if (typeof e.getBoundingClientRect === 'function') {
+      var rect = e.getBoundingClientRect();
+      if (!rect || rect.width <= 0 || rect.height <= 0) return null;
+    }
+    return e;
+  }
+  var focusTargets = [
+    { key: 'projectTreeFocus', get: function() { var e=focusableElement('project-tree-root'); return e ? function(){ if(!e.hasAttribute('tabindex'))e.setAttribute('tabindex','0'); e.focus(); } : null; } },
+    { key: 'outlineFocus', get: function() { var e=focusableElement('outline-list')||focusableElement('outline-root'); return e && window.Outline && window.Outline.isOpen && window.Outline.isOpen() ? function(){e.focus();} : null; } },
+    { key: 'editorTextFocus', get: function() { var e = focusableElement('editor'); return e ? function() { e.focus(); } : null; } },
+    { key: 'previewFocus', get: function() { var e = focusableElement('preview'); return e ? function() { if(!e.hasAttribute('tabindex'))e.setAttribute('tabindex','0'); e.focus(); } : null; } },
+    { key: 'settingsFocus', get: function() { var e=focusableElement('settings-filter'); return e ? function(){e.focus();} : null; } }
+  ];
+  function focusWorkspace(direction) {
+    var current = -1;
+    for (var i = 0; i < focusTargets.length; i++) {
+      if (window.contextKeys && window.contextKeys.get(focusTargets[i].key)) { current = i; break; }
+    }
+    for (var step = 1; step <= focusTargets.length; step++) {
+      var index = (current + direction * step + focusTargets.length * 2) % focusTargets.length;
+      var focus = focusTargets[index].get();
+      if (typeof focus === 'function') {
+        focus();
+        var targetEl = document.activeElement;
+        if (targetEl && targetEl.classList) {
+          targetEl.classList.remove('vim-focus-flash');
+          void targetEl.offsetWidth;
+          targetEl.classList.add('vim-focus-flash');
+          setTimeout(function() { targetEl.classList.remove('vim-focus-flash'); }, 700);
+        }
+        if (window.contextKeys) {
+          focusTargets.forEach(function(target, n) { window.contextKeys.set(target.key, n === index); });
+        }
+        return index;
+      }
+    }
+    return -1;
+  }
 
   bindButton('btn-open', 'workspace.open', true);
   bindButton('btn-open-file', 'file.open', false);

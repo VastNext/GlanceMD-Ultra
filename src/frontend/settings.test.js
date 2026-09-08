@@ -643,7 +643,7 @@ test('快捷键重置：单项 reset 与恢复方案默认', () => {
   h.ctx.KeybindingsSettings.saveBinding('file.open', 'Alt+O', 'global');
   assert.equal(h.ctx.Keybindings.effective()['file.open'], 'Alt+O');
   h.ctx.KeybindingsSettings.reset('file.open');
-  assert.equal(h.ctx.Keybindings.effective()['file.open'], 'Alt+Shift+F O');
+  assert.equal(h.ctx.Keybindings.effective()['file.open'], 'Ctrl+Alt+O');
 });
 
 /* ── 终端特例控件测试 ── */
