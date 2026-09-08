@@ -74,6 +74,9 @@ function createElement(tag) {
     setAttribute(name, value) {
       element.attributes[name] = String(value);
     },
+    removeAttribute(name) {
+      delete element.attributes[name];
+    },
     getAttribute(name) {
       return name in element.attributes ? element.attributes[name] : null;
     },
