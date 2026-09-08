@@ -650,7 +650,8 @@ fn terminal_scan(_: &CommandContext, _: &CommandPayload) {
 // ---------- CLI 命令别名 shim（FEAT-001） ----------
 
 const SHIM_MARKER: &str = "rem GlanceMD-Ultra CLI shim v1";
-const SHIM_NAMES: &[&str] = &["glance.cmd", "glancemd.cmd"];
+const SHIM_NAMES: &[&str] = &["gmdu.cmd"];
+const LEGACY_SHIM_NAMES: &[&str] = &["glance.cmd", "glancemd.cmd"];
 
 /// shim 安装目录：`%LOCALAPPDATA%\Microsoft\WindowsApps` 通常在 Windows 用户 PATH 上。
 #[cfg(target_os = "windows")]
@@ -675,6 +676,18 @@ fn shim_owned(path: &Path) -> bool {
     std::fs::read_to_string(path)
         .map(|text| text.lines().any(|line| line.trim() == SHIM_MARKER))
         .unwrap_or(false)
+}
+
+/// 清理旧版命令别名；只删除带本程序所有权标记的文件，第三方同名命令不碰。
+fn remove_owned_legacy_shims(dir: &Path, errors: &mut Vec<String>) {
+    for name in LEGACY_SHIM_NAMES {
+        let path = dir.join(name);
+        if path.exists() && shim_owned(&path) {
+            if let Err(e) = std::fs::remove_file(&path) {
+                errors.push(format!("清理旧命令 {name} 失败：{e}"));
+            }
+        }
+    }
 }
 
 #[cfg(target_os = "windows")]
@@ -761,11 +774,14 @@ fn cli_install_shim(ctx: &CommandContext, _: &CommandPayload) {
         }
         created.push(path);
     }
+    let mut cleanup_errors = Vec::new();
+    remove_owned_legacy_shims(&dir, &mut cleanup_errors);
+    if !cleanup_errors.is_empty() {
+        cli_shim_emit_status(cleanup_errors.join("；"));
+        return;
+    }
     let _ = ctx;
-    cli_shim_emit_status(format!(
-        "已安装 glance / glancemd 命令（{}）",
-        dir.display()
-    ));
+    cli_shim_emit_status(format!("已安装 gmdu 命令（{}）", dir.display()));
 }
 
 fn cli_remove_shim(ctx: &CommandContext, _: &CommandPayload) {
@@ -787,9 +803,10 @@ fn cli_remove_shim(ctx: &CommandContext, _: &CommandPayload) {
             errors.push(format!("删除 {name} 失败：{e}"));
         }
     }
+    remove_owned_legacy_shims(&dir, &mut errors);
     let _ = ctx;
     if errors.is_empty() {
-        cli_shim_emit_status("已移除 glance / glancemd 命令".into());
+        cli_shim_emit_status("已移除 gmdu 命令".into());
     } else {
         cli_shim_emit_status(errors.join("；"));
     }
@@ -1043,7 +1060,8 @@ mod tests {
         assert!(script.contains(SHIM_MARKER));
         assert!(script.contains(r#""D:\Apps\GlanceMD-Ultra.exe" %*"#));
         assert!(script.ends_with("\r\n"));
-        assert_eq!(SHIM_NAMES, ["glance.cmd", "glancemd.cmd"]);
+        assert_eq!(SHIM_NAMES, ["gmdu.cmd"]);
+        assert_eq!(LEGACY_SHIM_NAMES, ["glance.cmd", "glancemd.cmd"]);
 
         let percent = shim_script(Path::new(r"D:\100%\GlanceMD-Ultra.exe"));
         assert!(percent.contains(r#""D:\100%%\GlanceMD-Ultra.exe" %*"#));
@@ -1066,6 +1084,21 @@ mod tests {
         assert!(shim_owned(&owned));
         assert!(!shim_owned(&foreign));
         assert!(!shim_owned(&dir.join("missing.cmd")));
+
+        let legacy = dir.join("glance.cmd");
+        std::fs::write(
+            &legacy,
+            shim_script(Path::new(r"D:\Apps\GlanceMD-Ultra.exe")),
+        )
+        .unwrap();
+        let mut errors = Vec::new();
+        remove_owned_legacy_shims(&dir, &mut errors);
+        assert!(errors.is_empty());
+        assert!(!legacy.exists());
+        // 第三方同名文件绝不删除
+        std::fs::write(&legacy, "@echo off\r\necho foreign\r\n").unwrap();
+        remove_owned_legacy_shims(&dir, &mut errors);
+        assert!(legacy.exists());
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

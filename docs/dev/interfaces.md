@@ -44,7 +44,7 @@
 | `open_file` | `file.open` | `path?` | 有 `path`：读文件，成功发 `file_opened` 并前置窗口，失败发 `error`；无 `path`：弹出系统打开文件对话框 | 自 `ipc.rs` 原分支逐行迁移，行为与迁移前一致 |
 | `file.reload` | `file.reload` | `path` | 重读 clean tab 的最新文本内容，成功发 `file_reloaded`；文件已删除/瞬时不可读时静默忽略（由 watcher removed 事件处理） | BUG-001；仅文本文件 |
 | `workspace.open` | `workspace.open` | `path?` | 有 path 时打开指定目录；无 path 时弹出原生目录选择器；`Workspace::open_root` 校验 + canonicalize，发 `workspace:opened`，后台线程扫描并周期发 `workspace:scan-progress`；校验失败发 `workspace:error` | 阶段 0/目录入口已实现 |
-| `cli.install-shim` | `cli.install-shim` | 无 | Windows：在 `%LOCALAPPDATA%\Microsoft\WindowsApps` 安装带所有权标记的 `glance.cmd`/`glancemd.cmd`；拒绝覆盖非本程序文件，原子写入且失败回滚 | FEAT-001；非 Windows 返回不支持 |
+| `cli.install-shim` | `cli.install-shim` | 无 | Windows：在 `%LOCALAPPDATA%\Microsoft\WindowsApps` 安装带所有权标记的 `gmdu.cmd`；拒绝覆盖非本程序文件，原子写入且失败回滚；成功后仅清理本程序旧版 `glance.cmd`/`glancemd.cmd` | FEAT-001；非 Windows 返回不支持 |
 | `cli.remove-shim` | `cli.remove-shim` | 无 | 仅移除带 GlanceMD Ultra 所有权标记的 shim；第三方同名文件绝不删除 | FEAT-001 |
 | `cli.shim-status` | `cli.shim-status` | 无 | 查询 shim 所有权状态并发 `workspace:cli-shim-status` | FEAT-001 |
 

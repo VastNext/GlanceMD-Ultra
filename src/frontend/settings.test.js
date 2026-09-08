@@ -785,10 +785,10 @@ test('窗口与命令行分类：渲染 reuseWindowForFolder 开关与默认未�
 
   // 验证 CLI 区块与默认安装按钮
   assert.match(bodyText, /Glance 命令行工具/);
-  assert.match(bodyText, /安装 glance 命令行 shim 到系统 PATH/);
+  assert.match(bodyText, /安装 gmdu 命令行 shim 到系统 PATH/);
   const cliBtn = panel.querySelector('#setting-cli-shim-btn');
   assert.ok(cliBtn, 'CLI 安装按钮存在');
-  assert.equal(cliBtn.textContent.trim(), '安装 glance 命令');
+  assert.equal(cliBtn.textContent.trim(), '安装 gmdu 命令');
 });
 
 test('窗口与命令行分类：reuseWindowForFolder 变更发送 set-global', () => {
@@ -843,7 +843,7 @@ test('CLI Shim 交互：未安装时点击调用 cli.install-shim（优先 Comma
   assert.equal(last.command, 'cli.install-shim', '无 Commands 时直接走 IPC');
 });
 
-test('CLI Shim 交互：workspace:cli-shim-status 事件更新按钮为“移除 glance 命令”并显示目录与消息', () => {
+test('CLI Shim 交互：workspace:cli-shim-status 事件更新按钮为“移除 gmdu 命令”并显示目录与消息', () => {
   const h = load();
   const runs = [];
   h.ctx.Commands = { run: (cmd) => runs.push(cmd) };
@@ -859,7 +859,7 @@ test('CLI Shim 交互：workspace:cli-shim-status 事件更新按钮为“移除
   });
 
   const cliBtn = panel.querySelector('#setting-cli-shim-btn');
-  assert.equal(cliBtn.textContent.trim(), '移除 glance 命令');
+  assert.equal(cliBtn.textContent.trim(), '移除 gmdu 命令');
   const bodyText = panel.querySelector('#settings-body').textContent;
   assert.match(bodyText, /安装目录：C:\/Users\/User\/\.local\/bin/);
   assert.match(bodyText, /命令已就绪/);
@@ -890,8 +890,8 @@ test('窗口与命令行分类：全局搜索命中 reuseWindowForFolder 与 CLI
   filter.oninput();
   assert.ok(findBySetting(panel, 'reuseWindowForFolder'), '搜索“复用”命中开关');
 
-  filter.value = 'glance';
+  filter.value = 'gmdu';
   filter.oninput();
   const cliBtn = panel.querySelector('#setting-cli-shim-btn');
-  assert.ok(cliBtn, '搜索“glance”命中 CLI 区块');
+  assert.ok(cliBtn, '搜索“gmdu”命中 CLI 区块');
 });

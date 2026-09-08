@@ -83,7 +83,7 @@ pub enum Event {
         path: Option<String>,
         content: String,
     },
-    /// CLI 命令别名（glance/glancemd）安装状态回执（FEAT-001）。
+    /// CLI 短命令（gmdu）安装状态回执（FEAT-001）。
     CliShimStatus {
         installed: bool,
         dir: String,

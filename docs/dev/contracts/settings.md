@@ -82,7 +82,7 @@
 
 | JSON 键 | 类型 | 默认 | 语义 |
 |---|---|---|---|
-| `reuseWindowForFolder` | bool | `false` | Windows 第二实例执行 `GlanceMD-Ultra <dir>` / `glance .` 时：`false`（默认）独立启动新窗口；`true` 将规范化绝对目录转发给主实例并执行 `workspace.open`。该字段**仅允许全局设置**：项目补丁中的 `window` 被忽略并产生 warning；macOS/Linux 当前始终多实例 |
+| `reuseWindowForFolder` | bool | `false` | Windows 第二实例执行 `GlanceMD-Ultra <dir>` / `gmdu .` 时：`false`（默认）独立启动新窗口；`true` 将规范化绝对目录转发给主实例并执行 `workspace.open`。该字段**仅允许全局设置**：项目补丁中的 `window` 被忽略并产生 warning；macOS/Linux 当前始终多实例 |
 
 ## 3. 合并语义
 

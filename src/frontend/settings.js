@@ -851,7 +851,7 @@
         var m = metaOf(c.key, k);
         return (k + ' ' + m.label + ' ' + m.desc).toLowerCase().indexOf(q) >= 0;
       });
-      var cliHits = c.key === 'window' && ('cli glance 命令行 shim ' + t('settings.cliTitle') + ' ' + t('settings.cliDesc')).toLowerCase().indexOf(q) >= 0;
+      var cliHits = c.key === 'window' && ('cli gmdu 命令行 shim ' + t('settings.cliTitle') + ' ' + t('settings.cliDesc')).toLowerCase().indexOf(q) >= 0;
       if (!hits.length && !cliHits) return;
       var groupCount = hits.length + (cliHits ? 1 : 0);
       total += groupCount;
@@ -913,7 +913,7 @@
         var m = metaOf('window', k);
         return (k + ' ' + m.label + ' ' + m.desc).toLowerCase().indexOf(q) >= 0;
       });
-      var cliMatches = !q || ('cli glance 命令行 shim ' + t('settings.cliTitle') + ' ' + t('settings.cliDesc')).toLowerCase().indexOf(q) >= 0;
+      var cliMatches = !q || ('cli gmdu 命令行 shim ' + t('settings.cliTitle') + ' ' + t('settings.cliDesc')).toLowerCase().indexOf(q) >= 0;
       if (!keys.length && !cliMatches) {
         html += '<p class="settings-empty">' + (q ? t('settings.noMatch') : t('settings.categoryEmpty')) + '</p>';
       } else {
