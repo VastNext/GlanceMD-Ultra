@@ -299,7 +299,8 @@ fn start_single_file_watcher(file: &str) {
     session::replace_watcher(service);
 }
 
-/// 判断单文件监听事件是否命中目标文件（路径分隔符归一 + Windows 大小写不敏感）。
+/// 判断单文件监听事件是否命中目标文件（剥离 verbatim 前缀 + 分隔符归一 +
+/// Windows 大小写不敏感）。
 fn single_file_event_matches(e: &MergedEvent, target: &str) -> bool {
     let path = match e {
         MergedEvent::Created { path, .. }
@@ -308,7 +309,8 @@ fn single_file_event_matches(e: &MergedEvent, target: &str) -> bool {
         // 重命名事件成对出现，交给前端 remapPath 处理
         MergedEvent::Renamed { .. } => return true,
     };
-    let s = path.to_string_lossy().replace('\\', "/");
+    // 事件路径携带 `\\?\` verbatim 前缀（根 canonicalize 所致），必须先剥离
+    let s = watch_display_path(path).replace('\\', "/");
     let t = target.replace('\\', "/");
     s.eq_ignore_ascii_case(&t)
 }
@@ -381,21 +383,39 @@ fn start_watcher(root: PathBuf, excludes: &[String]) {
     session::replace_watcher(service);
 }
 fn watch_event(e: MergedEvent) {
-    let p = match e {
+    let p = watch_event_payload(e);
+    emit(workspace::events::Event::FileChanged { payload: p });
+}
+
+/// 构建 `workspace:file-changed` 载荷（纯函数，便于单测）。
+fn watch_event_payload(e: MergedEvent) -> serde_json::Value {
+    match e {
         MergedEvent::Created { path, ts_ms } => {
-            json!({"path":path.to_string_lossy(),"kind":"created","ts":ts_ms})
+            json!({"path":watch_display_path(&path),"kind":"created","ts":ts_ms})
         }
         MergedEvent::Modified { path, ts_ms } => {
-            json!({"path":path.to_string_lossy(),"kind":"modified","ts":ts_ms})
+            json!({"path":watch_display_path(&path),"kind":"modified","ts":ts_ms})
         }
         MergedEvent::Removed { path, ts_ms } => {
-            json!({"path":path.to_string_lossy(),"kind":"removed","ts":ts_ms})
+            json!({"path":watch_display_path(&path),"kind":"removed","ts":ts_ms})
         }
         MergedEvent::Renamed { from, to, ts_ms } => {
-            json!({"path":to.to_string_lossy(),"from":from.to_string_lossy(),"kind":"renamed","ts":ts_ms})
+            json!({
+                "path": watch_display_path(&to),
+                "from": watch_display_path(&from),
+                "kind": "renamed",
+                "ts": ts_ms
+            })
         }
-    };
-    emit(workspace::events::Event::FileChanged { payload: p });
+    }
+}
+
+/// 事件路径统一下行坐标系：剥离 Windows verbatim 前缀。
+/// 监听根经 canonicalize（`\\?\D:\...`），notify 事件路径继承该前缀；
+/// 若原样下发，前端 `findTabByPath`/`toRel` 与打开文件时的常规路径
+/// （`D:\...`）永远无法匹配——clean tab 热重载与目录树外部刷新全部失效。
+fn watch_display_path(p: &Path) -> String {
+    workspace::display_path(p)
 }
 
 fn tree_list(_: &CommandContext, p: &CommandPayload) {
@@ -863,25 +883,47 @@ mod tests {
     #[test]
     fn 单文件监听事件仅命中目标文件() {
         let target = "D:/docs/note.md";
+        // 真实事件路径：根 canonicalize 后 notify 事件继承 `\\?\` verbatim 前缀
         let modified = MergedEvent::Modified {
-            path: PathBuf::from("D:\\docs\\note.md"),
+            path: PathBuf::from(r"\\?\D:\docs\note.md"),
             ts_ms: 1,
         };
         let removed = MergedEvent::Removed {
-            path: PathBuf::from("D:/docs/other.md"),
+            path: PathBuf::from(r"\\?\D:\docs\other.md"),
             ts_ms: 2,
         };
         let renamed = MergedEvent::Renamed {
-            from: PathBuf::from("D:/docs/a.md"),
-            to: PathBuf::from("D:/docs/note.md"),
+            from: PathBuf::from(r"\\?\D:\docs\a.md"),
+            to: PathBuf::from(r"\\?\D:\docs\note.md"),
             ts_ms: 3,
         };
-        // 分隔符归一 + Windows 大小写不敏感命中
+        // 剥离前缀 + 分隔符归一 + Windows 大小写不敏感命中
         assert!(single_file_event_matches(&modified, target));
         // 兄弟文件事件被过滤，避免无关 reload 请求
         assert!(!single_file_event_matches(&removed, target));
         // 重命名成对事件直接放行，由前端 remapPath 处理
         assert!(single_file_event_matches(&renamed, target));
+    }
+
+    #[test]
+    fn 监听事件载荷剥离_verbatim_前缀() {
+        let e = MergedEvent::Modified {
+            path: PathBuf::from(r"\\?\D:\proj\raw\articles\a.md"),
+            ts_ms: 42,
+        };
+        let payload = watch_event_payload(e);
+        assert_eq!(payload["path"], r"D:\proj\raw\articles\a.md");
+        assert_eq!(payload["kind"], "modified");
+
+        let renamed = MergedEvent::Renamed {
+            from: PathBuf::from(r"\\?\D:\proj\old.md"),
+            to: PathBuf::from(r"\\?\D:\proj\new.md"),
+            ts_ms: 7,
+        };
+        let payload = watch_event_payload(renamed);
+        assert_eq!(payload["path"], r"D:\proj\new.md");
+        assert_eq!(payload["from"], r"D:\proj\old.md");
+        assert_eq!(payload["kind"], "renamed");
     }
 
     #[test]

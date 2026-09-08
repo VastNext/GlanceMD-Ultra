@@ -117,7 +117,8 @@ impl Workspace {
 }
 
 /// 剥离 Windows verbatim 前缀，得到常规可读路径文本；其他平台原样返回。
-fn display_path(path: &Path) -> String {
+/// 供跨模块统一下行事件路径坐标系（前端 normPath 只归一斜杠，不含前缀处理）。
+pub(crate) fn display_path(path: &Path) -> String {
     let s = path.to_string_lossy();
     if let Some(rest) = s.strip_prefix(r"\\?\UNC\") {
         format!(r"\\{rest}")
