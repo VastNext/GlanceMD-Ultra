@@ -167,10 +167,24 @@ def test_windows_lifecycle(binary: Path, expected_version: str) -> None:
 
         # .cmd 必须通过真实命令解释器验收（与用户运行 `gmdu --version` 一致）；
         # Python shell=False 直接执行 .cmd 的标准流行为不稳定，可能得到空输出。
+        # GUI 子系统 exe 经 .cmd 启动时，Python 管道捕获可能在输出刷新前读到空串。
+        # 让真实 cmd.exe 同步执行并把输出写入 UTF-16 文件，再由 Python 读取。
+        gmdu_capture = Path(temp_space_dir) / "gmdu-version.txt"
         proc_gmdu = run_command(
-            ["cmd.exe", "/d", "/c", "gmdu", "--version"], env=real_env
+            [
+                "cmd.exe",
+                "/d",
+                "/u",
+                "/c",
+                f'call gmdu --version > "{gmdu_capture}" 2>&1',
+            ],
+            env=real_env,
         )
-        gmdu_out = (proc_gmdu.stdout + proc_gmdu.stderr).strip()
+        gmdu_out = (
+            gmdu_capture.read_text(encoding="utf-16").strip()
+            if gmdu_capture.exists()
+            else ""
+        )
         if proc_gmdu.returncode != 0:
             raise RuntimeError(f"gmdu --version 失败 ({proc_gmdu.returncode}):\n{gmdu_out}")
         require_version(gmdu_out, expected_version)

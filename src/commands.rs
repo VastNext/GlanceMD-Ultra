@@ -1640,6 +1640,7 @@ mod tests {
         assert!(CommandPayload::default().extra.is_null());
     }
 
+    #[cfg(target_os = "windows")]
     #[test]
     fn cli_shim脚本相对路径转义百分号且不硬编码文件名() {
         let script = shim_script(Path::new(r"D:\Apps\GlanceMD-Ultra.exe"));
