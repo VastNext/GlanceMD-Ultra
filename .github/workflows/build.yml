@@ -111,9 +111,13 @@ jobs:
         shell: bash
         run: python tools/verify_cli_lifecycle.py --binary "${{ matrix.binary }}"
 
-      - name: 验证 CLI 选项与 gmdu 安装（macOS DMG 挂载包）
+      - name: 验证 CLI 选项与 gmdu 安装（macOS 应用包）
         if: runner.os == 'macOS'
-        run: python3 tools/verify_cli_lifecycle.py --dmg "dist/*.dmg"
+        run: python3 tools/verify_cli_lifecycle.py --binary "dist/*.app"
+
+      - name: 验证 macOS DMG 镜像完整性
+        if: runner.os == 'macOS'
+        run: hdiutil verify dist/*.dmg
 
       - name: 补全 Linux DEB 原生 gmdu 软链接
         if: runner.os == 'Linux'

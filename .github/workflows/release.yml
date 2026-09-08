@@ -170,8 +170,10 @@ jobs:
               *.dmg) mv "$file" "GlanceMD-Ultra-macos-${{ matrix.arch }}-unsigned.dmg" ;;
             esac
           done
-      - name: 验证 CLI 选项与 gmdu 安装（macOS DMG 挂载包）
-        run: python3 tools/verify_cli_lifecycle.py --dmg "GlanceMD-Ultra-macos-${{ matrix.arch }}-unsigned.dmg"
+      - name: 验证 CLI 选项与 gmdu 安装（macOS 应用包）
+        run: python3 tools/verify_cli_lifecycle.py --binary "dist/*.app"
+      - name: 验证 macOS DMG 镜像完整性
+        run: hdiutil verify "GlanceMD-Ultra-macos-${{ matrix.arch }}-unsigned.dmg"
       - uses: actions/upload-artifact@v4
         with:
           name: release-macos-${{ matrix.arch }}

@@ -674,7 +674,6 @@ const LEGACY_WINDOWSAPPS_NAMES: &[&str] = &["gmdu.cmd", "glance.cmd", "glancemd.
 /// Windows shim 文件名。
 #[cfg(target_os = "windows")]
 const CLI_SHIM_FILE: &str = "gmdu.cmd";
-#[cfg(target_os = "windows")]
 const CLI_SHIM_PS1: &str = "gmdu.ps1";
 
 /// CLI 安装动作。
