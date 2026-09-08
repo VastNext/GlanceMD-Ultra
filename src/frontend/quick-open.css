@@ -1,1 +1,183 @@
-/* 快速打开的具体样式继承 search-panel.css；保留独立文件供 build_html 注入。 */
+/* Quick Open — 快速打开/标签页快速切换浮层样式
+ * 遵循 GlanceMD-Ultra 设计系统：紫粉渐变 (--mk-heading -> --mk-heading-end)，暗色/亮色适配
+ */
+
+.quick-open {
+  position: fixed;
+  top: 15vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(640px, calc(100vw - 40px));
+  max-height: 60vh;
+  background: var(--bg-surface, #18181b);
+  color: var(--text, #c8c8d0);
+  border: 1px solid var(--border, #252529);
+  border-radius: 8px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(168, 85, 247, 0.15);
+  display: flex;
+  flex-direction: column;
+  z-index: 10000;
+  padding: 12px;
+  box-sizing: border-box;
+  font-family: var(--font-body, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  font-size: 13px;
+  outline: none;
+  -webkit-app-region: no-drag;
+}
+
+.quick-open[hidden] {
+  display: none !important;
+}
+
+.quick-open input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border, #252529);
+  background: var(--bg-base, #111113);
+  color: var(--text, #c8c8d0);
+  font-size: 13px;
+  outline: none;
+  margin-bottom: 8px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  -webkit-app-region: no-drag;
+}
+
+.quick-open input:focus {
+  border-color: var(--mk-heading, #a855f7);
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.25);
+}
+
+.quick-open input::placeholder {
+  color: var(--text-dim, #6a6a78);
+}
+
+#quick-open-list {
+  overflow-y: auto;
+  max-height: calc(60vh - 70px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.quick-open-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text, #c8c8d0);
+  cursor: pointer;
+  width: 100%;
+  box-sizing: border-box;
+  transition: background 0.1s;
+  -webkit-app-region: no-drag;
+}
+
+.quick-open-item:hover {
+  background: var(--bg-raised, #1f1f23);
+}
+
+.quick-open-item.active {
+  background: var(--bg-overlay, #27272b);
+  border-color: rgba(168, 85, 247, 0.4);
+}
+
+.quick-open-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+  flex: 1;
+}
+
+.quick-open-tab-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text, #c8c8d0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quick-open-item.active .quick-open-tab-title,
+.quick-open-item.active span {
+  color: var(--tab-active-text, #f4f4f8);
+}
+
+.quick-open-tab-path {
+  font-size: 11px;
+  color: var(--text-secondary, #85858f);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+.quick-open-dirty-badge {
+  color: var(--mk-heading, #a855f7);
+  font-size: 12px;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.quick-open-empty {
+  margin: 24px 0;
+  text-align: center;
+  color: var(--text-dim, #6a6a78);
+  font-size: 13px;
+}
+
+/* 亮色模式 Catppuccin Latte 风格适配 */
+[data-theme="light"] .quick-open {
+  background: var(--bg-surface, #e6e9ef);
+  color: var(--text, #4c4f69);
+  border-color: var(--border, #ccd0da);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(168, 85, 247, 0.2);
+}
+
+[data-theme="light"] .quick-open input {
+  background: var(--bg-base, #eff1f5);
+  border-color: var(--border, #ccd0da);
+  color: var(--text, #4c4f69);
+}
+
+[data-theme="light"] .quick-open input::placeholder {
+  color: var(--text-dim, #8c8fa1);
+}
+
+[data-theme="light"] .quick-open-item {
+  color: var(--text, #4c4f69);
+}
+
+[data-theme="light"] .quick-open-item:hover {
+  background: var(--bg-raised, #dce0e8);
+}
+
+[data-theme="light"] .quick-open-item.active {
+  background: var(--bg-overlay, #ccd0da);
+  border-color: var(--mk-heading, #a855f7);
+}
+
+[data-theme="light"] .quick-open-item.active .quick-open-tab-title,
+[data-theme="light"] .quick-open-item.active span {
+  color: var(--tab-active-text, #2a2d3a);
+}
+
+[data-theme="light"] .quick-open-item .quick-open-tab-path,
+[data-theme="light"] .quick-open-item.active .quick-open-tab-path {
+  color: var(--text-secondary, #6c6f85);
+}
+
+[data-theme="light"] .quick-open-empty {
+  color: var(--text-dim, #8c8fa1);
+}

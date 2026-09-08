@@ -1,1 +1,156 @@
-.command-palette{top:18vh;left:50%;transform:translateX(-50%);width:min(620px,calc(100vw - 40px));max-height:60vh;overflow:auto}.command-palette input{display:block;margin-bottom:8px}.palette-item.active{background:var(--heading-soft,#552477)}
+/* Command Palette — 命令面板浮层样式
+ * 遵循 GlanceMD-Ultra 设计系统：紫粉渐变 (--mk-heading -> --mk-heading-end)，暗色/亮色适配
+ */
+
+.command-palette {
+  position: fixed;
+  top: 15vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(640px, calc(100vw - 40px));
+  max-height: 60vh;
+  background: var(--bg-surface, #18181b);
+  color: var(--text, #c8c8d0);
+  border: 1px solid var(--border, #252529);
+  border-radius: 8px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(168, 85, 247, 0.15);
+  display: flex;
+  flex-direction: column;
+  z-index: 10000;
+  padding: 12px;
+  box-sizing: border-box;
+  font-family: var(--font-body, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  font-size: 13px;
+  outline: none;
+  -webkit-app-region: no-drag;
+}
+
+.command-palette[hidden] {
+  display: none !important;
+}
+
+.command-palette input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border, #252529);
+  background: var(--bg-base, #111113);
+  color: var(--text, #c8c8d0);
+  font-size: 13px;
+  outline: none;
+  margin-bottom: 8px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  -webkit-app-region: no-drag;
+}
+
+.command-palette input:focus {
+  border-color: var(--mk-heading, #a855f7);
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.25);
+}
+
+.command-palette input::placeholder {
+  color: var(--text-dim, #6a6a78);
+}
+
+#palette-list {
+  overflow-y: auto;
+  max-height: calc(60vh - 70px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.palette-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text, #c8c8d0);
+  cursor: pointer;
+  width: 100%;
+  box-sizing: border-box;
+  transition: background 0.1s;
+  -webkit-app-region: no-drag;
+}
+
+.palette-item:hover {
+  background: var(--bg-raised, #1f1f23);
+}
+
+.palette-item.active {
+  background: var(--bg-overlay, #27272b);
+  border-color: rgba(168, 85, 247, 0.4);
+}
+
+.palette-item strong {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text, #c8c8d0);
+}
+
+.palette-item.active strong {
+  color: var(--tab-active-text, #f4f4f8);
+}
+
+.palette-item small {
+  font-size: 11px;
+  color: var(--text-secondary, #85858f);
+  margin-top: 2px;
+}
+
+.palette-item.active small {
+  color: var(--text-secondary, #85858f);
+}
+
+/* 亮色模式 Catppuccin Latte 风格适配 */
+[data-theme="light"] .command-palette {
+  background: var(--bg-surface, #e6e9ef);
+  color: var(--text, #4c4f69);
+  border-color: var(--border, #ccd0da);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(168, 85, 247, 0.2);
+}
+
+[data-theme="light"] .command-palette input {
+  background: var(--bg-base, #eff1f5);
+  border-color: var(--border, #ccd0da);
+  color: var(--text, #4c4f69);
+}
+
+[data-theme="light"] .command-palette input::placeholder {
+  color: var(--text-dim, #8c8fa1);
+}
+
+[data-theme="light"] .palette-item {
+  color: var(--text, #4c4f69);
+}
+
+[data-theme="light"] .palette-item:hover {
+  background: var(--bg-raised, #dce0e8);
+}
+
+[data-theme="light"] .palette-item.active {
+  background: var(--bg-overlay, #ccd0da);
+  border-color: var(--mk-heading, #a855f7);
+}
+
+[data-theme="light"] .palette-item strong {
+  color: var(--text, #4c4f69);
+}
+
+[data-theme="light"] .palette-item.active strong {
+  color: var(--tab-active-text, #2a2d3a);
+}
+
+[data-theme="light"] .palette-item small,
+[data-theme="light"] .palette-item.active small {
+  color: var(--text-secondary, #6c6f85);
+}

@@ -1,6 +1,360 @@
-/* 共享浮层基座 + 搜索/快速打开面板样式（settings/command-palette 复用第一行基座）。
- * 基座只使用 style.css 的真实 token（--bg-raised/--text/--border/--bg-overlay/
- * --heading-soft/--tab-active-text/--mk-heading/--hover-bg），明暗主题自动跟随；
- * 此前使用的 --bg-secondary/--bg-primary/--text-primary/--border-color 并不存在，
- * 硬编码 fallback 让浮层永远停在暗色。 */
-.search-panel,.quick-open,.settings-panel,.command-palette{position:fixed;z-index:1000;background:var(--bg-raised);color:var(--text);border:1px solid var(--border);border-radius:10px;box-shadow:0 14px 40px #0008;padding:14px}.search-panel{right:18px;top:70px;width:min(520px,calc(100vw - 36px));max-height:75vh;overflow:auto}.search-panel header,.settings-panel header{display:flex;align-items:center;gap:10px;margin-bottom:10px}.search-panel header button,.settings-panel header button{margin-left:auto}.search-controls,.search-globs{display:flex;gap:6px;margin:6px 0}.search-panel input,.settings-panel input,.command-palette input,.quick-open input{background:var(--bg-overlay);color:inherit;border:1px solid var(--border);border-radius:6px;padding:7px;min-width:0;flex:1}.search-controls button.active{background:var(--heading-soft);color:var(--tab-active-text)}.search-file-name{padding:7px;color:var(--mk-heading)}.search-hit{display:block;width:100%;text-align:left;background:transparent;border:0;color:inherit;padding:5px 8px;cursor:pointer}.search-hit:hover,.quick-open-item:hover,.palette-item:hover{background:var(--hover-bg)}.quick-open{top:84px;left:50%;transform:translateX(-50%);width:min(620px,calc(100vw - 40px));max-height:60vh;overflow:auto}.quick-open-item,.palette-item{display:block;width:100%;text-align:left;background:transparent;border:0;color:inherit;padding:8px;cursor:pointer}.quick-open-item.active,.palette-item.active{background:var(--heading-soft)}
+/* Search Panel — 全局搜索面板样式
+ * 遵循 GlanceMD-Ultra 设计系统：紫粉渐变 (--mk-heading -> --mk-heading-end)，暗色/亮色适配
+ * 默认居中宽 60vw 高 80vh（左右 20% 上下 10%），Header 可拖动（不拖原生窗口），结果区独立滚动
+ */
+
+.search-panel {
+  position: fixed;
+  z-index: 10000;
+  left: 20%;
+  top: 10%;
+  width: 60vw;
+  height: 80vh;
+  min-width: 380px;
+  min-height: 240px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-surface, #18181b);
+  color: var(--text, #c8c8d0);
+  border: 1px solid var(--border, #252529);
+  border-radius: 8px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(168, 85, 247, 0.15);
+  padding: 14px;
+  box-sizing: border-box;
+  font-family: var(--font-body, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  font-size: 13px;
+  outline: none;
+  -webkit-app-region: no-drag;
+}
+
+.search-panel[hidden] {
+  display: none !important;
+}
+
+.search-panel.dragging,
+.search-panel.resizing {
+  user-select: none;
+}
+
+/* 顶部标题栏 */
+.search-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+  user-select: none;
+  cursor: move;
+  -webkit-app-region: no-drag;
+}
+
+.search-panel header strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--mk-heading, #a855f7);
+}
+
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .search-panel header strong {
+    background: var(--heading-gradient, linear-gradient(180deg, #a855f7, #ec4899));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+#search-close {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--text-dim, #6a6a78);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  -webkit-app-region: no-drag;
+  transition: all 0.1s;
+}
+
+#search-close:hover {
+  color: var(--text, #c8c8d0);
+  background: var(--bg-raised, #1f1f23);
+}
+
+/* 搜索主控制栏（输入框 + 选项按钮） */
+.search-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 6px 0;
+  flex-shrink: 0;
+}
+
+.search-controls input,
+.search-globs input {
+  background: var(--bg-base, #111113);
+  color: var(--text, #c8c8d0);
+  border: 1px solid var(--border, #252529);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 13px;
+  outline: none;
+  min-width: 0;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  -webkit-app-region: no-drag;
+}
+
+.search-controls input {
+  flex: 1;
+}
+
+.search-controls input:focus,
+.search-globs input:focus {
+  border-color: var(--mk-heading, #a855f7);
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.25);
+}
+
+.search-controls input::placeholder,
+.search-globs input::placeholder {
+  color: var(--text-dim, #6a6a78);
+}
+
+/* 选项按钮：保持独立尺寸，决不收缩挤压 */
+.search-controls button {
+  flex-shrink: 0;
+  white-space: nowrap;
+  height: 32px;
+  min-width: 32px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-raised, #1f1f23);
+  border: 1px solid var(--border, #252529);
+  border-radius: 6px;
+  color: var(--text-secondary, #85858f);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-mono, monospace);
+  cursor: pointer;
+  transition: all 0.12s ease;
+  -webkit-app-region: no-drag;
+}
+
+.search-controls button:hover {
+  background: var(--bg-overlay, #27272b);
+  border-color: rgba(168, 85, 247, 0.4);
+  color: var(--text, #c8c8d0);
+}
+
+.search-controls button.active {
+  background: var(--heading-soft, rgba(168, 85, 247, 0.25));
+  border-color: var(--mk-heading, #a855f7);
+  color: var(--tab-active-text, #f4f4f8);
+  font-weight: 600;
+}
+
+/* 包含/排除 Glob 过滤行 */
+.search-globs {
+  display: flex;
+  gap: 6px;
+  margin: 2px 0 8px 0;
+  flex-shrink: 0;
+}
+
+.search-globs input {
+  flex: 1;
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+/* 搜索状态行 */
+#search-status {
+  flex-shrink: 0;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--text-dim, #6a6a78);
+  margin-bottom: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 搜索结果列表区：独立垂直滚动 */
+#search-results {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
+  margin: 0;
+}
+
+.search-file {
+  margin-bottom: 8px;
+}
+
+.search-file-name {
+  padding: 4px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mk-heading, #a855f7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.search-file-name b {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--bg-raised, #1f1f23);
+  color: var(--text-dim, #6a6a78);
+  font-weight: normal;
+}
+
+.search-hit {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--text, #c8c8d0);
+  font-size: 12px;
+  font-family: var(--font-mono, monospace);
+  padding: 5px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+  transition: background 0.1s;
+  -webkit-app-region: no-drag;
+}
+
+.search-hit:hover {
+  background: var(--bg-raised, #1f1f23);
+  color: var(--tab-active-text, #f4f4f8);
+}
+
+.search-hit span {
+  color: var(--text-dim, #6a6a78);
+  margin-right: 6px;
+  display: inline-block;
+  min-width: 28px;
+}
+
+.search-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--text-dim, #6a6a78);
+  font-size: 13px;
+}
+
+/* 缩放手柄 */
+.search-resize-handle {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  touch-action: none;
+  z-index: 2;
+  -webkit-app-region: no-drag;
+}
+
+.search-resize-handle::after {
+  content: '';
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--border, #252529);
+  border-bottom: 2px solid var(--border, #252529);
+  border-radius: 0 0 2px 0;
+  opacity: 0.9;
+}
+
+.search-resize-handle:hover::after {
+  border-color: var(--mk-heading, #a855f7);
+}
+
+/* 亮色模式 Catppuccin Latte 风格适配 */
+[data-theme="light"] .search-panel {
+  background: var(--bg-surface, #e6e9ef);
+  color: var(--text, #4c4f69);
+  border-color: var(--border, #ccd0da);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(168, 85, 247, 0.2);
+}
+
+[data-theme="light"] .search-controls input,
+[data-theme="light"] .search-globs input {
+  background: var(--bg-base, #eff1f5);
+  border-color: var(--border, #ccd0da);
+  color: var(--text, #4c4f69);
+}
+
+[data-theme="light"] .search-controls input::placeholder,
+[data-theme="light"] .search-globs input::placeholder {
+  color: var(--text-dim, #8c8fa1);
+}
+
+[data-theme="light"] .search-controls button {
+  background: var(--bg-base, #eff1f5);
+  border-color: var(--border, #ccd0da);
+  color: var(--text, #4c4f69);
+}
+
+[data-theme="light"] .search-controls button:hover {
+  background: var(--bg-raised, #dce0e8);
+  color: var(--tab-active-text, #2a2d3a);
+}
+
+[data-theme="light"] .search-controls button.active {
+  background: var(--heading-soft, rgba(168, 85, 247, 0.2));
+  border-color: var(--mk-heading, #a855f7);
+  color: var(--tab-active-text, #2a2d3a);
+}
+
+[data-theme="light"] .search-file-name b {
+  background: var(--bg-base, #eff1f5);
+  color: var(--text-dim, #8c8fa1);
+}
+
+[data-theme="light"] .search-hit {
+  color: var(--text, #4c4f69);
+}
+
+[data-theme="light"] .search-hit:hover {
+  background: var(--bg-raised, #dce0e8);
+  color: var(--tab-active-text, #2a2d3a);
+}
+
+[data-theme="light"] .search-hit span {
+  color: var(--text-dim, #8c8fa1);
+}
+
+[data-theme="light"] .search-empty {
+  color: var(--text-dim, #8c8fa1);
+}
+
+[data-theme="light"] .search-resize-handle::after {
+  border-color: var(--border, #ccd0da);
+}
+
+[data-theme="light"] #search-close:hover {
+  background: var(--bg-raised, #dce0e8);
+  color: var(--text, #4c4f69);
+}
