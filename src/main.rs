@@ -35,15 +35,18 @@ const STYLE_CSS: &str = include_str!("frontend/style.css");
 // i18n.js 必须是第一个产品脚本：tabs/project-tree/recovery 等模块执行时即用 I18n.t
 const I18N_JS: &str = include_str!("frontend/i18n.js");
 const APP_JS: &str = include_str!("frontend/app.js");
+const CARET_JS: &str = include_str!("frontend/caret.js");
 const EDITOR_JS: &str = include_str!("frontend/editor.js");
 const VIM_ENGINE_JS: &str = include_str!("frontend/vim-engine.js");
 const VIM_UI_JS: &str = include_str!("frontend/vim-ui.js");
 const PREVIEW_JS: &str = include_str!("frontend/preview.js");
+const PREVIEW_NAVIGATION_JS: &str = include_str!("frontend/preview-navigation.js");
 const TABS_JS: &str = include_str!("frontend/tabs.js");
 const MARKED_JS: &str = include_str!("frontend/marked.min.js");
 const HLJS: &str = include_str!("frontend/highlight.min.js");
 // 阶段 0 新增前端模块：排在既有脚本（app.js）之后加载
 const COMMANDS_JS: &str = include_str!("frontend/commands.js");
+const EDITOR_COMMANDS_JS: &str = include_str!("frontend/editor-commands.js");
 const CONTEXT_KEYS_JS: &str = include_str!("frontend/context-keys.js");
 const WHEN_CLAUSE_JS: &str = include_str!("frontend/when-clause.js");
 const KEYBINDING_PARSER_JS: &str = include_str!("frontend/keybinding-parser.js");
@@ -61,7 +64,10 @@ const SETTINGS_JS: &str = include_str!("frontend/settings.js");
 const KEYBINDINGS_JS: &str = include_str!("frontend/keybindings.js");
 const COMMAND_PALETTE_JS: &str = include_str!("frontend/command-palette.js");
 const KEY_ASSIST_JS: &str = include_str!("frontend/key-assist.js");
+const QUICK_OUTLINE_JS: &str = include_str!("frontend/quick-outline.js");
+const CONFIRM_DIALOG_JS: &str = include_str!("frontend/confirm-dialog.js");
 const KEYBINDINGS_SETTINGS_JS: &str = include_str!("frontend/keybindings-settings.js");
+const OVERLAY_HELPER_JS: &str = include_str!("frontend/overlay-helper.js");
 const RECOVERY_JS: &str = include_str!("frontend/recovery.js");
 const SETTINGS_APPLY_JS: &str = include_str!("frontend/settings-apply.js");
 const ICON_PNG: &[u8] = include_bytes!("../assets/icon.png");
@@ -102,6 +108,7 @@ fn stdin_is_piped() -> bool {
     }
 }
 
+#[cfg(test)]
 fn should_close_window(has_dirty_tabs: bool, confirm_discard: impl FnOnce() -> bool) -> bool {
     !has_dirty_tabs || confirm_discard()
 }
@@ -457,28 +464,30 @@ fn main() {
             } => {
                 #[cfg(target_os = "windows")]
                 {
-                    use wry::WebViewExtWindows;
-                    let w = _new_size.width as i32;
-                    let h = _new_size.height as i32;
-                    unsafe {
-                        let controller = _webview.controller();
-                        let _ = controller.SetBounds(RECT {
-                            left: 0,
-                            top: 0,
-                            right: w,
-                            bottom: h,
-                        });
-                        let mut host = HWND::default();
-                        if controller.ParentWindow(&mut host).is_ok() {
-                            let _ = SetWindowPos(
-                                host,
-                                None,
-                                0,
-                                0,
-                                w,
-                                h,
-                                SWP_ASYNCWINDOWPOS | SWP_NOACTIVATE | SWP_NOZORDER,
-                            );
+                    if _new_size.width > 0 && _new_size.height > 0 {
+                        use wry::WebViewExtWindows;
+                        let w = _new_size.width as i32;
+                        let h = _new_size.height as i32;
+                        unsafe {
+                            let controller = _webview.controller();
+                            let _ = controller.SetBounds(RECT {
+                                left: 0,
+                                top: 0,
+                                right: w,
+                                bottom: h,
+                            });
+                            let mut host = HWND::default();
+                            if controller.ParentWindow(&mut host).is_ok() {
+                                let _ = SetWindowPos(
+                                    host,
+                                    None,
+                                    0,
+                                    0,
+                                    w,
+                                    h,
+                                    SWP_ASYNCWINDOWPOS | SWP_NOACTIVATE | SWP_NOZORDER,
+                                );
+                            }
                         }
                     }
                 }
@@ -511,19 +520,10 @@ fn main() {
                 ..
             } => {
                 let has_dirty_tabs = app_state.lock().unwrap().has_dirty_tabs;
-                let close = should_close_window(has_dirty_tabs, || {
-                    use rfd::{MessageButtons, MessageDialog, MessageDialogResult, MessageLevel};
-
-                    MessageDialog::new()
-                        .set_level(MessageLevel::Warning)
-                        .set_title("GlanceMD Ultra")
-                        .set_description("存在未保存的修改，确定要关闭吗？")
-                        .set_buttons(MessageButtons::YesNo)
-                        .show()
-                        == MessageDialogResult::Yes
-                });
-
-                if close {
+                if has_dirty_tabs {
+                    // 若前端存在未保存修改，委托前端自研居中对话框统一拦截确认，不再弹出原生系统 MessageBox
+                    let _ = _webview.evaluate_script("if (typeof window.requestCloseWindow === 'function') window.requestCloseWindow();");
+                } else {
                     save_window_state(&window);
                     *control_flow = ControlFlow::Exit;
                 }
@@ -606,12 +606,14 @@ fn escape_for_script_tag(js: &str) -> String {
 fn build_html() -> String {
     // i18n.js 必须最前：后续模块（tabs/project-tree/recovery…）执行时即用 I18n.t
     let scripts = format!(
-        "<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>",
+        "<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>",
         escape_for_script_tag(I18N_JS),
         escape_for_script_tag(HLJS),
         escape_for_script_tag(MARKED_JS),
         escape_for_script_tag(PREVIEW_JS),
+        escape_for_script_tag(PREVIEW_NAVIGATION_JS),
         escape_for_script_tag(TABS_JS),
+        escape_for_script_tag(CARET_JS),
         escape_for_script_tag(EDITOR_JS),
         escape_for_script_tag(VIM_ENGINE_JS),
         escape_for_script_tag(VIM_UI_JS),
@@ -621,9 +623,10 @@ fn build_html() -> String {
     // 阶段 0 追加：commands.js、context-keys、when-clause、keybinding-parser、
     // default-keybindings、keybinding-service、workspace.js 排在 app.js 之后
     let scripts = format!(
-        "{}\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>",
+        "{}\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>",
         scripts,
         escape_for_script_tag(COMMANDS_JS),
+        escape_for_script_tag(EDITOR_COMMANDS_JS),
         escape_for_script_tag(CONTEXT_KEYS_JS),
         escape_for_script_tag(WHEN_CLAUSE_JS),
         escape_for_script_tag(KEYBINDING_PARSER_JS),
@@ -634,15 +637,16 @@ fn build_html() -> String {
 
     // 阶段 1 追加：layout.js 排在 workspace.js 之后（新模块一律追加在末尾）
     let scripts = format!(
-        "{}\n<script>{}</script>",
+        "{}\n<script>{}</script>\n<script>{}</script>",
         scripts,
         escape_for_script_tag(LAYOUT_JS),
+        escape_for_script_tag(OVERLAY_HELPER_JS),
     );
 
     // 阶段 1–6 前端面板：顺序 outline → project-tree → search-panel → quick-open
-    // → settings → keybindings → command-palette → key-assist → keybindings-settings → recovery
+    // → settings → keybindings → command-palette → key-assist → quick-outline → confirm-dialog → keybindings-settings → recovery
     let scripts = format!(
-        "{}\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>",
+        "{}\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>",
         scripts,
         escape_for_script_tag(OUTLINE_JS),
         escape_for_script_tag(PROJECT_TREE_JS),
@@ -652,6 +656,8 @@ fn build_html() -> String {
         escape_for_script_tag(KEYBINDINGS_JS),
         escape_for_script_tag(COMMAND_PALETTE_JS),
         escape_for_script_tag(KEY_ASSIST_JS),
+        escape_for_script_tag(QUICK_OUTLINE_JS),
+        escape_for_script_tag(CONFIRM_DIALOG_JS),
         escape_for_script_tag(KEYBINDINGS_SETTINGS_JS),
         escape_for_script_tag(RECOVERY_JS),
     );
