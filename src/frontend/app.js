@@ -30,6 +30,10 @@ window.__fromRust = function(event, data) {
         window.showNavigationFallback(data.url);
       }
       break;
+    case 'file_reloaded':
+      // 外部修改热重载（BUG-001）：file.reload 命令读回的最新内容
+      TabManager.reloadTabContent(data.path, data.content);
+      break;
   }
 };
 
@@ -1007,6 +1011,18 @@ document.getElementById('btn-theme').addEventListener('click', function() {
 
 // Init
 document.addEventListener('DOMContentLoaded', function() {
+  // 外部修改自动重载订阅（BUG-001）：workspace.js 晚于 app.js 加载，
+  // 因此挂在这个 DOMContentLoaded 时机（此时全部脚本已执行完毕）。
+  // 仅 clean tab 发起 file.reload 读回；dirty tab 由 recovery.js 冲突横幅负责。
+  if (window.Workspace && typeof window.Workspace.on === 'function') {
+    window.Workspace.on('workspace:file-changed', function(data) {
+      if (!data || !data.path) return;
+      if (String(data.kind || '').toLowerCase() !== 'modified') return;
+      var tab = TabManager.findTabByPath(data.path);
+      if (!tab || tab.dirty || tab.isImage) return;
+      sendToRust('file.reload', { path: data.path });
+    });
+  }
   var wBtnNew = document.getElementById('welcome-btn-new');
   if (wBtnNew) {
     wBtnNew.addEventListener('click', function() { TabManager.createTab(null, ''); });

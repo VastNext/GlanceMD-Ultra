@@ -180,9 +180,14 @@ var TabManager = (function() {
       return;
     }
     var editor = document.getElementById('editor');
-    tab.content = editor.value;
-    tab.cursorStart = editor.selectionStart;
-    tab.cursorEnd = editor.selectionEnd;
+    /* 仅编辑器可见时才从 DOM 同步内容与光标：预览模式下编辑器 DOM 是
+       还原时的旧镜像，热重载（reloadTabContent）只更新缓冲区不写编辑器
+       DOM，此处无条件回写会用旧内容覆盖刚重载的文件（BUG-001） */
+    if (document.getElementById('editor-container').classList.contains('active')) {
+      tab.content = editor.value;
+      tab.cursorStart = editor.selectionStart;
+      tab.cursorEnd = editor.selectionEnd;
+    }
     tab.mode = currentMode;
     if (currentMode === 'edit') {
       tab.scrollTop = editor.scrollTop;
@@ -713,6 +718,53 @@ var TabManager = (function() {
     }
   }
 
+  /* 外部修改热重载（BUG-001）：仅作用于 clean tab，dirty 由 recovery.js 横幅保护。
+     活动标签同步刷新编辑器（保留光标与滚动）与预览；后台标签只更新缓冲区，
+     切换时由 restoreTabState 按新内容重渲染。 */
+  function reloadTabContent(path, content) {
+    if (typeof path !== 'string' || !path) return false;
+    var tab = findTabByPath(path);
+    if (!tab || tab.isImage || tab.dirty) return false;
+    var next = String(content == null ? '' : content);
+    if (tab.content === next) return true;
+
+    var wasActive = tab.id === activeTabId;
+    var editor = document.getElementById('editor');
+    var prevScroll = 0, prevStart = 0, prevEnd = 0;
+    var editorVisible = wasActive &&
+      document.getElementById('editor-container').classList.contains('active');
+    if (editorVisible && editor) {
+      prevScroll = editor.scrollTop;
+      prevStart = editor.selectionStart;
+      prevEnd = editor.selectionEnd;
+    }
+
+    tab.content = next;
+    tab.parsedHtml = null;
+
+    if (editorVisible && editor) {
+      editor.value = next;
+      editor.scrollTop = prevScroll;
+      editor.selectionStart = Math.min(prevStart, next.length);
+      editor.selectionEnd = Math.min(prevEnd, next.length);
+    }
+
+    if (wasActive &&
+        document.getElementById('preview-container').classList.contains('active')) {
+      var previewEl = document.getElementById('preview');
+      if (typeof canRenderLive === 'function' && !canRenderLive(next)) {
+        previewEl.textContent = t('tabs.largeFilePreviewDisabled');
+      } else {
+        previewEl.innerHTML = marked.parse(next);
+        if (typeof resolveLocalImages === 'function') resolveLocalImages();
+        if (typeof renderMermaidCharts === 'function') renderMermaidCharts(previewEl);
+      }
+    }
+
+    if (wasActive && typeof updateWordCount === 'function') updateWordCount();
+    return true;
+  }
+
   return {
     createTab: createTab,
     closeTab: closeTab,
@@ -726,6 +778,7 @@ var TabManager = (function() {
     getActiveTab: getActiveTab,
     hasAnyDirty: hasAnyDirty,
     updateTabPath: updateTabPath,
+    reloadTabContent: reloadTabContent,
     updateWindowTitle: updateWindowTitle,
     ensureActiveTabVisible: ensureActiveTabVisible
   };

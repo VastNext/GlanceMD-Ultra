@@ -144,6 +144,7 @@ fn require_root() -> Option<PathBuf> {
 pub fn register_builtin() {
     let handlers: &[(&str, CommandHandler)] = &[
         ("file.open", open_file),
+        ("file.reload", file_reload),
         ("workspace.open", workspace_open),
         ("workspace.tree.list", tree_list),
         ("workspace.search.start", search_start),
@@ -216,6 +217,9 @@ fn open_file(ctx: &CommandContext, p: &CommandPayload) {
             );
             ctx.window.set_minimized(false);
             ctx.window.set_focus();
+            // 单文件模式（未打开工作区）挂载仅针对该文件的监听，
+            // 使外部修改的 clean tab 热重载与冲突横幅在无工作区时同样生效（BUG-001）。
+            start_single_file_watcher(&path);
         }
         Err(e) => ipc::send_to_js(
             ctx.webview,
@@ -223,6 +227,90 @@ fn open_file(ctx: &CommandContext, p: &CommandPayload) {
             &json!({"message":format!("Failed to open file: {e}")}),
         ),
     }
+}
+
+/// 读取文件最新内容并回发 `file_reloaded`，供前端对 clean tab 做静默热重载（BUG-001）。
+/// 文件已被删除或瞬时不可读时静默忽略——删除场景由 `removed` 事件的红色横幅负责。
+fn file_reload(ctx: &CommandContext, p: &CommandPayload) {
+    let Some(path) = p.path.clone() else {
+        return;
+    };
+    let path = std::path::absolute(&path)
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or(path);
+    // 图片标签经 local-image 协议按需加载，无文本缓冲区，不参与热重载
+    if file_ops::is_image_path(&path) {
+        return;
+    }
+    match std::fs::read(&path)
+        .and_then(|b| file_codec::read_text(&b).map_err(|e| std::io::Error::other(e.to_string())))
+    {
+        Ok(text) => {
+            // 同步刷新编码/换行元数据基线，保证后续保存与冲突检测基于最新内容
+            session::store_file_meta(&path, text.clone());
+            ipc::send_to_js(
+                ctx.webview,
+                "file_reloaded",
+                &json!({"content": text.content, "path": path}),
+            );
+        }
+        Err(_) => {}
+    }
+}
+
+/// 单文件模式的定向监听：监听文件所在目录，但只放行目标文件自身的事件。
+/// 与 `start_watcher`（工作区根递归监听）共用去抖/回环抑制与事件桥；
+/// 监听器经 `session::replace_watcher` 托管，打开工作区或下一个文件时自动替换。
+fn start_single_file_watcher(file: &str) {
+    // 已打开工作区时由工作区根监听覆盖，不重复挂载
+    if session::current_root().is_some() {
+        return;
+    }
+    let base = settings_base();
+    let global = workspace::settings::load_global(&base);
+    if !global.watching.enable_watcher {
+        return;
+    }
+    let Some(dir) = std::path::Path::new(file).parent() else {
+        return;
+    };
+    let Ok(service) = WatchService::new(dir, &global.files.watcher_exclude) else {
+        return;
+    };
+    let Some(rx) = service.take_receiver() else {
+        return;
+    };
+    let target = file.to_string();
+    thread::spawn(move || {
+        while let Ok(outcome) = rx.recv() {
+            match outcome {
+                WatchOutcome::ExternalChange(e) => {
+                    if single_file_event_matches(&e, &target) {
+                        watch_event(e);
+                    }
+                }
+                WatchOutcome::Error(m) => {
+                    emit(workspace::events::Event::WatcherError { message: m })
+                }
+                WatchOutcome::SelfSuppressed => {}
+            }
+        }
+    });
+    session::replace_watcher(service);
+}
+
+/// 判断单文件监听事件是否命中目标文件（路径分隔符归一 + Windows 大小写不敏感）。
+fn single_file_event_matches(e: &MergedEvent, target: &str) -> bool {
+    let path = match e {
+        MergedEvent::Created { path, .. }
+        | MergedEvent::Modified { path, .. }
+        | MergedEvent::Removed { path, .. } => path,
+        // 重命名事件成对出现，交给前端 remapPath 处理
+        MergedEvent::Renamed { .. } => return true,
+    };
+    let s = path.to_string_lossy().replace('\\', "/");
+    let t = target.replace('\\', "/");
+    s.eq_ignore_ascii_case(&t)
 }
 
 fn workspace_open(_: &CommandContext, p: &CommandPayload) {
@@ -770,6 +858,30 @@ mod tests {
     #[test]
     fn payload_defaults() {
         assert!(CommandPayload::default().extra.is_null());
+    }
+
+    #[test]
+    fn 单文件监听事件仅命中目标文件() {
+        let target = "D:/docs/note.md";
+        let modified = MergedEvent::Modified {
+            path: PathBuf::from("D:\\docs\\note.md"),
+            ts_ms: 1,
+        };
+        let removed = MergedEvent::Removed {
+            path: PathBuf::from("D:/docs/other.md"),
+            ts_ms: 2,
+        };
+        let renamed = MergedEvent::Renamed {
+            from: PathBuf::from("D:/docs/a.md"),
+            to: PathBuf::from("D:/docs/note.md"),
+            ts_ms: 3,
+        };
+        // 分隔符归一 + Windows 大小写不敏感命中
+        assert!(single_file_event_matches(&modified, target));
+        // 兄弟文件事件被过滤，避免无关 reload 请求
+        assert!(!single_file_event_matches(&removed, target));
+        // 重命名成对事件直接放行，由前端 remapPath 处理
+        assert!(single_file_event_matches(&renamed, target));
     }
 
     #[test]

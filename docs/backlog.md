@@ -18,7 +18,7 @@
 
 | ID | 录入日期 | 模块 / 领域 | 简要描述 | 严重级别 | 状态 |
 |---|---|---|---|---|---|
-| BUG-001 | 2026-09-07 | 文件监听 / 编辑器 | 外部修改 Markdown 文件后，未被编辑的 Clean Tab 未自动热重载，需手动关闭再打开才能看到最新内容 | 高 (P1) | ⏳ 待排期 |
+| BUG-001 | 2026-09-07 | 文件监听 / 编辑器 | 外部修改 Markdown 文件后，未被编辑的 Clean Tab 未自动热重载，需手动关闭再打开才能看到最新内容 | 高 (P1) | ✅ 已修复 |
 
 ### Bug 详细记录
 
@@ -36,7 +36,11 @@
 - **根因分析 / 初步定位**：
   1. `recovery.js` 接收到 `workspace:file-changed` (modified) 事件时，对于 `isDirtyByDom(path) === false` 的 clean tab，仅做了移除旧横幅操作（注释写着`// clean tab：自动重载由 app.js 层负责`），但前端 `app.js` / `tabs.js` 中实际缺少对 clean tab 触发自动重载并更新 DOM 的调用。
   2. 需同时确认无工作区（单文件独立打开模式）下，是否也已正确挂载了对应单文件的 Watcher。
-- **处理状态**：⏳ 待排期 (`backlog`)
+- **处理状态**：✅ 已修复 (`resolved`) 2026-09-08
+- **修复方案**：
+  1. **Clean Tab 热重载**：`app.js` 订阅 `workspace:file-changed`（modified），发现对应 tab 存在且为 clean 时发起 `file.reload` 命令；Rust 侧 `commands::file_reload` 读回最新内容（含编码/换行识别）并回发 `file_reloaded`；`TabManager.reloadTabContent` 静默更新缓冲区——活动编辑态保留光标/滚动并刷新编辑器，预览/分栏态即时重渲染预览，后台标签只更新缓冲区（切换时由 `restoreTabState` 重渲染）。
+  2. **顺带修复**：`tabs.js` 的 `saveTabState` 原先无条件用编辑器 DOM 回写 `tab.content`，预览模式下会以旧 DOM 镜像覆盖刚热重载的内容；现仅在编辑器可见时同步。
+  3. **单文件模式 Watcher**：`open_file` 后若未打开工作区，按全局 `watching.enableWatcher` 开关挂载定向监听（仅监听文件所在目录并过滤出该文件的事件，复用去抖/回环抑制/事件桥），打开工作区或下一个文件时自动替换。
 
 ---
 
