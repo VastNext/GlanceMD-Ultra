@@ -215,8 +215,9 @@ fn attach_parent_console() {
 #[cfg(not(target_os = "windows"))]
 fn attach_parent_console() {}
 
-/// 无 GUI 执行 CLI 控制旗标并退出：退出码 0=成功（--cli-status 0=已安装），
-/// 1=失败或未安装。不创建窗口、不进入事件循环、不触发单实例转发。
+/// 无 GUI 执行 CLI 控制旗标并退出：退出码 0=成功，
+/// 1=失败。--cli-status 无论安装与否均打印状态并正常退出 0。
+/// 不创建窗口、不进入事件循环、不触发单实例转发。
 fn run_cli_control(flag: CliControlFlag) -> ! {
     attach_parent_console();
     match flag {
@@ -257,7 +258,7 @@ fn run_cli_control(flag: CliControlFlag) -> ! {
             if !report.message.is_empty() {
                 println!("{}", report.message);
             }
-            std::process::exit(if report.installed { 0 } else { 1 });
+            std::process::exit(0);
         }
     }
 }
