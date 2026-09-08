@@ -1,7 +1,7 @@
 # 设置体系契约（schema v1 / 合并引擎 / 命令与事件）
 
 - 事实源：本模块 `src/workspace/settings.rs`（schema、加载/保存、合并、迁移）+ 本文（命令、事件、路径约定、字段表）。
-- 分类依据：产品架构方案 §7.1 的七类（**以方案实际分类名为准**，而非任务描述中的 general/advanced 猜测名）：外观与布局、文件类型/隐藏文件/排除规则、文件监听与自动保存、搜索、编辑器与大文件模式、快捷键、恢复与启动行为。
+- 分类依据：产品架构方案 §7.1 的七类 + FEAT-001 新增的全局“窗口与命令行”类：外观与布局、文件类型/隐藏文件/排除规则、文件监听与自动保存、搜索、编辑器与大文件模式、窗口与命令行、快捷键、恢复与启动行为。
 - 交付边界：本模块只交付纯逻辑核心；命令粘合层（CommandContext handler、`ipc.rs` wire 映射、事件广播）由主 Agent 集成时统一编写（见 §5/§6）。
 - 可测性：模块自包含（仅 `std`/`serde`/`serde_json`，无 `crate::` 引用），探针测试 `tests/settings_probe.rs` 以 `#[path]` 引入，集成后继续有效。
 
@@ -16,9 +16,9 @@
 - 项目设置是否**自动创建**由全局 `recovery.createProjectSettings` 控制（默认不创建）——粘合层在 `load-project` 命令中按需调用 `save_project`。
 - 原子性注记：当前保存为直接 `std::fs::write`（**非原子**）；阶段 6 `atomic_save` 落地后，粘合层应改走"临时文件写入 → 替换目标"，模块签名不变。
 
-## 2. Schema v1 字段全表（七类）
+## 2. Schema v1 字段全表（八类）
 
-顶层键：`version`（u32，当前恒为 `1`）+ 七个分类键。所有键为 camelCase；未知键**容忍**（解析时收集进 warnings 后忽略，绝不拒绝文档）。
+顶层键：`version`（u32，当前恒为 `1`）+ 八个分类键。所有键为 camelCase；未知键**容忍**（解析时收集进 warnings 后忽略，绝不拒绝文档）。
 
 ### 2.1 appearance（外观与布局）
 
@@ -31,7 +31,7 @@
 
 | JSON 键 | 类型 | 默认 | 语义 |
 |---|---|---|---|
-| `visibleExts` | string[] | `["md","markdown","txt","json","yaml","yml","toml","ini","csv"]` | 项目树可见扩展名（不带点、小写）——主计划阶段 1 清单 |
+| `visibleExts` | string[] | 文本/结构化扩展名 + `png/jpg/jpeg/gif/svg/webp/bmp/ico/avif` | 项目树可见扩展名（不带点、小写）；图片预览功能使常见图片默认可见，用户仍可自由增删 |
 | `showHidden` | bool | `false` | 是否显示隐藏文件 |
 | `exclude` | string[] | 同 `watcherExclude` 默认 | 项目树浏览排除规则（目录名/路径段）——阶段 1 |
 | `watcherExclude` | string[] | `[".git","node_modules","target",".venv","dist","build",".cache"]` | 监听排除规则——**主计划阶段 2 点名的字面键 `files.watcherExclude`** |
@@ -78,9 +78,15 @@
 | `crashRecovery` | bool | `true` | 崩溃恢复开关（阶段 6 生效） |
 | `createProjectSettings` | bool | `false` | 打开工作区时是否自动创建 `.glancemd/settings.json`（方案 §7.1"由用户设置决定"） |
 
+### 2.8 window（窗口与命令行，全局限定）
+
+| JSON 键 | 类型 | 默认 | 语义 |
+|---|---|---|---|
+| `reuseWindowForFolder` | bool | `false` | Windows 第二实例执行 `GlanceMD-Ultra <dir>` / `glance .` 时：`false`（默认）独立启动新窗口；`true` 将规范化绝对目录转发给主实例并执行 `workspace.open`。该字段**仅允许全局设置**：项目补丁中的 `window` 被忽略并产生 warning；macOS/Linux 当前始终多实例 |
+
 ## 3. 合并语义
 
-- `effective(global, project) -> Settings`：**字段级覆盖**——项目补丁中 `Some` 的字段覆盖全局对应字段，`None`/缺省保留全局；**`Vec` 与 map 为整体替换，不做并集**（项目想"在全局基础上追加"必须写出完整列表）；结果 `version` 恒为当前版本。
+- `effective(global, project) -> Settings`：**字段级覆盖**——项目补丁中 `Some` 的字段覆盖全局对应字段，`None`/缺省保留全局；**`Vec` 与 map 为整体替换，不做并集**（项目想"在全局基础上追加"必须写出完整列表）；结果 `version` 恒为当前版本。例外：`window` 为全局限定分类，effective 始终取 global。
 - `is_overridden(project, key_path) -> bool`：`key_path` 用 JSON 键名，字段级 `"appearance.theme"` / `"files.watcherExclude"`，类级 `"files"`（该类任一字段被覆盖）；未知路径返回 `false`。设置 UI 据此显示"项目已覆盖"徽标。
 - 项目文件解析为补丁（`SettingsPatch`）：文件里未出现的类别为 `None`；保存补丁时 `None` 字段不落盘。
 - 项目文件版本守卫：`version > 1` 时**整体忽略**项目覆盖并告警（避免半新半旧混合）；缺 `version` 容忍（仅字段补丁，无需迁移）。
@@ -142,8 +148,8 @@
 ### 8.1 原型与分类边界
 
 - `docs/design/prototypes/settings-sidebar-v2.html` 是视觉与交互基线稿，不是运行时实现，也不是新的 API/schema 来源。实现出现取舍时，先保持本节的可验证规则，再由维护者更新契约。
-- 设置分类严格保持方案 §7.1 的七类，顺序不变：外观与布局、文件类型/隐藏文件/排除规则、文件监听与自动保存、搜索、编辑器与大文件模式、快捷键、恢复与启动行为。不得因 UI 分组把七类合并、拆分或改名为 general/advanced 等未批准分类。
-- 产品实际设置入口当前由 `#settings-panel` 提供；它是固定头尾、可滚动主体的浮动 modal。当前实现没有独立 `#settings-overlay` DOM 层，测试不得凭空依赖该选择器；若后续接入遮罩层，遮罩只负责阻止背景交互，不改变七类或设置命令接口。
+- 设置分类为八类：外观与布局、文件类型/隐藏文件/排除规则、文件监听与自动保存、搜索、编辑器与大文件模式、窗口与命令行、快捷键、恢复与启动行为。不得任意合并、拆分或改名为 general/advanced 等未批准分类。
+- 产品实际设置入口当前由 `#settings-panel` 提供；它是固定头尾、可滚动主体的浮动 modal。当前实现没有独立 `#settings-overlay` DOM 层，测试不得凭空依赖该选择器；若后续接入遮罩层，遮罩只负责阻止背景交互，不改变八类或设置命令接口。
 
 ### 8.2 明暗主题与 custom select
 
@@ -172,8 +178,8 @@
 
 ### 8.5 本轮验证现状（2026-09-06）
 
-- 已有 Node 单测覆盖：设置面板创建与三条读取命令、七类中文分类、分类切换、中文/键名搜索与跨分类聚合、项目覆盖徽标、值类型控件、主题即时持久化、关闭/Escape、快捷键录制与冲突。
-- 已扩充的 Playwright 专项覆盖：设置入口与 modal 可见性、七类真实分类、搜索真实分类结果、关闭/Escape、基础 light/dark 主题往返，以及设置打开前后的关键布局可用宽度检查。
+- 已有 Node 单测覆盖：设置面板创建、八类分类、分类切换、中文/键名搜索与跨分类聚合、项目覆盖徽标、值类型控件、主题即时持久化、窗口复用策略、CLI shim 状态/操作、关闭/Escape、快捷键录制与冲突。
+- 已扩充的 Playwright 专项覆盖：设置入口与 modal 可见性、八类真实分类、搜索真实分类结果、关闭/Escape、基础 light/dark 主题往返，以及设置打开前后的关键布局可用宽度检查。
 - 当前实现/测试基线仍未提供独立 overlay 或 custom-select DOM；相关 v2 目标已在本契约声明，待主 Agent 接入时再增加对应行为断言。明暗视觉截图仍属于人工/浏览器专项，不由 Node 单测宣称完成。
 
 ## 9. 变更记录

@@ -55,6 +55,7 @@ fn write_json(path: &Path, text: &str) {
 fn 默认值与主计划及基线一致() {
     let s = Settings::default();
     assert_eq!(s.version, 1);
+    assert!(!s.window.reuse_window_for_folder);
     // 阶段 1：默认可见扩展名与排除清单
     assert_eq!(
         s.files.visible_exts,
@@ -104,6 +105,20 @@ fn 默认值与主计划及基线一致() {
     assert!(s.recovery.confirm_close_dirty);
     assert!(s.recovery.crash_recovery);
     assert!(!s.recovery.create_project_settings);
+}
+
+#[test]
+fn 窗口复用策略默认多开且仅取全局设置() {
+    let global = Settings::default();
+    assert!(!global.window.reuse_window_for_folder);
+
+    let mut enabled = global.clone();
+    enabled.window.reuse_window_for_folder = true;
+    let merged = effective(&enabled, &SettingsPatch::default());
+    assert!(merged.window.reuse_window_for_folder);
+
+    let json = serde_json::to_value(&merged).unwrap();
+    assert_eq!(json["window"]["reuseWindowForFolder"], true);
 }
 
 #[test]
@@ -374,6 +389,7 @@ fn 全字段v1文档_迁移无告警且逐字段相等_守护已知键表不失�
                 crash_recovery: false,
                 create_project_settings: true,
             },
+            window: settings::Window::default(),
         }
     );
 }
@@ -555,6 +571,9 @@ fn v1_roundtrip_自定义设置_保存加载零漂移() {
             crash_recovery: false,
             create_project_settings: true,
         },
+        window: settings::Window {
+            reuse_window_for_folder: true,
+        },
     };
     save(&dir, &original).unwrap();
     // 零漂移：加载回来的设置与原值全等
@@ -687,6 +706,33 @@ fn 项目设置_未知键_收集进告警() {
         "{:?}",
         loaded.warnings
     );
+    cleanup(&dir);
+}
+
+#[test]
+fn 项目设置_window分类被忽略并明确告警() {
+    let dir = temp_dir("project-window-global-only");
+    let project = dir.join("project");
+    std::fs::create_dir_all(project.join(PROJECT_SETTINGS_DIR)).unwrap();
+    std::fs::write(
+        project_settings_path(&project),
+        r#"{"version":1,"window":{"reuseWindowForFolder":true}}"#,
+    )
+    .unwrap();
+
+    let loaded = load_project_checked(&project).unwrap();
+    assert_eq!(loaded.patch.version, Some(1));
+    assert!(loaded.patch.appearance.is_none());
+    assert!(loaded.patch.files.is_none());
+    assert!(loaded.patch.watching.is_none());
+    assert!(loaded.patch.search.is_none());
+    assert!(loaded.patch.editor.is_none());
+    assert!(loaded.patch.keybindings.is_none());
+    assert!(loaded.patch.recovery.is_none());
+    assert!(loaded
+        .warnings
+        .iter()
+        .any(|w| w.contains("window") && w.contains("全局设置")));
     cleanup(&dir);
 }
 

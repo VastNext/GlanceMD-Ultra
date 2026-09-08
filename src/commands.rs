@@ -145,6 +145,9 @@ pub fn register_builtin() {
     let handlers: &[(&str, CommandHandler)] = &[
         ("file.open", open_file),
         ("file.reload", file_reload),
+        ("cli.install-shim", cli_install_shim),
+        ("cli.remove-shim", cli_remove_shim),
+        ("cli.shim-status", cli_shim_status),
         ("workspace.open", workspace_open),
         ("workspace.tree.list", tree_list),
         ("workspace.search.start", search_start),
@@ -644,6 +647,159 @@ fn terminal_scan(_: &CommandContext, _: &CommandPayload) {
         terminals: serde_json::to_value(terminals).unwrap_or_else(|_| json!([])),
     });
 }
+// ---------- CLI 命令别名 shim（FEAT-001） ----------
+
+const SHIM_MARKER: &str = "rem GlanceMD-Ultra CLI shim v1";
+const SHIM_NAMES: &[&str] = &["glance.cmd", "glancemd.cmd"];
+
+/// shim 安装目录：`%LOCALAPPDATA%\Microsoft\WindowsApps` 通常在 Windows 用户 PATH 上。
+#[cfg(target_os = "windows")]
+fn shim_dir() -> Option<std::path::PathBuf> {
+    dirs::data_local_dir().map(|d| d.join("Microsoft").join("WindowsApps"))
+}
+
+#[cfg(not(target_os = "windows"))]
+fn shim_dir() -> Option<std::path::PathBuf> {
+    None
+}
+
+/// shim 脚本内容：转发全部参数给当前 exe（含 `.`、`..` 等相对路径，
+/// 由目标进程按调用方 CWD 解析）。
+fn shim_script(exe: &std::path::Path) -> String {
+    // `%` 在 cmd 中即使位于双引号内也会参与环境变量展开，需写成 `%%`。
+    let exe = exe.to_string_lossy().replace('%', "%%");
+    format!("@echo off\r\n{SHIM_MARKER}\r\n\"{}\" %*\r\n", exe)
+}
+
+fn shim_owned(path: &Path) -> bool {
+    std::fs::read_to_string(path)
+        .map(|text| text.lines().any(|line| line.trim() == SHIM_MARKER))
+        .unwrap_or(false)
+}
+
+#[cfg(target_os = "windows")]
+fn shim_dir_on_path(dir: &Path) -> bool {
+    let target = dir
+        .to_string_lossy()
+        .replace('\\', "/")
+        .to_ascii_lowercase();
+    std::env::var_os("PATH")
+        .map(|value| {
+            std::env::split_paths(&value).any(|entry| {
+                entry
+                    .to_string_lossy()
+                    .replace('\\', "/")
+                    .trim_end_matches('/')
+                    .eq_ignore_ascii_case(target.trim_end_matches('/'))
+            })
+        })
+        .unwrap_or(false)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn shim_dir_on_path(_: &Path) -> bool {
+    false
+}
+
+fn cli_shim_emit_status(message: String) {
+    let dir = shim_dir()
+        .map(|d| d.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let installed = shim_dir()
+        .map(|d| SHIM_NAMES.iter().all(|name| shim_owned(&d.join(name))))
+        .unwrap_or(false);
+    emit(workspace::events::Event::CliShimStatus {
+        installed,
+        dir,
+        message,
+    });
+}
+
+fn cli_install_shim(ctx: &CommandContext, _: &CommandPayload) {
+    let Some(dir) = shim_dir() else {
+        cli_shim_emit_status("当前平台暂不支持自动安装 .cmd 命令别名".into());
+        return;
+    };
+    if !shim_dir_on_path(&dir) {
+        cli_shim_emit_status(format!(
+            "{} 不在当前 PATH 中，未安装命令别名",
+            dir.display()
+        ));
+        return;
+    }
+    let Ok(exe) = std::env::current_exe() else {
+        cli_shim_emit_status("无法定位当前程序路径".into());
+        return;
+    };
+    if let Err(e) = std::fs::create_dir_all(&dir) {
+        cli_shim_emit_status(format!("创建 shim 目录失败：{e}"));
+        return;
+    }
+
+    // 预检所有目标：只允许新建；已存在且不属于本程序时拒绝整个操作，绝不覆盖。
+    for name in SHIM_NAMES {
+        let path = dir.join(name);
+        if path.exists() && !shim_owned(&path) {
+            cli_shim_emit_status(format!("命令 {name} 已被其他程序占用，未覆盖任何文件"));
+            return;
+        }
+    }
+
+    let script = shim_script(&exe);
+    let mut created = Vec::new();
+    for name in SHIM_NAMES {
+        let path = dir.join(name);
+        if path.exists() {
+            continue; // 已有且通过所有权预检，不覆盖
+        }
+        if let Err(e) = atomic_save::atomic_write(&path, script.as_bytes()) {
+            for created_path in &created {
+                let _ = std::fs::remove_file(created_path);
+            }
+            cli_shim_emit_status(format!("写入 {name} 失败，已回滚：{e}"));
+            return;
+        }
+        created.push(path);
+    }
+    let _ = ctx;
+    cli_shim_emit_status(format!(
+        "已安装 glance / glancemd 命令（{}）",
+        dir.display()
+    ));
+}
+
+fn cli_remove_shim(ctx: &CommandContext, _: &CommandPayload) {
+    let Some(dir) = shim_dir() else {
+        cli_shim_emit_status("当前平台暂不支持自动移除 .cmd 命令别名".into());
+        return;
+    };
+    let mut errors = Vec::new();
+    for name in SHIM_NAMES {
+        let path = dir.join(name);
+        if !path.exists() {
+            continue;
+        }
+        if !shim_owned(&path) {
+            errors.push(format!("{name} 不属于 GlanceMD Ultra，未删除"));
+            continue;
+        }
+        if let Err(e) = std::fs::remove_file(&path) {
+            errors.push(format!("删除 {name} 失败：{e}"));
+        }
+    }
+    let _ = ctx;
+    if errors.is_empty() {
+        cli_shim_emit_status("已移除 glance / glancemd 命令".into());
+    } else {
+        cli_shim_emit_status(errors.join("；"));
+    }
+}
+
+fn cli_shim_status(ctx: &CommandContext, _: &CommandPayload) {
+    let _ = ctx;
+    cli_shim_emit_status(String::new());
+}
+
 fn watcher_pause(_: &CommandContext, _: &CommandPayload) {
     session::watcher_pause();
 }
@@ -878,6 +1034,39 @@ mod tests {
     #[test]
     fn payload_defaults() {
         assert!(CommandPayload::default().extra.is_null());
+    }
+
+    #[test]
+    fn cli_shim脚本正确转发全部参数() {
+        let script = shim_script(Path::new(r"D:\Apps\GlanceMD-Ultra.exe"));
+        assert!(script.starts_with("@echo off\r\n"));
+        assert!(script.contains(SHIM_MARKER));
+        assert!(script.contains(r#""D:\Apps\GlanceMD-Ultra.exe" %*"#));
+        assert!(script.ends_with("\r\n"));
+        assert_eq!(SHIM_NAMES, ["glance.cmd", "glancemd.cmd"]);
+
+        let percent = shim_script(Path::new(r"D:\100%\GlanceMD-Ultra.exe"));
+        assert!(percent.contains(r#""D:\100%%\GlanceMD-Ultra.exe" %*"#));
+    }
+
+    #[test]
+    fn cli_shim所有权标记防止覆盖与误删第三方文件() {
+        let dir =
+            std::env::temp_dir().join(format!("glancemd-ultra-shim-owned-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let owned = dir.join("owned.cmd");
+        let foreign = dir.join("foreign.cmd");
+        std::fs::write(
+            &owned,
+            shim_script(Path::new(r"D:\Apps\GlanceMD-Ultra.exe")),
+        )
+        .unwrap();
+        std::fs::write(&foreign, "@echo off\r\necho foreign\r\n").unwrap();
+        assert!(shim_owned(&owned));
+        assert!(!shim_owned(&foreign));
+        assert!(!shim_owned(&dir.join("missing.cmd")));
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

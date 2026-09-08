@@ -131,6 +131,7 @@ test('get() 未收到事件时返回内置默认值（与 Rust schema v1 Default
       maxResults: 2000,
     },
     editor: { fontSize: 14, tabSize: 4, wordWrap: true, lineNumbers: true, largeFileMB: 5 },
+    window: { reuseWindowForFolder: false },
     keybindings: { overrides: {} },
     recovery: { confirmCloseDirty: true, crashRecovery: true, createProjectSettings: false },
   });

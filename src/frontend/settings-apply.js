@@ -44,6 +44,7 @@
       maxResults: 2000
     },
     editor: { fontSize: 14, tabSize: 4, wordWrap: true, lineNumbers: true, largeFileMB: 5 },
+    window: { reuseWindowForFolder: false },
     recovery: { confirmCloseDirty: true, crashRecovery: true, createProjectSettings: false }
   };
 
@@ -251,6 +252,7 @@
       watching: Object.assign({}, DEFAULTS.watching, s.watching),
       search: Object.assign({}, DEFAULTS.search, s.search),
       editor: Object.assign({}, DEFAULTS.editor, s.editor),
+      window: Object.assign({}, DEFAULTS.window, s.window),
       keybindings: Object.assign({ overrides: {} }, s.keybindings),
       recovery: Object.assign({}, DEFAULTS.recovery, s.recovery)
     };

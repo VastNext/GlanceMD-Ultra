@@ -49,7 +49,7 @@
 
 | ID | 录入日期 | 分类 / 模块 | 需求简述 | 优先级 | 状态 |
 |---|---|---|---|---|---|
-| FEAT-001 | 2026-09-07 | CLI / 工作区 | 命令行支持打开目录为工作区（如 `glance .` / `GlanceMD .` 类似 `code .`） | 高 (P1) | ⏳ 待排期 |
+| FEAT-001 | 2026-09-07 | CLI / 工作区 | 命令行支持打开目录为工作区（如 `glance .` / `GlanceMD .` 类似 `code .`） | 高 (P1) | ✅ 已完成 |
 | FEAT-002 | 2026-09-07 | 软件更新 / 发布 | 软件内支持“检查并一键更新”，自动获取 GitHub Latest Release 匹配当前平台的包并覆盖更新 | 中 (P2) | ⏳ 待排期 |
 | FEAT-003 | 2026-09-07 | 网络 / 系统设置 | 设置页支持配置 HTTP/HTTPS/SOCKS5 网络代理，支持系统代理跟随与自定义覆盖（FEAT-002 前置） | 中 (P2) | ⏳ 待排期 |
 
@@ -61,7 +61,7 @@
   1. **冷启动场景**：执行 `glance .` 或 `GlanceMD <dir>` 时，解析相对路径为绝对路径，启动程序并直接打开该目录作为工作区（左侧展开项目树）。
   2. **已运行实例时的多开 / 切换策略**（用户确认）：
      - **默认行为（方案 B）**：每次执行命令均独立打开一个**新窗口**多开项目。
-     - **可配置项（方案 A）**：在设置页提供开关选项（如 `window.openFolderInNewWindow: false`），开启后允许在当前已有窗口中直接切换工作区（有未保存草稿时走冲突/保存保护）。
+     - **可配置项（方案 A）**：在设置页提供 `window.reuseWindowForFolder` 开关，默认关闭；开启后允许在当前已有窗口中直接切换工作区（已有标签保留，未保存草稿不被覆盖）。
   3. **命令别名与体验**：
      - 支持短命令 `glance .`（生成快捷 shim / 软链接或注册命令别名）。
      - 支持标准的 `GlanceMD .` / `glancemd .`。
@@ -70,7 +70,13 @@
   - `src/main.rs`（CLI 参数相对路径转绝对路径、单实例转发前规范化、多开与单实例策略适配）
   - `src/single_instance.rs`（管道消息区分打开文件 vs 打开目录工作区，传递窗口复用设置）
   - `src/workspace/settings.rs` & `src/frontend/settings.js`（增加工作区打开新窗口策略的设置项）
-- **处理状态**：⏳ 待排期 (`backlog`)
+ - **处理状态**：✅ 已完成 (`resolved`) 2026-09-08
+ - **实现内容**：
+   1. 冷启动支持 `GlanceMD-Ultra <dir>`、`.`、`..`、`./subdir`，在调用方进程先解析绝对路径并打开工作区。
+   2. Windows 已运行实例默认独立启动新窗口；开启 `window.reuseWindowForFolder` 后，通过单实例管道将目录路由为 `workspace.open`，在已有窗口切换工作区。
+   3. 设置页新增窗口与命令行分类、全局复用开关，以及安装/移除 `glance`、`glancemd` 命令 shim 的入口。
+   4. Windows shim 安装到 `%LOCALAPPDATA%\Microsoft\WindowsApps`，带所有权标记，拒绝覆盖/删除第三方同名命令；非 Windows 隐藏该入口。
+ - **验证**：239 项 Rust 测试、前端全套 Node 测试、15 项 Playwright e2e 通过；GitHub Ultra 分支 CI 与 main CI 均通过。
 
 #### FEAT-002: 软件内一键检查更新与覆盖安装 (In-place Auto-update)
 - **需求背景**：用户希望在软件内直接点击“检查更新”或自动提示，自动从 GitHub Latest Release 下载匹配当前平台/架构的最新安装包/单文件并原地覆盖安装，省去手动去网页下载解压的繁琐流程。

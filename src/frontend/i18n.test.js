@@ -171,3 +171,24 @@ test('applyDom 在 en 下使用英文词条', () => {
   h.ctx.I18n.applyDom();
   assert.equal(btn.getAttribute('title'), 'Settings');
 });
+
+test('设置页 CLI 静态文案在 zh-CN 与 en 下均有定义', () => {
+  const h = load();
+  assert.equal(h.ctx.I18n.t('settings.cliInstall'), '安装 glance 命令');
+  assert.equal(h.ctx.I18n.t('settings.cliRemove'), '移除 glance 命令');
+  assert.equal(h.ctx.I18n.t('settings.cliTitle'), 'Glance 命令行工具');
+
+  h.ctx.I18n.setLanguage('en');
+  assert.equal(h.ctx.I18n.t('settings.cliInstall'), 'Install glance command');
+  assert.equal(h.ctx.I18n.t('settings.cliRemove'), 'Remove glance command');
+  assert.equal(h.ctx.I18n.t('settings.cliTitle'), 'Glance Command Line Tool');
+});
+
+test('窗口与命令行分类及复用开关在英文模式下完整翻译', () => {
+  const h = load();
+  h.ctx.I18n.setLanguage('en');
+  assert.equal(h.ctx.I18n.t('settings.windowCategory'), 'Window & Command Line');
+  assert.match(h.ctx.I18n.t('settings.windowCategoryDesc'), /command-line/i);
+  assert.match(h.ctx.I18n.t('settings.reuseWindowForFolder'), /Reuse an existing window/);
+  assert.match(h.ctx.I18n.t('settings.reuseWindowForFolderDesc'), /Windows only/);
+});

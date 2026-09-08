@@ -43,6 +43,10 @@ function dataKey(name) {
 }
 
 function matchesSel(el, sel) {
+  return sel.split(',').some((s) => matchOne(el, s));
+}
+
+function matchOne(el, sel) {
   sel = sel.trim();
   if (sel[0] === '#') return el.id === sel.slice(1);
   if (sel[0] === '.') return (' ' + el.className + ' ').indexOf(' ' + sel.slice(1) + ' ') >= 0;
@@ -170,12 +174,13 @@ function syncSelectValues(root) {
 
 /* ── 装载与夹具 ── */
 
-function load() {
+function load(platform) {
   const els = {};
   const docHandlers = {};
   const storage = new Map();
   const docElement = makeElement('html');
   const body = makeElement('body');
+  if (platform) body.dataset.platform = platform;
   body.appendChild = function (e) {
     els[e.id] = e;
     body.children.push(e);
@@ -225,6 +230,7 @@ const GLOBAL_SETTINGS = {
   watching: { autoSave: 'off', autoSaveDelayMs: 1000, enableWatcher: true },
   search: { exclude: ['.git'], maxFileSizeMB: 5, maxResults: 2000 },
   editor: { fontSize: 14, tabSize: 4, wordWrap: true, lineNumbers: true, largeFileMB: 5 },
+  window: { reuseWindowForFolder: false },
   keybindings: { overrides: { 'file.save': 'Ctrl+S' } },
   recovery: { confirmCloseDirty: true, crashRecovery: true, createProjectSettings: false },
 };
@@ -259,7 +265,7 @@ test('open 创建面板并发送三条读命令，骨架含导航/主体/footer'
   assert.equal(panel.hidden, false);
   assert.deepEqual(
     msgs.map((x) => x.command),
-    ['workspace.settings.get-effective', 'workspace.settings.get-global', 'workspace.settings.load-project', 'workspace.terminal.scan'],
+    ['workspace.settings.get-effective', 'workspace.settings.get-global', 'workspace.settings.load-project', 'workspace.terminal.scan', 'cli.shim-status'],
   );
   assert.ok(panel.querySelector('#settings-categories'), '分类导航存在');
   assert.ok(panel.querySelector('#settings-body'), '设置主体存在');
@@ -273,14 +279,14 @@ test('receive 保存 effective 设置', () => {
   assert.equal(h.ctx.SettingsUI.getState().effective.appearance.theme, 'dark');
 });
 
-test('分类导航中文化：七个中文分类、每类一句描述、点击切换', () => {
+test('分类导航中文化：八个中文分类、每类一句描述、点击切换', () => {
   const h = load();
   h.ctx.SettingsUI.open();
   const panel = h.els['settings-panel'];
   const nav = panel.querySelector('#settings-categories');
   assert.deepEqual(
     nav.children.map((b) => b.textContent),
-    ['外观', '文件', '监听', '搜索', '编辑器', '快捷键', '恢复'],
+    ['外观', '文件', '监听', '搜索', '编辑器', '窗口与命令行', '快捷键', '恢复'],
   );
   assert.equal(nav.children[0].dataset.category, 'appearance');
   const bodyText = () => panel.querySelector('#settings-body').textContent;
@@ -323,7 +329,7 @@ test('控件按值类型渲染：theme→select、bool→switch、number→numbe
   assert.equal(exts.type, 'text');
   assert.equal(exts.value, 'md, markdown');
   // 快捷键分类 → 专用列表：默认 5 行，行含命令名与当前组合键（不再是 JSON 文本框）
-  nav.children[5].onclick(); // 快捷键
+  nav.children[6].onclick(); // 快捷键
   const kbRows = panel.querySelectorAll('.settings-kb-row');
   assert.equal(kbRows.length, 6, "默认快捷键 5 行 + 1 行未设快捷键的对照（workspace.open）");
   assert.match(kbRows[0].textContent, /打开文件/);
@@ -567,7 +573,7 @@ function loadKb() {
 function openKb(h) {
   h.ctx.SettingsUI.open();
   const panel = h.els['settings-panel'];
-  panel.querySelector('#settings-categories').children[5].onclick(); // 快捷键
+  panel.querySelector('#settings-categories').children[6].onclick(); // 快捷键
   return panel;
 }
 
@@ -624,7 +630,7 @@ test('单行恢复默认与全部恢复默认', () => {
   const h = loadKb();
   const panel = openKb(h);
   h.ctx.Keybindings.save({ 'file.open': 'Alt+O', 'settings.toggle': 'Ctrl+Shift+S' });
-  panel.querySelector('#settings-categories').children[5].onclick();
+  panel.querySelector('#settings-categories').children[6].onclick();
   const resetOne = panel.querySelector('[data-kb-reset="file.open"]');
   assert.ok(resetOne, '有覆盖的行显示恢复默认');
   resetOne.onclick();
@@ -642,7 +648,7 @@ test('录制 Backspace 直接恢复默认', () => {
   const h = loadKb();
   const panel = openKb(h);
   h.ctx.Keybindings.save({ 'file.open': 'Alt+O' });
-  panel.querySelector('#settings-categories').children[5].onclick();
+  panel.querySelector('#settings-categories').children[6].onclick();
   panel.querySelector('[data-kb-edit="file.open"]').onclick();
   fireRecordKey(h, 'Backspace');
   assert.equal(h.ctx.Keybindings.effective()['file.open'], 'Ctrl+O', 'Backspace 恢复默认');
@@ -758,4 +764,134 @@ test('终端特例控件：当前值不在扫描列表中时自动追加“当�
   const customCurrent = opts.find((o) => o.value === '/usr/local/bin/custom-term');
   assert.ok(customCurrent, '应包含当前值兜底项');
   assert.match(customCurrent.textContent, /当前值/);
+});
+
+/* ── 窗口与命令行分类及 CLI Shim 交互测试 ── */
+
+test('窗口与命令行分类：渲染 reuseWindowForFolder 开关与默认未安装的 CLI 区块', () => {
+  const h = load();
+  const panel = openWith(h, GLOBAL_SETTINGS);
+  panel.querySelector('#settings-categories').children[5].onclick(); // 窗口与命令行
+
+  // 验证 reuseWindowForFolder switch 控件
+  const toggle = findBySetting(panel, 'reuseWindowForFolder');
+  assert.ok(toggle, 'reuseWindowForFolder 控件存在');
+  assert.equal(toggle.type, 'checkbox');
+  assert.equal(toggle.checked, false, '默认值为 false');
+
+  const bodyText = panel.querySelector('#settings-body').textContent;
+  assert.match(bodyText, /命令行打开目录时复用已有窗口/);
+  assert.match(bodyText, /关闭（默认）时每次打开新窗口；开启后切换已有窗口工作区/);
+
+  // 验证 CLI 区块与默认安装按钮
+  assert.match(bodyText, /Glance 命令行工具/);
+  assert.match(bodyText, /安装 glance 命令行 shim 到系统 PATH/);
+  const cliBtn = panel.querySelector('#setting-cli-shim-btn');
+  assert.ok(cliBtn, 'CLI 安装按钮存在');
+  assert.equal(cliBtn.textContent.trim(), '安装 glance 命令');
+});
+
+test('窗口与命令行分类：reuseWindowForFolder 变更发送 set-global', () => {
+  const h = load();
+  const msgs = [];
+  h.ctx.ipc = { postMessage: (m) => msgs.push(JSON.parse(m)) };
+  h.ctx.SettingsUI.receive('workspace:settings-global', { settings: GLOBAL_SETTINGS });
+  const panel = h.els['settings-panel'];
+  panel.querySelector('#settings-categories').children[5].onclick(); // 窗口与命令行
+
+  const toggle = findBySetting(panel, 'reuseWindowForFolder');
+  toggle.checked = true;
+  toggle.onchange();
+
+  const msg = msgs[msgs.length - 1];
+  assert.equal(msg.command, 'workspace.settings.set-global');
+  const parsed = JSON.parse(msg.data);
+  assert.equal(parsed.window.reuseWindowForFolder, true);
+});
+
+test('窗口与命令行分类：打开面板及点击分类时请求 cli.shim-status 状态', () => {
+  const h = load();
+  const runs = [];
+  h.ctx.Commands = { run: (cmd) => runs.push(cmd) };
+  h.ctx.SettingsUI.open();
+  assert.ok(runs.includes('cli.shim-status'), 'open 时应请求 cli.shim-status');
+
+  runs.length = 0;
+  const panel = h.els['settings-panel'];
+  panel.querySelector('#settings-categories').children[5].onclick(); // 切换到窗口与命令行
+  assert.ok(runs.includes('cli.shim-status'), '切换到窗口与命令行分类时应请求 cli.shim-status');
+});
+
+test('CLI Shim 交互：未安装时点击调用 cli.install-shim（优先 Commands.run，回退 IPC）', () => {
+  const h = load();
+  const runs = [];
+  h.ctx.Commands = { run: (cmd) => runs.push(cmd) };
+  h.ctx.SettingsUI.open();
+  const panel = h.els['settings-panel'];
+  panel.querySelector('#settings-categories').children[5].onclick();
+
+  const cliBtn = panel.querySelector('#setting-cli-shim-btn');
+  cliBtn.onclick();
+  assert.ok(runs.includes('cli.install-shim'), '有 Commands 时调用 Commands.run');
+
+  // 无 Commands 时回退 IPC
+  delete h.ctx.Commands;
+  const msgs = [];
+  h.ctx.ipc = { postMessage: (m) => msgs.push(JSON.parse(m)) };
+  cliBtn.onclick();
+  const last = msgs[msgs.length - 1];
+  assert.equal(last.command, 'cli.install-shim', '无 Commands 时直接走 IPC');
+});
+
+test('CLI Shim 交互：workspace:cli-shim-status 事件更新按钮为“移除 glance 命令”并显示目录与消息', () => {
+  const h = load();
+  const runs = [];
+  h.ctx.Commands = { run: (cmd) => runs.push(cmd) };
+  h.ctx.SettingsUI.open();
+  const panel = h.els['settings-panel'];
+  panel.querySelector('#settings-categories').children[5].onclick();
+
+  // 接收已安装事件
+  h.ctx.SettingsUI.receive('workspace:cli-shim-status', {
+    installed: true,
+    dir: 'C:/Users/User/.local/bin',
+    message: '命令已就绪'
+  });
+
+  const cliBtn = panel.querySelector('#setting-cli-shim-btn');
+  assert.equal(cliBtn.textContent.trim(), '移除 glance 命令');
+  const bodyText = panel.querySelector('#settings-body').textContent;
+  assert.match(bodyText, /安装目录：C:\/Users\/User\/\.local\/bin/);
+  assert.match(bodyText, /命令已就绪/);
+
+  // 点击移除命令
+  runs.length = 0;
+  cliBtn.onclick();
+  assert.deepEqual(runs, ['cli.remove-shim']);
+});
+
+test('非 Windows 平台隐藏 cmd shim 区块且不请求状态', () => {
+  const h = load('linux');
+  const msgs = [];
+  h.ctx.ipc = { postMessage: (m) => msgs.push(JSON.parse(m)) };
+  const panel = openWith(h, GLOBAL_SETTINGS);
+  const nav = panel.querySelector('#settings-categories');
+  nav.children.find((b) => b.dataset.category === 'window').onclick();
+  assert.equal(panel.querySelector('#setting-cli-shim-btn'), null);
+  assert.equal(msgs.some((m) => m.command === 'cli.shim-status'), false);
+});
+
+test('窗口与命令行分类：全局搜索命中 reuseWindowForFolder 与 CLI 关键词', () => {
+  const h = load();
+  const panel = openWith(h, GLOBAL_SETTINGS);
+  const filter = panel.querySelector('#settings-filter');
+
+  filter.value = '复用';
+  filter.oninput();
+  assert.ok(findBySetting(panel, 'reuseWindowForFolder'), '搜索“复用”命中开关');
+
+  filter.value = 'glance';
+  filter.oninput();
+  const cliBtn = panel.querySelector('#setting-cli-shim-btn');
+  assert.ok(cliBtn, '搜索“glance”命中 CLI 区块');
 });

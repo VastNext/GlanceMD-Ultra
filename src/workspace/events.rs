@@ -83,6 +83,12 @@ pub enum Event {
         path: Option<String>,
         content: String,
     },
+    /// CLI 命令别名（glance/glancemd）安装状态回执（FEAT-001）。
+    CliShimStatus {
+        installed: bool,
+        dir: String,
+        message: String,
+    },
 }
 
 impl Event {
@@ -106,6 +112,7 @@ impl Event {
             Event::RecoveryAvailable { .. } => "workspace:recovery-available",
             Event::RecoveryRestored { .. } => "workspace:recovery-restored",
             Event::RecoveryOpened { .. } => "workspace:recovery-opened",
+            Event::CliShimStatus { .. } => "workspace:cli-shim-status",
         }
     }
 
@@ -162,6 +169,13 @@ impl Event {
                 content,
             } => {
                 json!({ "tab_id": tab_id, "tabId": tab_id, "path": path, "content": content })
+            }
+            Event::CliShimStatus {
+                installed,
+                dir,
+                message,
+            } => {
+                json!({ "installed": installed, "dir": dir, "message": message })
             }
         }
     }

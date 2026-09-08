@@ -75,6 +75,8 @@ pub struct Settings {
     pub keybindings: Keybindings,
     /// 恢复与启动行为。
     pub recovery: Recovery,
+    /// 窗口行为（FEAT-001：命令行打开目录的多开/复用策略）。
+    pub window: Window,
 }
 
 impl Default for Settings {
@@ -88,6 +90,25 @@ impl Default for Settings {
             editor: Editor::default(),
             keybindings: Keybindings::default(),
             recovery: Recovery::default(),
+            window: Window::default(),
+        }
+    }
+}
+
+/// 窗口行为（FEAT-001）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Window {
+    /// 命令行打开目录时的复用策略。`false`（默认，方案 B）：已运行实例时
+    /// 每次独立开新窗口多开项目；`true`（方案 A）：转发给已有窗口原地切换
+    /// 工作区。仅影响 Windows 单实例路径；macOS/Linux 本就允许多实例。
+    pub reuse_window_for_folder: bool,
+}
+
+impl Default for Window {
+    fn default() -> Self {
+        Window {
+            reuse_window_for_folder: false,
         }
     }
 }
@@ -585,6 +606,9 @@ pub fn effective(global: &Settings, project: &SettingsPatch) -> Settings {
                 global.recovery.create_project_settings,
             ),
         },
+        // 窗口多开策略仅为全局设置：第二实例启动时尚未进入项目，无法可靠
+        // 消费项目补丁；因此 effective 也明确只取 global，避免 UI 显示伪覆盖。
+        window: global.window,
     }
 }
 
@@ -859,6 +883,9 @@ pub fn load_project_checked(root: &Path) -> Option<LoadedPatch> {
     }
     let mut warnings = Vec::new();
     collect_unknown_keys(&raw, &mut warnings);
+    if raw.get("window").is_some() {
+        warnings.push("项目设置不支持 window 分类，已忽略；窗口复用策略仅为全局设置".into());
+    }
     match serde_json::from_value::<SettingsPatch>(raw) {
         Ok(mut patch) => {
             repair_patch(&mut patch, &mut warnings);
@@ -1137,6 +1164,7 @@ const KNOWN_TOP_LEVEL: &[&str] = &[
     "editor",
     "keybindings",
     "recovery",
+    "window",
 ];
 
 /// 已知类内字段（JSON 键名）。`keybindings` 不在表中：其内层键是命令 ID
@@ -1180,6 +1208,7 @@ const KNOWN_CATEGORY_FIELDS: &[(&str, &[&str])] = &[
             "createProjectSettings",
         ],
     ),
+    ("window", &["reuseWindowForFolder"]),
 ];
 
 /// 收集未知键告警（向后兼容优先：不拒绝、不删除，serde 默认忽略之）。

@@ -226,14 +226,15 @@ test('双入口与设置：文件、项目、设置按钮分别触发对应命�
   await expect(page.locator('#settings-panel')).toBeVisible();
 });
 
-test('设置专项：modal 可见、七类真实分类与关闭/Escape', async ({ page }) => {
+test('设置专项：modal 可见、八类真实分类与关闭/Escape', async ({ page }) => {
   await page.click('#btn-settings');
   const panel = page.locator('#settings-panel');
   await expect(panel).toBeVisible();
-  await expect(panel.locator('#settings-categories button')).toHaveCount(7);
+  await expect(panel.locator('#settings-categories button')).toHaveCount(8);
   await expect(panel.locator('#settings-categories')).toContainText('外观');
   await expect(panel.locator('#settings-categories')).toContainText('文件');
   await expect(panel.locator('#settings-categories')).toContainText('监听');
+  await expect(panel.locator('#settings-categories')).toContainText('窗口与命令行');
   await expect(panel.locator('#settings-categories')).toContainText('搜索');
   await expect(panel.locator('#settings-categories')).toContainText('编辑器');
   await expect(panel.locator('#settings-categories')).toContainText('快捷键');

@@ -25,9 +25,9 @@
   'use strict';
   function t(key, params) { return window.I18n ? window.I18n.t(key, params) : key; }
 
-  var state = { open: false, category: 'appearance', global: {}, effective: {}, project: {}, kbRecording: null, kbError: null, pendingTheme: null, warnings: [], overridden: [], terminals: null, terminalsScanning: false, terminalsScanned: false, customTerminalSelected: false };
+  var state = { open: false, category: 'appearance', global: {}, effective: {}, project: {}, kbRecording: null, kbError: null, pendingTheme: null, warnings: [], overridden: [], terminals: null, terminalsScanning: false, terminalsScanned: false, customTerminalSelected: false, cliShim: { installed: false, dir: '', message: '' } };
 
-  // 七类分类（与 Rust settings schema 一一对应）：中文标签 + 每类一句描述 + SVG 图标。
+  // 分类（与 Rust settings schema 一一对应）：中文标签 + 每类一句描述 + SVG 图标。
   var CATEGORIES = [
     {
       key: 'appearance',
@@ -58,6 +58,14 @@
       label: '编辑器',
       desc: '字号、缩进、换行与大文件阈值',
       icon: '<svg class="svg-icon nav-icon" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>'
+    },
+    {
+      key: 'window',
+      label: '窗口与命令行',
+      desc: '窗口多开复用与命令行工具集成',
+      labelKey: 'settings.windowCategory',
+      descKey: 'settings.windowCategoryDesc',
+      icon: '<svg class="svg-icon nav-icon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2"></rect><line x1="2" y1="9" x2="22" y2="9"></line><polyline points="6 14 8 16 6 18"></polyline><line x1="11" y1="18" x2="15" y2="18"></line></svg>'
     },
     {
       key: 'keybindings',
@@ -96,6 +104,12 @@
     'editor.wordWrap': { label: '自动换行', desc: '超出编辑区宽度时自动折行' },
     'editor.lineNumbers': { label: '显示行号', desc: '编辑区左侧显示行号' },
     'editor.largeFileMB': { label: '大文件阈值（MB）', desc: '超过该大小进入大文件模式', min: 1, max: 100, step: 1 },
+    'window.reuseWindowForFolder': {
+      label: '命令行打开目录时复用已有窗口',
+      desc: '关闭（默认）时每次打开新窗口；开启后切换已有窗口工作区',
+      labelKey: 'settings.reuseWindowForFolder',
+      descKey: 'settings.reuseWindowForFolderDesc'
+    },
     'recovery.confirmCloseDirty': { label: '关闭未保存确认', desc: '关闭有未保存修改的标签时弹出确认' },
     'recovery.crashRecovery': { label: '崩溃恢复', desc: '定期把编辑内容写入恢复区' },
     'recovery.createProjectSettings': { label: '自动创建项目设置', desc: '打开工作区时自动创建 .glancemd/settings.json' }
@@ -116,6 +130,7 @@
     watching: { autoSave: 'off', autoSaveDelayMs: 1000, enableWatcher: true },
     search: { exclude: DEFAULT_EXCLUDES.slice(), maxFileSizeMB: 5, maxResults: 2000 },
     editor: { fontSize: 14, tabSize: 4, wordWrap: true, lineNumbers: true, largeFileMB: 5 },
+    window: { reuseWindowForFolder: false },
     recovery: { confirmCloseDirty: true, crashRecovery: true, createProjectSettings: false }
   };
 
@@ -143,6 +158,12 @@
 
   function send(m) { if (window.ipc && window.ipc.postMessage) window.ipc.postMessage(JSON.stringify(m)); }
 
+  function isWindowsPlatform() {
+    var platform = document.body && document.body.dataset && document.body.dataset.platform;
+    // 单元测试夹具无 platform 标记，按主验证平台 Windows 处理；真实页面始终注入标记。
+    return !platform || platform === 'windows';
+  }
+
   function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
@@ -154,8 +175,23 @@
     return { key: key, label: key, desc: '', icon: '' };
   }
 
+  function categoryLabel(c) {
+    return c && c.labelKey ? t(c.labelKey) : ((c && c.label) || '');
+  }
+
+  function categoryDesc(c) {
+    return c && c.descKey ? t(c.descKey) : ((c && c.desc) || '');
+  }
+
   function metaOf(cat, key) {
-    return META[cat + '.' + key] || { label: key, desc: '' };
+    var m = META[cat + '.' + key] || { label: key, desc: '' };
+    return {
+      label: m.labelKey ? t(m.labelKey) : m.label,
+      desc: m.descKey ? t(m.descKey) : m.desc,
+      min: m.min,
+      max: m.max,
+      step: m.step
+    };
   }
 
   // 渲染与回写共用的取值来源：优先 effective（与显示一致），缺键回退 global。
@@ -392,12 +428,15 @@
     n.innerHTML = CATEGORIES.map(function (c) {
       return '<button type="button" data-category="' + c.key + '" class="nav-item ' + (c.key === state.category ? 'active' : '') + '">'
         + (c.icon || '')
-        + '<span>' + esc(c.label) + '</span>'
+        + '<span>' + esc(categoryLabel(c)) + '</span>'
         + '</button>';
     }).join('');
     Array.prototype.forEach.call(n.children, function (b) {
       b.onclick = function () {
         state.category = b.dataset.category;
+        if (state.category === 'window') {
+          requestCliShimStatus();
+        }
         renderCategories();
         render();
       };
@@ -506,6 +545,49 @@
       + '</div>'
       + '</div>'
       + '</div>';
+  }
+
+  function renderCliShimRow() {
+    if (!isWindowsPlatform()) return '';
+    var shim = state.cliShim || { installed: false, dir: '', message: '' };
+    var btnText = shim.installed ? t('settings.cliRemove') : t('settings.cliInstall');
+    var extraHTML = '';
+    if (shim.dir) {
+      extraHTML += '<span class="setting-desc">' + esc(t('settings.cliDirectory')) + '：' + esc(shim.dir) + '</span>';
+    }
+    if (shim.message) {
+      extraHTML += '<span class="setting-desc">' + esc(shim.message) + '</span>';
+    }
+
+    return '<div class="setting-row setting-row-cli">'
+      + '<div class="setting-info">'
+      + '<span class="setting-label">' + esc(t('settings.cliTitle')) + '</span>'
+      + '<span class="setting-desc">' + esc(t('settings.cliDesc')) + '</span>'
+      + extraHTML
+      + '</div>'
+      + '<div class="setting-control">'
+      + '<button type="button" class="btn setting-cli-btn' + (shim.installed ? ' btn-danger' : ' btn-primary') + '" id="setting-cli-shim-btn">'
+      + esc(btnText)
+      + '</button>'
+      + '</div>'
+      + '</div>';
+  }
+
+  function wireCliButton(container) {
+    var scope = container || document;
+    var btn = scope.querySelector('#setting-cli-shim-btn') || scope.querySelector('.setting-cli-btn');
+    if (!btn) return;
+    btn.onclick = function () {
+      var isInstalled = state.cliShim && state.cliShim.installed;
+      var cmdId = isInstalled ? 'cli.remove-shim' : 'cli.install-shim';
+      if (window.Commands && typeof window.Commands.run === 'function' && (!window.Commands.has || window.Commands.has(cmdId))) {
+        try {
+          window.Commands.run(cmdId);
+          return;
+        } catch (e) {}
+      }
+      send({ command: cmdId });
+    };
   }
 
   // ── 设置行：左（中文标签 + 说明 + 项目覆盖徽标）/ 右（控件）──
@@ -769,12 +851,17 @@
         var m = metaOf(c.key, k);
         return (k + ' ' + m.label + ' ' + m.desc).toLowerCase().indexOf(q) >= 0;
       });
-      if (!hits.length) return;
-      total += hits.length;
+      var cliHits = c.key === 'window' && ('cli glance 命令行 shim ' + t('settings.cliTitle') + ' ' + t('settings.cliDesc')).toLowerCase().indexOf(q) >= 0;
+      if (!hits.length && !cliHits) return;
+      var groupCount = hits.length + (cliHits ? 1 : 0);
+      total += groupCount;
       html += '<div class="settings-search-group">'
         + '<button type="button" class="settings-search-cat" data-goto="' + esc(c.key) + '">'
-        + esc(c.label) + '<span>' + hits.length + '</span></button>';
+        + esc(categoryLabel(c)) + '<span>' + groupCount + '</span></button>';
       hits.forEach(function (k) { html += rowHTML(c.key, k, obj[k]); });
+      if (cliHits) {
+        html += renderCliShimRow();
+      }
       html += '</div>';
     });
     if (!total) html += '<p class="settings-empty">' + t('settings.noMatch') + '</p>';
@@ -783,9 +870,13 @@
     if (!body) return;
     body.innerHTML = html;
     Array.prototype.forEach.call(p.querySelectorAll('[data-setting]'), wire);
+    wireCliButton(body);
     Array.prototype.forEach.call(p.querySelectorAll('[data-goto]'), function (b) {
       b.onclick = function () {
         state.category = b.dataset.goto;
+        if (state.category === 'window') {
+          requestCliShimStatus();
+        }
         renderCategories();
         renderCategory(state.category);
       };
@@ -800,8 +891,8 @@
     var filter = p.querySelector('#settings-filter');
     var q = ((filter && filter.value) || '').trim().toLowerCase();
     var cat = categoryOf(catKey);
-    var html = warningsHTML() + '<h2>' + esc(cat.label) + '</h2>'
-      + '<p class="settings-category-desc">' + esc(cat.desc) + '</p>';
+    var html = warningsHTML() + '<h2>' + esc(categoryLabel(cat)) + '</h2>'
+      + '<p class="settings-category-desc">' + esc(categoryDesc(cat)) + '</p>';
 
     // 项目覆盖提示横幅
     var hasProjectOverride = state.project[catKey] && Object.keys(state.project[catKey]).length > 0;
@@ -815,6 +906,28 @@
     var body = p.querySelector('#settings-body');
     if (!body) return;
     if (catKey === 'keybindings') { renderKbList(body, html, q); return; }
+    if (catKey === 'window') {
+      var obj = Object.assign({}, DEFAULT_SETTINGS.window || {}, state.effective.window || {});
+      var keys = Object.keys(obj).filter(function (k) {
+        if (!q) return true;
+        var m = metaOf('window', k);
+        return (k + ' ' + m.label + ' ' + m.desc).toLowerCase().indexOf(q) >= 0;
+      });
+      var cliMatches = !q || ('cli glance 命令行 shim ' + t('settings.cliTitle') + ' ' + t('settings.cliDesc')).toLowerCase().indexOf(q) >= 0;
+      if (!keys.length && !cliMatches) {
+        html += '<p class="settings-empty">' + (q ? t('settings.noMatch') : t('settings.categoryEmpty')) + '</p>';
+      } else {
+        keys.forEach(function (k) { html += rowHTML('window', k, obj[k]); });
+        if (cliMatches) {
+          html += renderCliShimRow();
+        }
+      }
+      body.innerHTML = html;
+      Array.prototype.forEach.call(p.querySelectorAll('[data-setting]'), wire);
+      wireCliButton(body);
+      enhanceSelects(body);
+      return;
+    }
     var obj = Object.assign({}, DEFAULT_SETTINGS[catKey] || {}, state.effective[catKey] || {});
     var keys = Object.keys(obj).filter(function (k) {
       if (catKey === 'files' && k === 'terminalArgs') return false;
@@ -840,7 +953,7 @@
   // ── 快捷键专用列表 ──
   function kbLabel(id) {
     var c = window.Commands && typeof window.Commands.get === 'function' ? window.Commands.get(id) : null;
-    return (c && c.label) || id;
+    return c ? categoryLabel(c) : id;
   }
 
   function kbOverrides() {
@@ -1050,6 +1163,17 @@
     send({ command: 'workspace.terminal.scan' });
   }
 
+  function requestCliShimStatus() {
+    if (!isWindowsPlatform()) return;
+    if (window.Commands && typeof window.Commands.run === 'function' && (!window.Commands.has || window.Commands.has('cli.shim-status'))) {
+      try {
+        window.Commands.run('cli.shim-status');
+        return;
+      } catch (e) {}
+    }
+    send({ command: 'cli.shim-status' });
+  }
+
   function open() {
     state.open = true;
     if (typeof document !== 'undefined' && document.activeElement) {
@@ -1062,6 +1186,7 @@
     if (!state.terminalsScanned) {
       sendScanTerminal();
     }
+    requestCliShimStatus();
     var filter = p.querySelector('#settings-filter');
     if (filter && typeof filter.focus === 'function') {
       filter.focus();
@@ -1109,6 +1234,16 @@
         render();
       }
     }
+    else if (e === 'workspace:cli-shim-status') {
+      state.cliShim = {
+        installed: !!(d && d.installed),
+        dir: (d && d.dir) || '',
+        message: (d && d.message) || ''
+      };
+      if (state.open) {
+        render();
+      }
+    }
   }
 
   if (window.Workspace && Workspace.on) {
@@ -1117,6 +1252,7 @@
     Workspace.on('workspace:settings-project', function (d) { receive('workspace:settings-project', d); });
     Workspace.on('workspace:settings-changed', function (d) { receive('workspace:settings-changed', d); });
     Workspace.on('workspace:terminal-list', function (d) { receive('workspace:terminal-list', d); });
+    Workspace.on('workspace:cli-shim-status', function (d) { receive('workspace:cli-shim-status', d); });
   }
 
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {

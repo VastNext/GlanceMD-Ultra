@@ -33,6 +33,7 @@ fn registry_command_id(wire_command: &str) -> Option<String> {
         "workspace.open" => Some("workspace.open".to_string()),
         _ if wire_command.starts_with("workspace.")
             || wire_command.starts_with("file.")
+            || wire_command.starts_with("cli.")
             || wire_command.starts_with("watcher.")
             || wire_command.starts_with("recovery.")
             || wire_command.starts_with("project.")
@@ -278,6 +279,10 @@ mod tests {
         assert_eq!(
             registry_command_id("file.reload"),
             Some("file.reload".to_string())
+        );
+        assert_eq!(
+            registry_command_id("cli.install-shim"),
+            Some("cli.install-shim".to_string())
         );
         assert_eq!(
             registry_command_id("workspace.tree.list"),

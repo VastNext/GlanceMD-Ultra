@@ -148,6 +148,21 @@ enum DropAction {
     Ignore,
 }
 
+/// Windows 第二实例启动决策（FEAT-001）：目录默认独立启动；开启复用设置后转发。
+/// 文件参数与无参数保持原行为，均转发给主实例。
+fn should_forward_secondary(cli_is_dir: bool, reuse_window_for_folder: bool) -> bool {
+    !cli_is_dir || reuse_window_for_folder
+}
+
+/// 管道收到路径后的命令分类：目录切换工作区，文件沿用打开标签。
+fn forwarded_path_command(path: &str) -> &'static str {
+    if std::path::Path::new(path).is_dir() {
+        "workspace.open"
+    } else {
+        "open_file"
+    }
+}
+
 fn classify_drop_path(path: &std::path::Path) -> DropAction {
     if path.is_dir() {
         return DropAction::OpenWorkspace;
@@ -205,11 +220,34 @@ fn main() {
     let _primary = single_instance::try_acquire_primary();
     #[cfg(target_os = "windows")]
     if _primary.is_none() {
-        let forward: Vec<String> = cli_file.clone().into_iter().collect();
-        if single_instance::send_open_request(&forward) {
-            return;
+        // FEAT-001 目录参数策略：默认（方案 B）已运行实例时独立开新窗口多开；
+        // 设置 window.reuseWindowForFolder=true（方案 A）时转发给已有窗口原地切换。
+        let dir_arg = cli_file
+            .clone()
+            .filter(|p| std::path::Path::new(p).is_dir());
+        let switch_in_place = dir_arg
+            .as_ref()
+            .map(|_| {
+                workspace::settings::load_global(&data_dir::data_base())
+                    .window
+                    .reuse_window_for_folder
+            })
+            .unwrap_or(false);
+        if !should_forward_secondary(dir_arg.is_some(), switch_in_place) {
+            // 方案 B（默认）：不转发、不聚焦已有窗口，继续完整启动为新窗口
+        } else {
+            let forward: Vec<String> = if switch_in_place {
+                // 方案 A：仅转发目录，主窗口原地切换工作区
+                dir_arg.clone().into_iter().collect()
+            } else {
+                // 既有行为：文件参数转发；无参数 = 空载荷聚焦请求
+                cli_file.clone().into_iter().collect()
+            };
+            if single_instance::send_open_request(&forward) {
+                return;
+            }
+            // 转发失败（主实例管道未就绪等）：回退为独立窗口启动
         }
-        // 转发失败（主实例管道未就绪等）：回退为独立窗口启动
     }
 
     // Read stdin if --stdin flag and stdin is a pipe/file (not a console)
@@ -267,8 +305,9 @@ fn main() {
                     ));
                 } else {
                     for p in paths {
-                        let msg =
-                            serde_json::json!({"command": "open_file", "path": p}).to_string();
+                        // FEAT-001 方案 A：第二实例转发的目录 → 主窗口原地切换工作区
+                        let command = forwarded_path_command(&p);
+                        let msg = serde_json::json!({"command": command, "path": p}).to_string();
                         let _ = proxy_pipe.send_event(UserEvent::IpcMessage(msg));
                     }
                 }
@@ -532,7 +571,10 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::{classify_drop_path, is_app_navigation, should_close_window, DropAction};
+    use super::{
+        classify_drop_path, forwarded_path_command, is_app_navigation, should_close_window,
+        should_forward_secondary, DropAction,
+    };
     use std::cell::Cell;
     use std::fs;
 
@@ -575,6 +617,32 @@ mod tests {
         // 图片文件随图片预览功能支持拖放打开
         assert_eq!(classify_drop_path(&image), DropAction::OpenFile);
         assert_eq!(classify_drop_path(&other), DropAction::Ignore);
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn 第二实例目录默认多开_开启复用后转发() {
+        assert!(!should_forward_secondary(true, false));
+        assert!(should_forward_secondary(true, true));
+        assert!(should_forward_secondary(false, false));
+    }
+
+    #[test]
+    fn 管道转发目录切换工作区_文件打开标签() {
+        let root = std::env::temp_dir().join(format!(
+            "glancemd-ultra-forwarded-dir-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let file = root.join("note.md");
+        fs::write(&file, "# note").unwrap();
+
+        assert_eq!(
+            forwarded_path_command(&root.to_string_lossy()),
+            "workspace.open"
+        );
+        assert_eq!(forwarded_path_command(&file.to_string_lossy()), "open_file");
         fs::remove_dir_all(&root).unwrap();
     }
 

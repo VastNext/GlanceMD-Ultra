@@ -105,6 +105,15 @@
       'settings.terminalArgs': '终端参数',
       'settings.terminalArgsDesc': '附加启动参数，支持 {dir} 作为目标目录占位符',
       'settings.terminalArgsPlaceholder': '例如 -e /bin/zsh -c "cd {dir}"，支持 {dir} 占位符',
+      'settings.cliTitle': 'Glance 命令行工具',
+      'settings.cliDesc': '安装 glance 命令行 shim 到系统 PATH，支持在终端中直接打开工作区',
+      'settings.cliInstall': '安装 glance 命令',
+      'settings.cliRemove': '移除 glance 命令',
+      'settings.cliDirectory': '安装目录',
+      'settings.windowCategory': '窗口与命令行',
+      'settings.windowCategoryDesc': '窗口多开复用与命令行工具集成',
+      'settings.reuseWindowForFolder': '命令行打开目录时复用已有窗口',
+      'settings.reuseWindowForFolderDesc': '仅 Windows：关闭（默认）时每次打开新窗口；开启后切换已有窗口工作区',
 
       // search：全文搜索面板
       'search.title': '全文搜索',
@@ -274,6 +283,15 @@
       'settings.terminalArgs': 'Terminal Arguments',
       'settings.terminalArgsDesc': 'Additional startup arguments; supports {dir} as directory placeholder',
       'settings.terminalArgsPlaceholder': 'e.g. -e /bin/zsh -c "cd {dir}", supports {dir}',
+      'settings.cliTitle': 'Glance Command Line Tool',
+      'settings.cliDesc': 'Install glance CLI shim to system PATH to open workspaces directly from terminal',
+      'settings.cliInstall': 'Install glance command',
+      'settings.cliRemove': 'Remove glance command',
+      'settings.cliDirectory': 'Install directory',
+      'settings.windowCategory': 'Window & Command Line',
+      'settings.windowCategoryDesc': 'Window reuse and command-line integration',
+      'settings.reuseWindowForFolder': 'Reuse an existing window for CLI folders',
+      'settings.reuseWindowForFolderDesc': 'Windows only: off (default) opens a new window; on switches the workspace in the existing window',
 
       // search
       'search.title': 'Full-Text Search',
