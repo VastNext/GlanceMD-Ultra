@@ -179,14 +179,104 @@ fn classify_drop_path(path: &std::path::Path) -> DropAction {
     }
 }
 
+/// CLI 控制旗标（FEAT-001）：命中任一即进入无 GUI 模式，执行后以退出码反馈。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CliControlFlag {
+    InstallCli,
+    UninstallCli,
+    CliStatus,
+    Version,
+}
+
+/// 识别 CLI 控制旗标：仅匹配这四个确切拼写，永不当作路径参数处理。
+fn parse_cli_control_flag(args: &[String]) -> Option<CliControlFlag> {
+    args.iter().find_map(|arg| match arg.as_str() {
+        "--install-cli" => Some(CliControlFlag::InstallCli),
+        "--uninstall-cli" => Some(CliControlFlag::UninstallCli),
+        "--cli-status" => Some(CliControlFlag::CliStatus),
+        "--version" => Some(CliControlFlag::Version),
+        _ => None,
+    })
+}
+
+/// Windows GUI 子系统下无控制台：CLI 模式尽力附加父进程控制台让
+/// println 输出可见（失败静默——退出码始终可靠）。
+#[cfg(target_os = "windows")]
+fn attach_parent_console() {
+    extern "system" {
+        fn AttachConsole(dwProcessId: u32) -> i32;
+    }
+    const ATTACH_PARENT_PROCESS: u32 = u32::MAX;
+    unsafe {
+        AttachConsole(ATTACH_PARENT_PROCESS);
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn attach_parent_console() {}
+
+/// 无 GUI 执行 CLI 控制旗标并退出：退出码 0=成功（--cli-status 0=已安装），
+/// 1=失败或未安装。不创建窗口、不进入事件循环、不触发单实例转发。
+fn run_cli_control(flag: CliControlFlag) -> ! {
+    attach_parent_console();
+    match flag {
+        CliControlFlag::Version => {
+            println!("GlanceMD-Ultra {}", env!("CARGO_PKG_VERSION"));
+            std::process::exit(0);
+        }
+        CliControlFlag::InstallCli | CliControlFlag::UninstallCli => {
+            let action = if flag == CliControlFlag::InstallCli {
+                commands::CliAction::Install
+            } else {
+                commands::CliAction::Uninstall
+            };
+            match commands::run_cli_action(action) {
+                Ok(message) => {
+                    println!("{message}");
+                    std::process::exit(0);
+                }
+                Err(message) => {
+                    eprintln!("{message}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        CliControlFlag::CliStatus => {
+            let report = commands::cli_status_report();
+            println!(
+                "gmdu: {}",
+                if report.installed {
+                    "已安装"
+                } else {
+                    "未安装"
+                }
+            );
+            if !report.dir.is_empty() {
+                println!("dir: {}", report.dir);
+            }
+            if !report.message.is_empty() {
+                println!("{}", report.message);
+            }
+            std::process::exit(if report.installed { 0 } else { 1 });
+        }
+    }
+}
+
 fn main() {
+    // Parse CLI args
+    let args: Vec<String> = std::env::args().skip(1).collect();
+
+    // FEAT-001：CLI 控制旗标优先于一切 GUI 流程——命中即无窗口执行并退出，
+    // 旗标不再进入下方路径参数解析（不会误当作待打开文件）。
+    if let Some(flag) = parse_cli_control_flag(&args) {
+        run_cli_control(flag);
+    }
+
     let app_state = Arc::new(Mutex::new(state::AppState::new()));
 
     // 阶段 0：引导内置命令注册表（幂等，可安全重复调用）
     commands::register_builtin();
 
-    // Parse CLI args
-    let args: Vec<String> = std::env::args().skip(1).collect();
     let mut cli_file: Option<String> = None;
     let mut stdin_flag = false;
     let mut title_arg: Option<String> = None;
@@ -572,11 +662,43 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::{
-        classify_drop_path, forwarded_path_command, is_app_navigation, should_close_window,
-        should_forward_secondary, DropAction,
+        classify_drop_path, forwarded_path_command, is_app_navigation, parse_cli_control_flag,
+        should_close_window, should_forward_secondary, CliControlFlag, DropAction,
     };
     use std::cell::Cell;
     use std::fs;
+
+    #[test]
+    fn cli_控制旗标识别且不当路径() {
+        let args =
+            |items: &[&str]| -> Vec<String> { items.iter().map(|s| s.to_string()).collect() };
+        assert_eq!(
+            parse_cli_control_flag(&args(&["--version"])),
+            Some(CliControlFlag::Version)
+        );
+        assert_eq!(
+            parse_cli_control_flag(&args(&["--install-cli"])),
+            Some(CliControlFlag::InstallCli)
+        );
+        assert_eq!(
+            parse_cli_control_flag(&args(&["--uninstall-cli"])),
+            Some(CliControlFlag::UninstallCli)
+        );
+        assert_eq!(
+            parse_cli_control_flag(&args(&["--cli-status"])),
+            Some(CliControlFlag::CliStatus)
+        );
+        // 无旗标：正常 GUI 启动路径
+        assert_eq!(parse_cli_control_flag(&args(&["note.md"])), None);
+        assert_eq!(parse_cli_control_flag(&args(&[])), None);
+        // 旗标与路径混排：旗标仍被识别（且不会当作路径参数）
+        assert_eq!(
+            parse_cli_control_flag(&args(&["note.md", "--version"])),
+            Some(CliControlFlag::Version)
+        );
+        // 近似拼写不匹配，避免误吞用户文件名
+        assert_eq!(parse_cli_control_flag(&args(&["--versions"])), None);
+    }
 
     #[test]
     fn clean_window_closes_without_prompting() {

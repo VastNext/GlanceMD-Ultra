@@ -158,11 +158,6 @@
 
   function send(m) { if (window.ipc && window.ipc.postMessage) window.ipc.postMessage(JSON.stringify(m)); }
 
-  function isWindowsPlatform() {
-    var platform = document.body && document.body.dataset && document.body.dataset.platform;
-    // 单元测试夹具无 platform 标记，按主验证平台 Windows 处理；真实页面始终注入标记。
-    return !platform || platform === 'windows';
-  }
 
   function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -548,7 +543,6 @@
   }
 
   function renderCliShimRow() {
-    if (!isWindowsPlatform()) return '';
     var shim = state.cliShim || { installed: false, dir: '', message: '' };
     var btnText = shim.installed ? t('settings.cliRemove') : t('settings.cliInstall');
     var extraHTML = '';
@@ -1164,7 +1158,6 @@
   }
 
   function requestCliShimStatus() {
-    if (!isWindowsPlatform()) return;
     if (window.Commands && typeof window.Commands.run === 'function' && (!window.Commands.has || window.Commands.has('cli.shim-status'))) {
       try {
         window.Commands.run('cli.shim-status');

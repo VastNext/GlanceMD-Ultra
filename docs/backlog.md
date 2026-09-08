@@ -70,13 +70,14 @@
   - `src/main.rs`（CLI 参数相对路径转绝对路径、单实例转发前规范化、多开与单实例策略适配）
   - `src/single_instance.rs`（管道消息区分打开文件 vs 打开目录工作区，传递窗口复用设置）
   - `src/workspace/settings.rs` & `src/frontend/settings.js`（增加工作区打开新窗口策略的设置项）
- - **处理状态**：✅ 已完成 (`resolved`) 2026-09-08
- - **实现内容**：
-   1. 冷启动支持 `GlanceMD-Ultra <dir>`、`.`、`..`、`./subdir`，在调用方进程先解析绝对路径并打开工作区。
-   2. Windows 已运行实例默认独立启动新窗口；开启 `window.reuseWindowForFolder` 后，通过单实例管道将目录路由为 `workspace.open`，在已有窗口切换工作区。
-   3. 设置页新增窗口与命令行分类、全局复用开关，以及安装/移除 `gmdu` 命令 shim 的入口。
-   4. Windows shim 安装到 `%LOCALAPPDATA%\Microsoft\WindowsApps`，带所有权标记，拒绝覆盖/删除第三方同名命令；非 Windows 隐藏该入口。
- - **验证**：239 项 Rust 测试、前端全套 Node 测试、15 项 Playwright e2e 通过；GitHub Ultra 分支 CI 与 main CI 均通过。
+  - **处理状态**：✅ 已完成 (`resolved`) 2026-09-08
+  - **实现内容**：
+    1. 冷启动支持 `GlanceMD-Ultra <dir>`、`.`、`..`、`./subdir`，在调用方进程先解析绝对路径并打开工作区。
+    2. Windows 已运行实例默认独立启动新窗口；开启 `window.reuseWindowForFolder` 后，通过单实例管道将目录路由为 `workspace.open`，在已有窗口切换工作区。
+    3. **最终方案**：`gmdu` 为唯一官方短命令；除目录参数外支持 `--install-cli` / `--uninstall-cli` / `--cli-status` / `--version`，命令行入口**跨平台必可用**。
+    4. **安装位置契约（最终方案）**：Windows 在 `current_exe` 所在目录的 `bin/` 创建相对引用 exe 的 `gmdu.cmd`，并把该 `bin` 加入用户级 PATH，广播环境变更——**必须开新终端**生效；macOS/Linux 在 `~/.local/bin` 创建指向 exe 的 `gmdu` symlink（提示 `~/.local/bin` 需在 PATH）。仅删除本程序所有权入口，第三方同名文件绝不触碰；设置页提供安装/移除入口（非 Windows 是否显示取决于实现，命令行语义一致）。
+    5. Release 仍为**单个真实二进制**：shim / symlink 不复制 exe，体积无本质增加。
+  - **验证**：239 项 Rust 测试、前端全套 Node 测试、15 项 Playwright e2e 通过；GitHub Ultra 分支 CI 与 main CI 均通过。Release workflow 将跨平台测试 `gmdu --version`（tag 计划 `v0.2.0`）。
 
 #### FEAT-002: 软件内一键检查更新与覆盖安装 (In-place Auto-update)
 - **需求背景**：用户希望在软件内直接点击“检查更新”或自动提示，自动从 GitHub Latest Release 下载匹配当前平台/架构的最新安装包/单文件并原地覆盖安装，省去手动去网页下载解压的繁琐流程。

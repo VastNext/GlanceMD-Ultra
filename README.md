@@ -110,6 +110,23 @@ git tag v0.1.0 && git push origin v0.1.0
 
 > macOS 包尚未接入 Developer ID 签名与 Apple 公证，首次运行可能需要在“系统设置 → 隐私与安全性”中手动允许。
 
+## ⌨️ 命令行打开工作区（gmdu）
+
+在终端中用 `gmdu .` 以当前目录打开工作区（类似 `code .`）。`gmdu` 是唯一的官方短命令，安装方式二选一：
+
+- **设置页**：打开 设置 → 窗口与命令行，点击【安装 gmdu 命令】。
+- **命令行**：直接执行程序并带 `--install-cli` 参数，例如 `GlanceMD-Ultra --install-cli`。
+
+安装后**必须开新终端**再执行：
+
+```bash
+gmdu .
+```
+
+其他参数：`--uninstall-cli`（移除 `gmdu` 入口）、`--cli-status`（查询安装状态）、`--version`（打印版本）。
+
+> 平台说明：Windows 在程序同目录的 `bin/` 生成 `gmdu.cmd` 并把该目录加入用户级 PATH；macOS / Linux 在 `~/.local/bin` 生成 `gmdu` 软链接（需 `~/.local/bin` 已在 PATH）。这些只是入口 shim，不复制程序本体，体积不变。
+
 ## ⚙️ 技术栈
 
 - **Rust** — 窗口管理、文件读写、进程通信（[tao](https://github.com/niceshell/niceshell) + [wry](https://github.com/niceshell/niceshell)）

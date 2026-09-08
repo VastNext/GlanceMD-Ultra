@@ -110,6 +110,35 @@ jobs:
           done
           exit 1
 
+      - name: 验证 CLI 选项与 gmdu 安装（Windows）
+        if: runner.os == 'Windows'
+        shell: bash
+        run: python tools/verify_cli_lifecycle.py --binary "${{ matrix.binary }}"
+
+      - name: 验证 CLI 选项与 gmdu 安装（macOS DMG 挂载包）
+        if: runner.os == 'macOS'
+        run: python3 tools/verify_cli_lifecycle.py --dmg "dist/*.dmg"
+
+      - name: 补全 Linux DEB 原生 gmdu 软链接
+        if: runner.os == 'Linux'
+        run: python3 tools/patch_deb_symlink.py "dist/*.deb"
+
+      - name: 验证 Linux DEB 安装与原生 gmdu
+        if: runner.os == 'Linux'
+        run: |
+          DEB_FILE=$(ls dist/*.deb | head -n 1)
+          sudo dpkg -i "$DEB_FILE"
+          python3 tools/verify_cli_lifecycle.py --deb-installed
+          sudo dpkg -r glancemd-ultra
+          if command -v gmdu >/dev/null 2>&1; then
+            echo "卸载 DEB 后 /usr/bin/gmdu 仍残留！" >&2
+            exit 1
+          fi
+
+      - name: 验证 Linux AppImage CLI 生命周期
+        if: runner.os == 'Linux'
+        run: python3 tools/verify_cli_lifecycle.py --appimage "dist/*.AppImage"
+
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}

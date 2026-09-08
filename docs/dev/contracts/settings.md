@@ -84,6 +84,12 @@
 |---|---|---|---|
 | `reuseWindowForFolder` | bool | `false` | Windows 第二实例执行 `GlanceMD-Ultra <dir>` / `gmdu .` 时：`false`（默认）独立启动新窗口；`true` 将规范化绝对目录转发给主实例并执行 `workspace.open`。该字段**仅允许全局设置**：项目补丁中的 `window` 被忽略并产生 warning；macOS/Linux 当前始终多实例 |
 
+**本分类同时承载 `gmdu` 命令入口的安装/移除/状态（FEAT-001 最终方案）**：
+
+- 设置页提供安装/移除 `gmdu` 入口（`cli.install-shim` / `cli.remove-shim` / `cli.shim-status`，契约见 `docs/dev/interfaces.md` §2.1/§2.4/§3.3）；安装入口在设置页是否显示，非 Windows 取决于实现，但命令行 `--install-cli` / `--uninstall-cli` / `--cli-status` 必须跨平台可用。
+- 安装位置契约：Windows 在 `current_exe` 所在目录的 `bin/` 创建相对引用 exe 的 `gmdu.cmd` 并把该 `bin` 加入用户级 PATH（广播环境变更，**必须开新终端**生效）；macOS/Linux 在 `~/.local/bin` 创建指向 exe 的 `gmdu` symlink（提示 `~/.local/bin` 需在 PATH）。仅删除本程序所有权入口，第三方同名文件绝不触碰。
+- Release 仍是**单个真实二进制**：shim / symlink 不复制 exe，体积无本质增加。
+
 ## 3. 合并语义
 
 - `effective(global, project) -> Settings`：**字段级覆盖**——项目补丁中 `Some` 的字段覆盖全局对应字段，`None`/缺省保留全局；**`Vec` 与 map 为整体替换，不做并集**（项目想"在全局基础上追加"必须写出完整列表）；结果 `version` 恒为当前版本。例外：`window` 为全局限定分类，effective 始终取 global。

@@ -44,9 +44,9 @@
 | `open_file` | `file.open` | `path?` | 有 `path`：读文件，成功发 `file_opened` 并前置窗口，失败发 `error`；无 `path`：弹出系统打开文件对话框 | 自 `ipc.rs` 原分支逐行迁移，行为与迁移前一致 |
 | `file.reload` | `file.reload` | `path` | 重读 clean tab 的最新文本内容，成功发 `file_reloaded`；文件已删除/瞬时不可读时静默忽略（由 watcher removed 事件处理） | BUG-001；仅文本文件 |
 | `workspace.open` | `workspace.open` | `path?` | 有 path 时打开指定目录；无 path 时弹出原生目录选择器；`Workspace::open_root` 校验 + canonicalize，发 `workspace:opened`，后台线程扫描并周期发 `workspace:scan-progress`；校验失败发 `workspace:error` | 阶段 0/目录入口已实现 |
-| `cli.install-shim` | `cli.install-shim` | 无 | Windows：在 `%LOCALAPPDATA%\Microsoft\WindowsApps` 安装带所有权标记的 `gmdu.cmd`；拒绝覆盖非本程序文件，原子写入且失败回滚；成功后仅清理本程序旧版 `glance.cmd`/`glancemd.cmd` | FEAT-001；非 Windows 返回不支持 |
-| `cli.remove-shim` | `cli.remove-shim` | 无 | 仅移除带 GlanceMD Ultra 所有权标记的 shim；第三方同名文件绝不删除 | FEAT-001 |
-| `cli.shim-status` | `cli.shim-status` | 无 | 查询 shim 所有权状态并发 `workspace:cli-shim-status` | FEAT-001 |
+| `cli.install-shim` | `cli.install-shim` | 无 | 安装 `gmdu` 唯一官方入口（带所有权标记）：Windows 在 `current_exe` 所在目录的 `bin/` 创建**相对引用** exe 的 `gmdu.cmd`，并把该 `bin` 加入用户级 PATH 后广播环境变更（需新终端生效）；macOS/Linux 在 `~/.local/bin` 创建指向 exe 的 `gmdu` symlink（提示 `~/.local/bin` 需在 PATH）。拒绝覆盖非本程序文件，原子写入且失败回滚；成功后仅清理本程序旧版 `glance.cmd`/`glancemd.cmd` | FEAT-001 最终方案；设置页与 `--install-cli` 命令行共用同一实现，命令行跨平台、必须可用 |
+| `cli.remove-shim` | `cli.remove-shim` | 无 | 仅移除带 GlanceMD Ultra 所有权标记的 `gmdu` 入口（Windows：`bin/gmdu.cmd` 及其用户级 PATH 条目；macOS/Linux：`~/.local/bin/gmdu`）；第三方同名文件绝不删除 | FEAT-001 |
+| `cli.shim-status` | `cli.shim-status` | 无 | 查询 `gmdu` 入口所有权/安装状态并发 `workspace:cli-shim-status` | FEAT-001 |
 
 ### 2.2 未迁移（仍由 `ipc.rs` match 直连，阶段 0 现状）
 
@@ -61,6 +61,20 @@
 - 同一 ID 重复注册：`CommandError::AlreadyRegistered(id)`；
 - 内置命令经 `commands::register_builtin()` 幂等引导（重复调用安全）；
 - 新命令接入三步：`commands.rs` 写 handler + 在 `register_builtin()` 注册 → `ipc.rs::registry_command_id` 加 wire 映射（若经 IPC 触发）→ 本文 §2 表登记。
+
+### 2.4 CLI 命令行参数（最终方案，跨平台）
+
+`gmdu` 是唯一官方短命令；除目录参数（`gmdu .`）外，还支持以下子命令。**命令行入口必须跨平台可用**（Windows / macOS / Linux），设置页只是便捷入口，非 Windows 是否在设置页显示安装入口取决于实现，但命令行语义一致：
+
+| 参数 | 语义 | 备注 |
+|---|---|---|
+| `--install-cli` | 安装 `gmdu` 入口后退出 | 与 `cli.install-shim` 同一实现 |
+| `--uninstall-cli` | 移除 `gmdu` 入口后退出（仅删除本程序所有权入口） | 与 `cli.remove-shim` 同一实现 |
+| `--cli-status` | 打印 `gmdu` 入口安装状态后退出 | 与 `cli.shim-status` 同一实现 |
+| `--version` | 打印版本号后退出 | Release workflow 用其跨平台验证产物 |
+
+- 安装位置契约：Windows 在 `current_exe` 所在目录的 `bin/` 创建**相对引用** exe 的 `gmdu.cmd` 并把该 `bin` 加入用户级 PATH（广播环境变更，**必须开新终端**生效）；macOS/Linux 在 `~/.local/bin` 创建指向 exe 的 `gmdu` symlink（提示 `~/.local/bin` 需在 PATH）。
+- Release 仍是**单个真实二进制**：`gmdu.cmd` / symlink 只是 shim/快捷入口，**不复制 exe**，体积无本质增加。
 
 ## 3. 下行事件名全集
 
@@ -104,7 +118,7 @@
 | `workspace:search-cancelled` | 阶段 4 | 搜索取消确认 |
 | `workspace:fs-op-done` | 阶段 3 | 文件操作（新建/重命名/删除/回收站）完成回执，含操作 ID 供撤销链对账 |
 | `workspace:settings-changed` | 阶段 5 | 设置变更广播（全局与项目覆盖生效通知） |
-| `workspace:cli-shim-status` | FEAT-001 | `{installed, dir, message}`；Windows CLI shim 安装/移除/状态查询回执，`installed` 仅在两个 shim 均带本程序所有权标记时为 true |
+| `workspace:cli-shim-status` | FEAT-001 | `{installed, dir, message}`；`gmdu` 入口安装/移除/状态查询回执，`installed` 仅在本程序所有权标记的入口就位时为 true；`dir` 为入口所在目录（Windows：`<current_exe 目录>/bin`；macOS/Linux：`~/.local/bin`） |
 
 ## 4. 前端 JS 模块命名空间规范
 

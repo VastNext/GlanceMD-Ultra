@@ -785,7 +785,7 @@ test('窗口与命令行分类：渲染 reuseWindowForFolder 开关与默认未�
 
   // 验证 CLI 区块与默认安装按钮
   assert.match(bodyText, /Glance 命令行工具/);
-  assert.match(bodyText, /安装 gmdu 命令行 shim 到系统 PATH/);
+  assert.match(bodyText, /先点击安装再使用 gmdu/);
   const cliBtn = panel.querySelector('#setting-cli-shim-btn');
   assert.ok(cliBtn, 'CLI 安装按钮存在');
   assert.equal(cliBtn.textContent.trim(), '安装 gmdu 命令');
@@ -870,15 +870,15 @@ test('CLI Shim 交互：workspace:cli-shim-status 事件更新按钮为“移除
   assert.deepEqual(runs, ['cli.remove-shim']);
 });
 
-test('非 Windows 平台隐藏 cmd shim 区块且不请求状态', () => {
+test('Linux 平台同样提供 gmdu 安装入口并请求状态', () => {
   const h = load('linux');
   const msgs = [];
   h.ctx.ipc = { postMessage: (m) => msgs.push(JSON.parse(m)) };
   const panel = openWith(h, GLOBAL_SETTINGS);
   const nav = panel.querySelector('#settings-categories');
   nav.children.find((b) => b.dataset.category === 'window').onclick();
-  assert.equal(panel.querySelector('#setting-cli-shim-btn'), null);
-  assert.equal(msgs.some((m) => m.command === 'cli.shim-status'), false);
+  assert.ok(panel.querySelector('#setting-cli-shim-btn'));
+  assert.equal(msgs.some((m) => m.command === 'cli.shim-status'), true);
 });
 
 test('窗口与命令行分类：全局搜索命中 reuseWindowForFolder 与 CLI 关键词', () => {

@@ -106,6 +106,23 @@ Release artifacts include the Windows x64 EXE (`GlanceMD-Ultra-windows-x64.exe`)
 
 > macOS packages are not yet signed with Developer ID or notarized by Apple. The first launch may require manual approval in System Settings → Privacy & Security.
 
+## ⌨️ Open a Workspace from the Command Line (gmdu)
+
+Use `gmdu .` in a terminal to open the current directory as a workspace (like `code .`). `gmdu` is the single official short command; install it either way:
+
+- **Settings page**: open Settings → Window & Command Line and click **Install gmdu command**.
+- **Command line**: run the program with `--install-cli`, e.g. `GlanceMD-Ultra --install-cli`.
+
+After installing, **open a new terminal** and run:
+
+```bash
+gmdu .
+```
+
+Other flags: `--uninstall-cli` (remove the `gmdu` entry), `--cli-status` (query install status), and `--version` (print the version).
+
+> Platform notes: on Windows a `gmdu.cmd` is created in the `bin/` folder next to the program and that folder is added to the user PATH; on macOS / Linux a `gmdu` symlink is created in `~/.local/bin` (needs `~/.local/bin` on PATH). These are just launcher shims — they do not copy the program, so the size is unchanged.
+
 ## ⚙️ Tech Stack
 
 - **Rust** — window management, file I/O, IPC ([tao](https://github.com/niceshell/niceshell) + [wry](https://github.com/niceshell/niceshell))

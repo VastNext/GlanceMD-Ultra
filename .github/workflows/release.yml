@@ -114,6 +114,9 @@ jobs:
       - name: 整理 Windows 产物
         shell: bash
         run: cp target/x86_64-pc-windows-msvc/release/GlanceMD-Ultra.exe GlanceMD-Ultra-windows-x64.exe
+      - name: 验证 CLI 选项与 gmdu 安装（Windows）
+        shell: bash
+        run: python tools/verify_cli_lifecycle.py --binary GlanceMD-Ultra-windows-x64.exe
       - uses: actions/upload-artifact@v4
         with:
           name: release-windows
@@ -167,6 +170,8 @@ jobs:
               *.dmg) mv "$file" "GlanceMD-Ultra-macos-${{ matrix.arch }}-unsigned.dmg" ;;
             esac
           done
+      - name: 验证 CLI 选项与 gmdu 安装（macOS DMG 挂载包）
+        run: python3 tools/verify_cli_lifecycle.py --dmg "GlanceMD-Ultra-macos-${{ matrix.arch }}-unsigned.dmg"
       - uses: actions/upload-artifact@v4
         with:
           name: release-macos-${{ matrix.arch }}
@@ -192,6 +197,20 @@ jobs:
       - run: cargo build --release --target x86_64-unknown-linux-gnu
       - name: 打包 Linux 应用
         run: cargo packager --release --target x86_64-unknown-linux-gnu --formats deb,appimage --out-dir dist
+      - name: 补全 Linux DEB 原生 gmdu 软链接
+        run: python3 tools/patch_deb_symlink.py "dist/*.deb"
+      - name: 验证 Linux DEB 安装与原生 gmdu
+        run: |
+          DEB_FILE=$(ls dist/*.deb | head -n 1)
+          sudo dpkg -i "$DEB_FILE"
+          python3 tools/verify_cli_lifecycle.py --deb-installed
+          sudo dpkg -r glancemd-ultra
+          if command -v gmdu >/dev/null 2>&1; then
+            echo "卸载 DEB 后 /usr/bin/gmdu 仍残留！" >&2
+            exit 1
+          fi
+      - name: 验证 Linux AppImage CLI 生命周期
+        run: python3 tools/verify_cli_lifecycle.py --appimage "dist/*.AppImage"
       - uses: actions/upload-artifact@v4
         with:
           name: release-linux-x64
