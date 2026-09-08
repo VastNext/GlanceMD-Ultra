@@ -32,6 +32,7 @@ fn registry_command_id(wire_command: &str) -> Option<String> {
         "open_file" => Some("file.open".to_string()),
         "workspace.open" => Some("workspace.open".to_string()),
         _ if wire_command.starts_with("workspace.")
+            || wire_command.starts_with("file.")
             || wire_command.starts_with("watcher.")
             || wire_command.starts_with("recovery.")
             || wire_command.starts_with("project.")
@@ -264,4 +265,28 @@ pub(crate) fn send_to_js(webview: &WebView, event: &str, data: &serde_json::Valu
         serde_json::to_string(data).unwrap(),
     );
     let _ = webview.evaluate_script(&script);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::registry_command_id;
+
+    #[test]
+    fn 注册表通配前缀覆盖_file_系列() {
+        // BUG-001 教训：file.reload 曾因通配清单缺 `file.` 前缀被 legacy 分支
+        // 当作未知命令丢弃，热重载链路在真实 IPC 分发处断裂
+        assert_eq!(
+            registry_command_id("file.reload"),
+            Some("file.reload".to_string())
+        );
+        assert_eq!(
+            registry_command_id("workspace.tree.list"),
+            Some("workspace.tree.list".to_string())
+        );
+        assert_eq!(
+            registry_command_id("open_file"),
+            Some("file.open".to_string())
+        );
+        assert_eq!(registry_command_id("totally_unknown"), None);
+    }
 }

@@ -41,6 +41,7 @@
   1. **Clean Tab 热重载**：`app.js` 订阅 `workspace:file-changed`（modified），发现对应 tab 存在且为 clean 时发起 `file.reload` 命令；Rust 侧 `commands::file_reload` 读回最新内容（含编码/换行识别）并回发 `file_reloaded`；`TabManager.reloadTabContent` 静默更新缓冲区——活动编辑态保留光标/滚动并刷新编辑器，预览/分栏态即时重渲染预览，后台标签只更新缓冲区（切换时由 `restoreTabState` 重渲染）。
   2. **顺带修复**：`tabs.js` 的 `saveTabState` 原先无条件用编辑器 DOM 回写 `tab.content`，预览模式下会以旧 DOM 镜像覆盖刚热重载的内容；现仅在编辑器可见时同步。
   3. **单文件模式 Watcher**：`open_file` 后若未打开工作区，按全局 `watching.enableWatcher` 开关挂载定向监听（仅监听文件所在目录并过滤出该文件的事件，复用去抖/回环抑制/事件桥），打开工作区或下一个文件时自动替换。
+  4. **IPC 分发断点（真实环境失效真因）**：`ipc.rs` 的 `registry_command_id` 通配前缀清单缺 `file.`，前端发出的 `file.reload` 被 legacy 分支当作未知命令丢弃，重载从未执行（浏览器 mock 绕过了真实 IPC 分发，故此前未暴露）。已补 `file.` 前缀并锁定单测。
 
 ---
 
