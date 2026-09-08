@@ -712,7 +712,11 @@ fn shim_script(exe: &std::path::Path) -> String {
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_default()
         .replace('%', "%%");
-    format!("@echo off\r\n{SHIM_MARKER}\r\n\"%~dp0..\\{name}\" %*\r\n")
+    // `start /wait` 强制 cmd 等待 GUI 子系统 exe 的 CLI 模式执行完成，
+    // 否则批处理会立即返回，`gmdu --version` 等命令来不及输出/传递退出码。
+    format!(
+        "@echo off\r\n{SHIM_MARKER}\r\nstart \"\" /wait \"%~dp0..\\{name}\" %*\r\nexit /b %ERRORLEVEL%\r\n"
+    )
 }
 
 /// PATH 条目比较键：统一分隔符并去尾分隔；Windows 路径大小写不敏感。
@@ -1646,16 +1650,17 @@ mod tests {
         let script = shim_script(Path::new(r"D:\Apps\GlanceMD-Ultra.exe"));
         assert!(script.starts_with("@echo off\r\n"));
         assert!(script.contains(SHIM_MARKER));
-        assert!(script.contains(r#""%~dp0..\GlanceMD-Ultra.exe" %*"#));
+        assert!(script.contains(r#"start "" /wait "%~dp0..\GlanceMD-Ultra.exe" %*"#));
+        assert!(script.contains("exit /b %ERRORLEVEL%"));
         assert!(script.ends_with("\r\n"));
 
         // release 产物名可变（如 GlanceMD-Ultra-windows-x64.exe）：跟随当前 exe 文件名
         let renamed = shim_script(Path::new(r"D:\Apps\GlanceMD-Ultra-windows-x64.exe"));
-        assert!(renamed.contains(r#""%~dp0..\GlanceMD-Ultra-windows-x64.exe" %*"#));
+        assert!(renamed.contains(r#"start "" /wait "%~dp0..\GlanceMD-Ultra-windows-x64.exe" %*"#));
 
         // % 在 cmd 双引号内仍参与展开，必须转义为 %%
         let percent = shim_script(Path::new(r"D:\Apps\100%.exe"));
-        assert!(percent.contains(r#""%~dp0..\100%%.exe" %*"#));
+        assert!(percent.contains(r#"start "" /wait "%~dp0..\100%%.exe" %*"#));
 
         assert_eq!(CLI_NAME, "gmdu");
     }

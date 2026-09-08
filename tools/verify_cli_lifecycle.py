@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import glob
 import os
+import plistlib
 import re
 import shutil
 import subprocess
@@ -312,24 +313,38 @@ def test_macos_dmg(dmg_pattern: str, expected_version: str) -> None:
     dmg_path = Path(dmg_matches[0]).resolve()
     print(f"==> [macOS] 开始挂载并验证 DMG: {dmg_path}")
 
-    mount_dir = tempfile.mkdtemp(prefix="glancemd_mount_")
     mount_point: str | None = None
     app_copy_dir = tempfile.mkdtemp(prefix="glancemd_app_copy_")
 
     try:
-        # 挂载 DMG 到临时挂载点
-        subprocess.run(
-            ["hdiutil", "attach", str(dmg_path), "-nobrowse", "-readonly", "-mountpoint", mount_dir],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        mount_point = mount_dir
+        # 让 hdiutil 选择合法挂载点并用 plist 读取真实路径；固定空目录
+        # mountpoint 在 GitHub macOS runner 上偶发 exit 1。
+        attach = None
+        for attempt in range(3):
+            attach = subprocess.run(
+                ["hdiutil", "attach", str(dmg_path), "-nobrowse", "-readonly", "-plist"],
+                capture_output=True,
+            )
+            if attach.returncode == 0:
+                break
+            time.sleep(attempt + 1)
+        if not attach or attach.returncode != 0:
+            stderr = (attach.stderr or b"").decode("utf-8", errors="replace") if attach else ""
+            raise RuntimeError(f"hdiutil attach 失败：{stderr}")
+        plist = plistlib.loads(attach.stdout)
+        mount_points = [
+            entity.get("mount-point")
+            for entity in plist.get("system-entities", [])
+            if entity.get("mount-point")
+        ]
+        if not mount_points:
+            raise RuntimeError("hdiutil attach 未返回 mount-point")
+        mount_point = mount_points[-1]
 
         # 动态发现 .app
-        app_candidates = list(Path(mount_dir).glob("*.app"))
+        app_candidates = list(Path(mount_point).glob("*.app"))
         if not app_candidates:
-            raise FileNotFoundError(f"挂载卷 {mount_dir} 中未发现任何 .app 应用包")
+            raise FileNotFoundError(f"挂载卷 {mount_point} 中未发现任何 .app 应用包")
         source_app = app_candidates[0]
         print(f"  挂载卷中发现应用包：{source_app.name}")
 
@@ -357,7 +372,6 @@ def test_macos_dmg(dmg_pattern: str, expected_version: str) -> None:
                 if proc.returncode == 0:
                     break
                 time.sleep(1)
-        shutil.rmtree(mount_dir, ignore_errors=True)
         shutil.rmtree(app_copy_dir, ignore_errors=True)
         print("  [Clean] macOS 挂载卷已卸载并清理临时目录")
 

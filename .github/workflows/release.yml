@@ -204,7 +204,7 @@ jobs:
           DEB_FILE=$(ls dist/*.deb | head -n 1)
           sudo dpkg -i "$DEB_FILE"
           python3 tools/verify_cli_lifecycle.py --deb-installed
-          sudo dpkg -r glancemd-ultra
+          sudo dpkg -r glance-md-ultra
           if command -v gmdu >/dev/null 2>&1; then
             echo "卸载 DEB 后 /usr/bin/gmdu 仍残留！" >&2
             exit 1
