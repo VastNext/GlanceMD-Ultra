@@ -25,7 +25,8 @@
   });
 
   // 实例化全局 BindingService
-  var platformName = (typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform || '')) ? 'Mac' : 'Windows';
+  var platformValue = typeof navigator !== 'undefined' ? String(navigator.platform || navigator.userAgent || '') : '';
+  var platformName = /Mac/i.test(platformValue) ? 'macOS' : /Linux|X11/i.test(platformValue) ? 'Linux' : 'Windows';
   var service = root.BindingService && typeof root.BindingService === 'function'
     ? new root.BindingService({
         commands: commandBridge,
@@ -118,11 +119,17 @@
     save: function(map) {
       if (!service) return false;
       service.saveOverrides(map || {});
+      try {
+        window.dispatchEvent(new CustomEvent('keybindings-changed'));
+      } catch (e) {}
       return true;
     },
     clear: function() {
       if (!service) return;
       service.clearOverrides();
+      try {
+        window.dispatchEvent(new CustomEvent('keybindings-changed'));
+      } catch (e) {}
     },
     setScheme: function(id) {
       if (!service) return;

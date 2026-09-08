@@ -159,12 +159,42 @@
     return (a.length ? a.join('+') + '+' : '') + k;
   }
 
+  function getOverlayHelper() {
+    if (typeof window !== 'undefined' && window.OverlayHelper) {
+      return window.OverlayHelper;
+    }
+    return {
+      open: function (id, getEl, closeFn) {
+        var el = typeof getEl === 'function' ? getEl() : getEl;
+        function onDoc(e) {
+          if (!state.recorder.isOpen) return;
+          var target = e.target;
+          if (el && target && (el === target || (el.contains && el.contains(target)))) return;
+          closeRecorder();
+        }
+        document.addEventListener('pointerdown', onDoc, true);
+        document.addEventListener('focusin', onDoc, true);
+      },
+      close: function () {
+        if (state.previousActiveElement && typeof state.previousActiveElement.focus === 'function') {
+          try { state.previousActiveElement.focus(); } catch (e) {}
+        }
+      },
+      scrollIntoView: function (el) {
+        if (el && typeof el.scrollIntoView === 'function') {
+          try { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {}
+        }
+      }
+    };
+  }
+
   var state = {
     container: null,
     activeSchemeId: 'eclipse',
     searchQuery: '',
     filterType: 'all', // all | modified | conflicts
     selectedIndex: 0,
+    previousActiveElement: null,
     items: [],
     filteredItems: [],
     overrides: {},
@@ -183,6 +213,34 @@
   function getService() {
     var service = window.BindingService;
     return service && typeof service === 'object' && typeof service.getBindings === 'function' ? service : null;
+  }
+
+  // 命令显示元数据：优先取 I18n 集中命令翻译表（command.* / commandDesc.*），
+  // 未收录命令回退注册 label/description（通常已内联中文），最终回退命令 ID。
+  function resolveCommandMeta(id) {
+    var cmdDef = (window.Commands && typeof window.Commands.get === 'function') ? window.Commands.get(id) : null;
+    var registeredLabel = (cmdDef && (cmdDef.label || cmdDef.title)) ? String(cmdDef.label || cmdDef.title) : '';
+    var registeredDescription = (cmdDef && cmdDef.description) ? String(cmdDef.description) : '';
+    var label, description;
+    if (window.I18n && typeof window.I18n.commandLabel === 'function') {
+      label = window.I18n.commandLabel(id, registeredLabel || id);
+    } else {
+      label = registeredLabel || id;
+    }
+    if (window.I18n && typeof window.I18n.commandDescription === 'function') {
+      description = window.I18n.commandDescription(id, registeredDescription);
+    } else {
+      description = registeredDescription;
+    }
+    return { label: label, description: description };
+  }
+
+  // 方案显示名称：优先 kbScheme.<id> 翻译键，未收录回退服务端 label 或方案 ID
+  function resolveSchemeLabel(scheme) {
+    var key = 'kbScheme.' + scheme.id;
+    var res = t(key);
+    if (res && res !== key && String(res).indexOf('kbScheme.') !== 0) return res;
+    return scheme.label || scheme.id;
   }
 
   function loadActiveSchemeId() {
@@ -255,8 +313,9 @@
     });
 
     allIds.forEach(function (id) {
-      var cmdDef = (window.Commands && typeof window.Commands.get === 'function') ? window.Commands.get(id) : null;
-      var title = (cmdDef && (cmdDef.label || cmdDef.title)) || id;
+      var meta = resolveCommandMeta(id);
+      var title = meta.label;
+      var description = meta.description;
       var base = allBindings.filter(function (binding) { return binding.commandId === id; })[0];
       var override = overrides[id] && overrides[id][0];
       var hasUserOverride = overrides[id] !== undefined;
@@ -278,6 +337,7 @@
       items.push({
         id: id,
         title: title,
+        description: description,
         category: category,
         key: key,
         keys: key ? [key] : [],
@@ -304,10 +364,11 @@
       if (!q) return true;
       var idM = (item.id || '').toLowerCase().indexOf(q) !== -1;
       var titleM = (item.title || '').toLowerCase().indexOf(q) !== -1;
+      var descM = (item.description || '').toLowerCase().indexOf(q) !== -1;
       var catM = (item.category || '').toLowerCase().indexOf(q) !== -1;
       var keyM = (item.key || '').toLowerCase().indexOf(q) !== -1;
       var whenM = (item.when || '').toLowerCase().indexOf(q) !== -1;
-      return idM || titleM || catM || keyM || whenM;
+      return idM || titleM || descM || catM || keyM || whenM;
     });
 
     if (state.selectedIndex >= state.filteredItems.length) {
@@ -328,7 +389,7 @@
 
     dom.schemeSelect.innerHTML = schemes.map(function (s) {
       var isSel = s.id === state.activeSchemeId;
-      return '<option value="' + escapeHtml(s.id) + '"' + (isSel ? ' selected' : '') + '>' + escapeHtml(s.label || s.id) + '</option>';
+      return '<option value="' + escapeHtml(s.id) + '"' + (isSel ? ' selected' : '') + '>' + escapeHtml(resolveSchemeLabel(s)) + '</option>';
     }).join('');
 
     // 计数更新
@@ -357,6 +418,7 @@
         '        <span class="kb-command-title">' + escapeHtml(item.title) + '</span>',
         item.category ? '        <span class="kb-category-pill">' + escapeHtml(item.category) + '</span>' : '',
         '      </div>',
+        item.description ? '      <div class="kb-command-desc">' + escapeHtml(item.description) + '</div>' : '',
         '      <div class="kb-command-id">' + escapeHtml(item.id) + '</div>',
         '    </div>',
         '  </td>',
@@ -430,10 +492,15 @@
     var dom = state.dom;
     if (!dom || !dom.tableBody) return;
     var rows = dom.tableBody.querySelectorAll('.kb-row');
+    var selectedRow = null;
     Array.prototype.forEach.call(rows, function (row, idx) {
       var isSel = idx === state.selectedIndex;
       row.classList.toggle('selected', isSel);
+      if (isSel) selectedRow = row;
     });
+    if (selectedRow) {
+      getOverlayHelper().scrollIntoView(selectedRow, { block: 'nearest', inline: 'nearest' });
+    }
   }
 
   function mount(container, options) {
@@ -679,6 +746,12 @@
 
     btnCancel.addEventListener('click', closeRecorder);
 
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) {
+        closeRecorder();
+      }
+    });
+
     btnSave.addEventListener('click', function () {
       saveBinding(state.recorder.commandId, state.recorder.recordedKey, whenInput.value || 'global');
       closeRecorder();
@@ -705,9 +778,11 @@
       }
     }
     if (!item) {
-      item = { id: commandId, title: commandId, key: '', when: 'global' };
+      var fallbackMeta = resolveCommandMeta(commandId);
+      item = { id: commandId, title: fallbackMeta.label, description: fallbackMeta.description, key: '', when: 'global' };
     }
 
+    state.previousActiveElement = document.activeElement;
     state.recorder.isOpen = true;
     state.recorder.commandId = commandId;
     state.recorder.command = item;
@@ -722,6 +797,11 @@
 
     overlay.querySelector('#kb-recorder-cmd-id').textContent = item.title + ' (' + item.id + ')';
     overlay.querySelector('#kb-recorder-when-input').value = state.recorder.whenExpr;
+
+    getOverlayHelper().open('kb-recorder', function () {
+      var ov = document.getElementById('kb-recorder-overlay');
+      return ov ? (ov.querySelector('.kb-recorder-dialog') || ov) : null;
+    }, closeRecorder);
 
     updateRecorderDisplay();
 
@@ -738,6 +818,13 @@
       overlay.classList.remove('open');
       overlay.setAttribute('aria-hidden', 'true');
     }
+    getOverlayHelper().close('kb-recorder');
+    if (state.previousActiveElement && typeof state.previousActiveElement.focus === 'function') {
+      try {
+        state.previousActiveElement.focus();
+      } catch (e) {}
+    }
+    state.previousActiveElement = null;
   }
 
   function handleRecorderKeyDown(e) {

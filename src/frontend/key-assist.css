@@ -17,6 +17,7 @@
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease-out;
+  -webkit-app-region: no-drag;
 }
 
 .key-assist-overlay.open {
@@ -39,6 +40,7 @@
   font-family: var(--font-body, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
   font-size: 13px;
   outline: none;
+  -webkit-app-region: no-drag;
 }
 
 /* 顶部标题栏 */
@@ -49,6 +51,7 @@
   align-items: center;
   justify-content: space-between;
   background: var(--bg-base, #111113);
+  -webkit-app-region: no-drag;
 }
 
 .key-assist-title-wrap {
@@ -61,9 +64,16 @@
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  background: var(--heading-gradient, linear-gradient(180deg, #a855f7, #ec4899));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--mk-heading, #a855f7);
+}
+
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .key-assist-title {
+    background: var(--heading-gradient, linear-gradient(180deg, #a855f7, #ec4899));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
 }
 
 .key-assist-context-badge {
@@ -84,6 +94,7 @@
   font-size: 14px;
   border-radius: 4px;
   line-height: 1;
+  -webkit-app-region: no-drag;
 }
 
 .key-assist-close-btn:hover {
@@ -111,6 +122,7 @@
   font-size: 13px;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
+  -webkit-app-region: no-drag;
 }
 
 .key-assist-input:focus {
@@ -143,6 +155,7 @@
   margin-bottom: 2px;
   transition: background 0.1s;
   border: 1px solid transparent;
+  color: var(--text, #c8c8d0);
 }
 
 .key-assist-item:hover {
@@ -271,7 +284,7 @@
 
 .key-assist-item.selected .key-assist-kbd-badge {
   border-color: rgba(168, 85, 247, 0.4);
-  color: #f4f4f8;
+  color: var(--tab-active-text, #f4f4f8);
 }
 
 /* 空状态 */
@@ -292,6 +305,7 @@
   justify-content: space-between;
   font-size: 11px;
   color: var(--text-secondary, #85858f);
+  -webkit-app-region: no-drag;
 }
 
 .key-assist-hints {
@@ -352,9 +366,22 @@
   border-color: var(--border, #ccd0da);
 }
 
+[data-theme="light"] .key-assist-search-box {
+  background: var(--bg-surface, #e6e9ef);
+  border-color: var(--border, #ccd0da);
+}
+
 [data-theme="light"] .key-assist-input {
   background: var(--bg-base, #eff1f5);
   border-color: var(--border, #ccd0da);
+  color: var(--text, #4c4f69);
+}
+
+[data-theme="light"] .key-assist-input::placeholder {
+  color: var(--text-dim, #8c8fa1);
+}
+
+[data-theme="light"] .key-assist-item {
   color: var(--text, #4c4f69);
 }
 
@@ -363,12 +390,39 @@
 }
 
 [data-theme="light"] .key-assist-item.selected {
-  background: var(--bg-raised, #dce0e8);
+  background: var(--bg-overlay, #ccd0da);
   border-color: var(--mk-heading, #a855f7);
+}
+
+[data-theme="light"] .key-assist-item.selected .key-assist-item-title {
+  color: var(--tab-active-text, #2a2d3a);
+}
+
+[data-theme="light"] .key-assist-item.selected .key-assist-kbd-badge {
+  background: var(--bg-base, #eff1f5);
+  border-color: var(--border, #ccd0da);
+  color: var(--tab-active-text, #2a2d3a);
+}
+
+[data-theme="light"] .key-assist-item.selected .key-assist-item-id {
+  color: var(--text-secondary, #6c6f85);
 }
 
 [data-theme="light"] .key-assist-kbd-badge {
   background: var(--bg-base, #eff1f5);
   border-color: var(--border, #ccd0da);
+  color: var(--text, #4c4f69);
+}
+
+[data-theme="light"] .key-assist-category-badge,
+[data-theme="light"] .key-assist-source-badge.source-default,
+[data-theme="light"] .key-assist-hint-item kbd {
+  background: var(--bg-base, #eff1f5);
+  border-color: var(--border, #ccd0da);
+  color: var(--text-secondary, #6c6f85);
+}
+
+[data-theme="light"] .key-assist-close-btn:hover {
+  background: var(--bg-raised, #dce0e8);
   color: var(--text, #4c4f69);
 }

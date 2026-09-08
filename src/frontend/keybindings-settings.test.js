@@ -98,6 +98,14 @@ function createDomStub() {
         }
         return child;
       },
+      focus() {
+        this.focused = true;
+        document.activeElement = this;
+      },
+      scrollIntoView(opt) {
+        this.scrolled = true;
+        this.scrollOpt = opt;
+      },
       addEventListener(type, fn) {
         if (!listeners[type]) listeners[type] = [];
         listeners[type].push(fn);
@@ -142,9 +150,11 @@ function createDomStub() {
         return null;
       },
       focus() {
+        this.focused = true;
         if (documentStub) documentStub.activeElement = el;
       },
       blur() {
+        this.focused = false;
         if (documentStub && documentStub.activeElement === el) {
           documentStub.activeElement = null;
         }
@@ -541,4 +551,29 @@ test('KeybindingsSettings supports English locale fallback', () => {
 
   const btnRestore = container.querySelector('#kb-btn-restore-defaults');
   assert.ok(btnRestore.textContent.includes('Restore Defaults'));
+});
+
+test('KeybindingsSettings recorder restores focus and closes on backdrop click', () => {
+  const ctx = loadKeybindingsSettings();
+  const container = ctx.createElement('div');
+  ctx.document.body.appendChild(container);
+  ctx.KeybindingsSettings.mount(container);
+
+  const prevBtn = ctx.createElement('button');
+  prevBtn.focus();
+  assert.equal(ctx.document.activeElement, prevBtn);
+
+  ctx.KeybindingsSettings.openRecorder('file.open');
+  const state = ctx.KeybindingsSettings._state;
+  assert.equal(state.recorder.isOpen, true);
+
+  const overlay = ctx.document.getElementById('kb-recorder-overlay');
+  assert.ok(overlay);
+  assert.equal(overlay.classList.contains('open'), true);
+
+  // Click on backdrop
+  overlay.dispatchEvent({ type: 'click', target: overlay });
+  assert.equal(state.recorder.isOpen, false);
+  assert.equal(overlay.classList.contains('open'), false);
+  assert.equal(prevBtn.focused, true);
 });

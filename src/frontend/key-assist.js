@@ -80,6 +80,35 @@
     });
   }
 
+  function getOverlayHelper() {
+    if (typeof window !== 'undefined' && window.OverlayHelper) {
+      return window.OverlayHelper;
+    }
+    return {
+      open: function (id, getEl, closeFn) {
+        var el = typeof getEl === 'function' ? getEl() : getEl;
+        function onDoc(e) {
+          if (!state.isOpen) return;
+          var target = e.target;
+          if (el && target && (el === target || (el.contains && el.contains(target)))) return;
+          close();
+        }
+        document.addEventListener('pointerdown', onDoc, true);
+        document.addEventListener('focusin', onDoc, true);
+      },
+      close: function () {
+        if (state.previousActiveElement && typeof state.previousActiveElement.focus === 'function') {
+          try { state.previousActiveElement.focus(); } catch (e) {}
+        }
+      },
+      scrollIntoView: function (el) {
+        if (el && typeof el.scrollIntoView === 'function') {
+          try { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {}
+        }
+      }
+    };
+  }
+
   var state = {
     isOpen: false,
     selectedIndex: 0,
@@ -477,8 +506,8 @@
   function scrollToActive() {
     if (!state.dom) return;
     var selectedEl = state.dom.list.querySelector('.key-assist-item.selected');
-    if (selectedEl && typeof selectedEl.scrollIntoView === 'function') {
-      selectedEl.scrollIntoView({ block: 'nearest' });
+    if (selectedEl) {
+      getOverlayHelper().scrollIntoView(selectedEl, { block: 'nearest', inline: 'nearest' });
     }
   }
 
@@ -563,6 +592,8 @@
     dom.overlay.style.display = 'flex';
     dom.searchInput.value = '';
 
+    getOverlayHelper().open('key-assist', function () { return state.dom ? state.dom.dialog : null; }, close);
+
     render();
 
     // 聚焦输入框
@@ -590,6 +621,8 @@
       state.dom.overlay.setAttribute('aria-hidden', 'true');
       state.dom.overlay.style.display = 'none';
     }
+
+    getOverlayHelper().close('key-assist');
 
     // 恢复焦点
     if (state.previousActiveElement && typeof state.previousActiveElement.focus === 'function') {

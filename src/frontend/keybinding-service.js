@@ -18,7 +18,8 @@
       when: input.when || '',
       platform: input.platform || '*',
       source: input.source || source || 'default',
-      removed: Boolean(input.removed)
+      removed: Boolean(input.removed),
+      passthrough: Boolean(input.passthrough)
     };
   }
 
@@ -121,20 +122,30 @@
   BindingService.prototype.resolve = function (sequence) {
     var seq = root.KeybindingParser.parse(sequence), found = [], partial = false;
     this.getBindings().forEach(function (binding) {
-      if (!this.active(binding)) return;
+      var platformActive = binding.platform === '*' || binding.platform === this.platform;
+      if (!platformActive) return;
       var keys = root.KeybindingParser.parse(binding.sequence);
-      if (keys.length === seq.length && keys.every(function (x, i) { return x === seq[i]; })) found.push(binding);
+      if (keys.length === seq.length && keys.every(function (x, i) { return x === seq[i]; }) && this.active(binding)) found.push(binding);
+      // Chord 后续 stroke 可能依赖首 stroke 执行后才激活的 Context（如 Alt+Shift+P 打开设置后再按 K）。
       else if (keys.length > seq.length && seq.every(function (x, i) { return x === keys[i]; })) partial = true;
     }, this);
     return { bindings: found, partial: partial };
   };
   BindingService.prototype.cancelChord = function () { if (this.pending && this.pending.timer) clearTimeout(this.pending.timer); this.pending = null; };
   BindingService.prototype.handleKey = function (event) {
+    var rawKey = event && event.key;
+    if (rawKey === 'Control' || rawKey === 'Shift' || rawKey === 'Alt' || rawKey === 'Meta') {
+      return { status: 'modifier', sequence: this.pending ? this.pending.sequence.slice() : [] };
+    }
     var stroke = root.KeybindingParser.stroke(event), self = this;
     if (stroke === 'Escape' && this.pending) { this.cancelChord(); return { status: 'cancelled' }; }
     var sequence = this.pending ? this.pending.sequence.concat(stroke) : [stroke];
     var result = this.resolve(sequence);
-    if (result.bindings.length) { this.cancelChord(); return { status: 'matched', binding: result.bindings[0], bindings: result.bindings }; }
+    if (result.bindings.length) {
+      this.cancelChord();
+      if (result.partial) this.pending = { sequence: sequence, timer: setTimeout(function () { self.cancelChord(); }, this.timeout) };
+      return { status: 'matched', binding: result.bindings[0], bindings: result.bindings, pending: result.partial };
+    }
     if (result.partial) { this.cancelChord(); this.pending = { sequence: sequence, timer: setTimeout(function () { self.cancelChord(); }, this.timeout) }; return { status: 'pending', sequence: sequence.slice() }; }
     this.cancelChord(); return { status: 'unmatched', sequence: sequence };
   };
@@ -144,7 +155,10 @@
   };
   BindingService.prototype.dispatch = function (event) {
     var result = this.handleKey(event);
-    if (result.status === 'matched') { if (event.preventDefault) event.preventDefault(); result.value = this.execute(result.binding.commandId, result.binding); }
+    if (result.status === 'matched') {
+      if (!result.binding.passthrough && event.preventDefault) event.preventDefault();
+      result.value = this.execute(result.binding.commandId, result.binding);
+    }
     return result;
   };
   BindingService.prototype.scanConflicts = function () {

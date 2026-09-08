@@ -515,3 +515,14 @@ test('KeyAssist handles English locale and fallback gracefully', () => {
   assert.equal(state.dom.searchInput.getAttribute('placeholder').includes('Search commands'), true);
 });
 
+test('KeyAssist closes on backdrop / outside pointerdown', () => {
+  const ctx = loadKeyAssist();
+  ctx.KeyAssist.open();
+  assert.equal(ctx.KeyAssist.isOpen(), true);
+
+  const state = ctx.KeyAssist._state;
+  // Click on overlay backdrop
+  state.dom.overlay.dispatchEvent({ type: 'click', target: state.dom.overlay });
+  assert.equal(ctx.KeyAssist.isOpen(), false);
+});
+

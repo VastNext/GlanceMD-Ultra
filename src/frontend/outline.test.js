@@ -139,6 +139,7 @@ function loadHarness({ headings = [], withIntersection = false, seedPreview = tr
   outlineRoot.appendChild(builtinEmpty); // index.html 自带空态
   if (seedPreview) byId('preview');
   byId('preview-container');
+  byId('preview-wrapper');
   body.appendChild(panelOutline);
   panelOutline.appendChild(outlineRoot);
 
@@ -235,6 +236,14 @@ function loadHarness({ headings = [], withIntersection = false, seedPreview = tr
   };
 
   const windowObj = {
+    PreviewNavigation: {
+      getScroller() {
+        return ids['preview-wrapper'];
+      },
+      scrollToElement(el, opts) {
+        scrollCalls.push({ el, opts });
+      }
+    },
     EditorNavigation: {
       scrollToHeading(index, expected) {
         editorNavigationCalls.push({ index, expected });
@@ -518,7 +527,7 @@ test('IntersectionObserver 可用：观察全部标题并按可视项高亮', ()
   assert.equal(h.intersections.length, 1);
   const io = h.intersections[0];
   assert.deepEqual(io.observed, h.preview().children, '四个标题全部被观察');
-  assert.equal(io.options.root, h.ids['preview-container']);
+  assert.equal(io.options.root, h.ids['preview-wrapper']);
 
   io.cb([{ target: h.preview().children[2], isIntersecting: true }]);
   assert.equal(h.Outline.getActiveIndex(), 2);

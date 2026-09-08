@@ -80,6 +80,8 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
@@ -164,10 +166,11 @@
   white-space: nowrap;
 }
 
-/* 表格容器区 */
+/* 表格容器区：窄窗口时横向滚动兜底，避免把操作按钮压成竖列 */
 .kb-table-container {
   flex: 1;
   overflow-y: auto;
+  overflow-x: auto;
   position: relative;
   background: var(--bg-surface, #18181b);
 }
@@ -194,11 +197,11 @@
   user-select: none;
 }
 
-.kb-col-command { width: 34%; }
-.kb-col-keys { width: 24%; }
-.kb-col-when { width: 18%; }
+.kb-col-command { width: 32%; }
+.kb-col-keys { width: 22%; }
+.kb-col-when { width: 14%; }
 .kb-col-source { width: 12%; }
-.kb-col-actions { width: 12%; text-align: right; }
+.kb-col-actions { width: 20%; text-align: right; }
 
 .kb-row {
   border-bottom: 1px solid var(--border-subtle, #1e1e22);
@@ -257,6 +260,10 @@
   color: var(--tab-active-text, #f4f4f8);
 }
 
+[data-theme="light"] .kb-row.selected .kb-command-title {
+  color: var(--tab-active-text, #2a2d3a);
+}
+
 .kb-category-pill {
   font-size: 10px;
   padding: 1px 5px;
@@ -270,6 +277,13 @@
   font-size: 11px;
   color: var(--text-dim, #6a6a78);
   font-family: var(--font-mono, monospace);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kb-command-desc {
+  font-size: 11px;
+  color: var(--text-secondary, #85858f);
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -303,7 +317,11 @@
 
 .kb-row.selected .kb-kbd-badge {
   border-color: rgba(168, 85, 247, 0.4);
-  color: #f4f4f8;
+  color: var(--tab-active-text, #f4f4f8);
+}
+
+[data-theme="light"] .kb-row.selected .kb-kbd-badge {
+  color: var(--tab-active-text, #2a2d3a);
 }
 
 .kb-unbound-text {
@@ -368,6 +386,7 @@
   align-items: center;
   justify-content: flex-end;
   gap: 4px;
+  flex-wrap: nowrap;
 }
 
 .kb-action-icon-btn {
@@ -378,6 +397,8 @@
   padding: 3px 6px;
   font-size: 11px;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: all 0.1s;
 }
 
@@ -414,6 +435,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .kb-footer-keys-hint kbd {
@@ -468,13 +491,22 @@
   gap: 4px;
 }
 
+/* 录制弹层标题：先给可读的纯色，再在支持 background-clip:text 的环境启用渐变文字，
+ * 避免 WebView 不支持时出现透明文字。 */
 .kb-recorder-title {
   margin: 0;
   font-size: 15px;
   font-weight: 600;
-  background: var(--heading-gradient, linear-gradient(180deg, #a855f7, #ec4899));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--mk-heading, #a855f7);
+}
+
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .kb-recorder-title {
+    background: var(--heading-gradient, linear-gradient(180deg, #a855f7, #ec4899));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
 }
 
 .kb-recorder-cmd-id {
@@ -595,6 +627,25 @@
 
 [data-theme="light"] .kb-row.selected {
   background: var(--bg-overlay, #ccd0da);
+}
+
+/* 选中态文字/徽标全部回落到主题 token，杜绝亮色下的白底白字 */
+[data-theme="light"] .kb-row.selected .kb-command-title {
+  color: var(--tab-active-text, #2a2d3a);
+}
+
+[data-theme="light"] .kb-row.selected .kb-kbd-badge {
+  background: var(--bg-base, #eff1f5);
+  border-color: var(--border, #ccd0da);
+  color: var(--tab-active-text, #2a2d3a);
+}
+
+[data-theme="light"] .kb-row.selected .kb-command-desc {
+  color: var(--text-secondary, #6c6f85);
+}
+
+[data-theme="light"] .kb-row.selected .kb-action-icon-btn {
+  color: var(--text-secondary, #6c6f85);
 }
 
 [data-theme="light"] .kb-kbd-badge {

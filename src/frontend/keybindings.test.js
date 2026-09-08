@@ -30,6 +30,9 @@ function load() {
 test('keybindings default map and persistence key', () => {
   const h = load();
   assert.equal(h.c.Keybindings.effective()['outline.quickOpen'], 'Ctrl+O');
+  assert.equal(h.c.Keybindings.effective()['outline.toggle'], 'Ctrl+Shift+O');
+  assert.equal(h.c.Keybindings.effective()['editor.togglePreview'], 'Ctrl+Shift+V');
+  assert.equal(h.c.Keybindings.effective()['editor.toggleSplit'], 'Ctrl+\\');
   assert.equal(h.c.Keybindings.effective()['file.saveAll'], 'Ctrl+Shift+S');
 });
 

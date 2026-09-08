@@ -50,8 +50,8 @@ test('default schemes expose confirmed core bindings', () => {
   const c = all(), D = c.DefaultKeybindings;
   assert.equal(D.defaultScheme, 'ultra.eclipse'); assert.ok(D.schemes['ultra.eclipse']); assert.ok(D.schemes['ultra.vscode']);
   const e = Object.fromEntries(D.schemes['ultra.eclipse'].map(x => [x.commandId, x.sequence]));
-  [['outline.quickOpen','Ctrl+O'],['file.saveAll','Ctrl+Shift+S'],['file.saveAs','Alt+Shift+S'],['file.open','Alt+Shift+F O'],['workspace.open','Alt+Shift+F P'],['settings.toggle','Alt+Shift+P'],['settings.keybindings','Alt+Shift+P K'],['editor.vim.toggle','Alt+Shift+E V'],['palette.toggle','Ctrl+3'],['search.toggle','Ctrl+H'],['tabs.quickSwitch','Ctrl+E'],['editor.focus','F12']].forEach(([id,key]) => assert.equal(e[id], key, id));
-  D.schemes['ultra.eclipse'].forEach(binding => assert.deepEqual(Object.keys(binding).sort(), ['commandId','platform','removed','sequence','source','when']));
+  [['outline.quickOpen','Ctrl+O'],['outline.toggle','Ctrl+Shift+O'],['editor.togglePreview','Ctrl+Shift+V'],['editor.toggleSplit','Ctrl+\\'],['file.saveAll','Ctrl+Shift+S'],['file.saveAs','Alt+Shift+S'],['file.open','Ctrl+Alt+O'],['workspace.open','Ctrl+Alt+P'],['settings.toggle','Alt+Shift+P'],['settings.keybindings','Alt+Shift+P K'],['editor.vim.toggle','Alt+Shift+E V'],['palette.toggle','Ctrl+3'],['search.toggle','Ctrl+H'],['tabs.quickSwitch','Ctrl+E'],['resource.open','Ctrl+Shift+R'],['tabs.next','Ctrl+F6'],['tabs.previous','Ctrl+Shift+F6'],['focus.next','Ctrl+F7'],['focus.previous','Ctrl+Shift+F7'],['editor.focus','F12']].forEach(([id,key]) => assert.equal(e[id], key, id));
+  D.schemes['ultra.eclipse'].forEach(binding => assert.deepEqual(Object.keys(binding).sort(), ['commandId','passthrough','platform','removed','sequence','source','when']));
 });
 test('BindingService contexts, platforms and exact versus partial matching', () => {
   const c = all(), s = new c.ContextKeyService(); s.setMany({ editorTextFocus: true, settingsContext: false });
@@ -61,6 +61,28 @@ test('BindingService contexts, platforms and exact versus partial matching', () 
   s.set('settingsContext', true); svc.platform = 'macOS'; assert.equal(svc.resolve('Alt+X').bindings[0].commandId, 'two');
   s.set('editorTextFocus', false); assert.equal(svc.resolve('Ctrl+K Ctrl+O').bindings.length, 0); assert.equal(svc.resolve('Ctrl+K Ctrl+O').partial, false);
 });
+test('BindingService ignores modifier-only keydown while chord is pending', () => {
+  const c=all(), svc=new c.BindingService({schemes:{T:[{commandId:'chord',sequence:'Ctrl+K Ctrl+S'}]},scheme:'T'});
+  assert.equal(svc.handleKey({ctrlKey:true,key:'k'}).status,'pending');
+  assert.equal(svc.handleKey({ctrlKey:true,key:'Control'}).status,'modifier');
+  const result=svc.handleKey({ctrlKey:true,key:'s'}); assert.equal(result.status,'matched'); assert.equal(result.binding.commandId,'chord');
+});
+
+test('BindingService executes a short command and keeps an overlapping chord pending', () => {
+  const c = all(), context = new c.ContextKeyService(), calls = [];
+  const svc = new c.BindingService({ schemes: { T: [
+    { commandId:'settings', sequence:'Alt+Shift+P' },
+    { commandId:'keybindings', sequence:'Alt+Shift+P K', when:'settingsFocus' }
+  ] }, scheme:'T', context, commands: {
+    settings: function(){ calls.push('settings'); context.set('settingsFocus', true); },
+    keybindings: function(){ calls.push('keybindings'); }
+  }});
+  let result = svc.dispatch({ altKey:true, shiftKey:true, key:'p', preventDefault:function(){} });
+  assert.equal(result.status, 'matched'); assert.equal(result.pending, true); assert.deepEqual(calls, ['settings']);
+  result = svc.dispatch({ key:'k', preventDefault:function(){} });
+  assert.equal(result.status, 'matched'); assert.deepEqual(calls, ['settings','keybindings']);
+});
+
 test('BindingService chord pending, timeout and Escape', async () => {
   const c = all(), svc = new c.BindingService({ schemes: { T: [{ commandId:'chord', sequence:'Ctrl+K Ctrl+O' }] }, scheme:'T', timeout:15 });
   let r = svc.handleKey({ ctrlKey:true, key:'k' }); assert.equal(r.status, 'pending'); assert.deepEqual(JSON.parse(JSON.stringify(r.sequence)), ['Ctrl+K']);
@@ -75,6 +97,13 @@ test('BindingService overrides, explicit unbinds, multiple bindings and schemes'
   svc.bind('a','Ctrl+Alt+A'); assert.equal(svc.getBindings().filter(x => x.commandId==='a').length, 2); svc.unbind('shared'); assert.equal(svc.resolve('Ctrl+S').bindings.length, 0);
   assert.equal(svc.setScheme('B'), 'B'); assert.equal(svc.getScheme(), 'B'); assert.equal(svc.resolve('Ctrl+B').bindings[0].commandId, 'b'); assert.throws(() => svc.setScheme('Nope'), /Unknown/);
 });
+test('BindingService passthrough binding executes without preventDefault', () => {
+  const c = all(), calls = [];
+  const svc = new c.BindingService({ schemes: { T:[{commandId:'copy',sequence:'Ctrl+C',passthrough:true}] }, scheme:'T', commands:{copy:()=>calls.push('copy')} });
+  const result = svc.dispatch({ ctrlKey:true, key:'c', preventDefault:()=>calls.push('prevent') });
+  assert.equal(result.status, 'matched'); assert.deepEqual(calls, ['copy']);
+});
+
 test('BindingService conflict scan and dispatch', () => {
   const c = all(), calls = [], svc = new c.BindingService({ schemes: { T:[{commandId:'one',sequence:'Ctrl+X'},{commandId:'two',sequence:'Ctrl+X'},{commandId:'three',sequence:'Ctrl+Y',when:'active'}] }, scheme:'T', commands:{one:()=>calls.push('one')} });
   assert.equal(svc.scanConflicts().length, 1); assert.deepEqual(JSON.parse(JSON.stringify(svc.scanConflicts()[0].commands)), ['one','two']);

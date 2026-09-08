@@ -129,14 +129,27 @@
 
   /* ══════════ 面板显隐与停靠（与 LayoutUI 同步） ══════════ */
 
+  var previousFocus = null;
   function toggle() {
+    var wasOpen = window.Outline && typeof window.Outline.isOpen === 'function' ? window.Outline.isOpen() : false;
     if (window.LayoutUI && typeof window.LayoutUI.toggle === 'function') {
       window.LayoutUI.toggle('outline');
     } else {
       var panel = document.getElementById('panel-outline');
-      if (panel && panel.classList) {
-        panel.classList.toggle('open');
+      if (panel && panel.classList) panel.classList.toggle('open');
+    }
+    if (wasOpen) {
+      if (previousFocus && typeof previousFocus.focus === 'function') {
+        try { previousFocus.focus(); } catch (e) {}
+      } else {
+        var editor = document.getElementById('editor');
+        if (editor && typeof editor.focus === 'function') editor.focus();
       }
+      previousFocus = null;
+    } else {
+      previousFocus = document.activeElement;
+      var target = listEl || container || document.getElementById('panel-outline');
+      if (target && typeof target.focus === 'function') target.focus();
     }
   }
 
@@ -304,8 +317,8 @@
     // These are independent surfaces: a failure in one must not suppress the
     // editor navigation or active-state update for the others.
     try {
-      if (heading.el && typeof heading.el.scrollIntoView === 'function') {
-        heading.el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (heading.el && window.PreviewNavigation && typeof window.PreviewNavigation.scrollToElement === 'function') {
+        window.PreviewNavigation.scrollToElement(heading.el, { behavior: 'smooth', block: 'start' });
       }
     } catch (e) {
       /* 预览滚动失败静默（如预览隐藏） */
@@ -333,7 +346,9 @@
       try { intersectionObserver.disconnect(); } catch (e) { /* 忽略 */ }
       intersectionObserver = null;
     }
-    var root = document.getElementById('preview-container');
+    var root = window.PreviewNavigation && typeof window.PreviewNavigation.getScroller === 'function'
+      ? window.PreviewNavigation.getScroller()
+      : document.getElementById('preview-wrapper');
     try {
       intersectionObserver = new IntersectionObserver(function(entries) {
         var topIndex = -1;
@@ -403,6 +418,12 @@
     }
     if (typeof container.addEventListener === 'function') {
       container.addEventListener('keydown', onKeyDown);
+      container.addEventListener('focus', function() {
+        if (window.contextKeys) window.contextKeys.set('outlineFocus', true);
+      });
+      container.addEventListener('blur', function() {
+        if (window.contextKeys) window.contextKeys.remove('outlineFocus');
+      });
     }
     if (typeof listEl.addEventListener === 'function') {
       listEl.addEventListener('keydown', onKeyDown);
