@@ -666,6 +666,7 @@ fn terminal_scan(_: &CommandContext, _: &CommandPayload) {
 pub const CLI_NAME: &str = "gmdu";
 /// shim 所有权标记（v2：exe 旁 bin/ + 自管理用户 PATH 方案）。
 const SHIM_MARKER: &str = "rem GlanceMD-Ultra CLI shim v2";
+const SHIM_PS_MARKER: &str = "# GlanceMD-Ultra CLI shim v2";
 /// 旧版 WindowsApps 方案的标记，迁移清理时识别。
 const SHIM_MARKER_V1: &str = "rem GlanceMD-Ultra CLI shim v1";
 /// 旧版 WindowsApps shim 文件名（仅清理带本程序标记的文件）。
@@ -673,6 +674,8 @@ const LEGACY_WINDOWSAPPS_NAMES: &[&str] = &["gmdu.cmd", "glance.cmd", "glancemd.
 /// Windows shim 文件名。
 #[cfg(target_os = "windows")]
 const CLI_SHIM_FILE: &str = "gmdu.cmd";
+#[cfg(target_os = "windows")]
+const CLI_SHIM_PS1: &str = "gmdu.ps1";
 
 /// CLI 安装动作。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -693,8 +696,11 @@ pub struct CliStatusReport {
 
 /// 所有权标记识别：v2 现行方案，v1 仅用于迁移清理。
 fn shim_owned_text(text: &str) -> bool {
-    text.lines()
-        .any(|line| line.trim() == SHIM_MARKER || line.trim() == SHIM_MARKER_V1)
+    text.lines().any(|line| {
+        line.trim() == SHIM_MARKER
+            || line.trim() == SHIM_MARKER_V1
+            || (cfg!(target_os = "windows") && line.trim() == SHIM_PS_MARKER)
+    })
 }
 
 fn shim_owned(path: &Path) -> bool {
@@ -706,16 +712,39 @@ fn shim_owned(path: &Path) -> bool {
 /// Windows shim 脚本内容：`%~dp0` 指向 bin 目录，`..` 回到 exe 所在目录，
 /// 相对引用当前 exe 文件名（release 产物名可变，不硬编码）；转发全部参数。
 /// `%` 在 cmd 中即使位于双引号内也会参与展开，文件名含 `%` 时需写成 `%%`。
-fn shim_script(exe: &std::path::Path) -> String {
+fn shim_script(_exe: &std::path::Path) -> String {
+    // cmd 只负责稳定转发参数；同步/异步与 GUI 子系统标准流捕获由 ps1 处理。
+    format!(
+        "@echo off\r\n{SHIM_MARKER}\r\npowershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"%~dp0{CLI_SHIM_PS1}\" %*\r\nexit /b %ERRORLEVEL%\r\n"
+    )
+}
+
+#[cfg(target_os = "windows")]
+fn shim_powershell_script(exe: &Path) -> String {
     let name = exe
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_default()
-        .replace('%', "%%");
-    // `start /wait` 强制 cmd 等待 GUI 子系统 exe 的 CLI 模式执行完成，
-    // 否则批处理会立即返回，`gmdu --version` 等命令来不及输出/传递退出码。
+        .replace('\'', "''");
     format!(
-        "@echo off\r\n{SHIM_MARKER}\r\nstart \"\" /wait \"%~dp0..\\{name}\" %*\r\nexit /b %ERRORLEVEL%\r\n"
+        "{SHIM_PS_MARKER}\r\n\
+$exe = Join-Path $PSScriptRoot '..\\{name}'\r\n\
+if ($args.Count -gt 0 -and $args[0] -in @('--version','--install-cli','--uninstall-cli','--cli-status')) {{\r\n\
+  $psi = New-Object System.Diagnostics.ProcessStartInfo\r\n\
+  $psi.FileName = $exe\r\n\
+  $psi.Arguments = $args[0]\r\n\
+  $psi.UseShellExecute = $false\r\n\
+  $psi.RedirectStandardOutput = $true\r\n\
+  $psi.RedirectStandardError = $true\r\n\
+  $process = [System.Diagnostics.Process]::Start($psi)\r\n\
+  $stdout = $process.StandardOutput.ReadToEnd()\r\n\
+  $stderr = $process.StandardError.ReadToEnd()\r\n\
+  $process.WaitForExit()\r\n\
+  if ($stdout) {{ [Console]::Out.Write($stdout) }}\r\n\
+  if ($stderr) {{ [Console]::Error.Write($stderr) }}\r\n\
+  exit $process.ExitCode\r\n\
+}}\r\n\
+Start-Process -FilePath $exe -ArgumentList $args\r\n"
     )
 }
 
@@ -976,14 +1005,26 @@ fn cli_target() -> Result<(PathBuf, PathBuf), String> {
 #[cfg(target_os = "windows")]
 fn write_windows_shim(bin_dir: &Path, exe: &Path) -> Result<(), String> {
     let shim = bin_dir.join(CLI_SHIM_FILE);
+    let ps1 = bin_dir.join(CLI_SHIM_PS1);
     if shim.exists() && !shim_owned(&shim) {
         return Err(format!(
             "{CLI_SHIM_FILE} 已被其他程序占用（{}），未覆盖任何文件",
             bin_dir.display()
         ));
     }
-    atomic_save::atomic_write(&shim, shim_script(exe).as_bytes())
-        .map_err(|e| format!("写入 {CLI_SHIM_FILE} 失败：{e}"))
+    if ps1.exists() && !shim_owned(&ps1) {
+        return Err(format!(
+            "{CLI_SHIM_PS1} 已被其他程序占用（{}），未覆盖任何文件",
+            bin_dir.display()
+        ));
+    }
+    atomic_save::atomic_write(&ps1, shim_powershell_script(exe).as_bytes())
+        .map_err(|e| format!("写入 {CLI_SHIM_PS1} 失败：{e}"))?;
+    if let Err(e) = atomic_save::atomic_write(&shim, shim_script(exe).as_bytes()) {
+        let _ = std::fs::remove_file(&ps1);
+        return Err(format!("写入 {CLI_SHIM_FILE} 失败：{e}"));
+    }
+    Ok(())
 }
 
 /// 删除 bin 目录下的 Windows shim（仅限本程序所有）。不存在时幂等返回 Ok(false)。
@@ -997,6 +1038,10 @@ fn remove_owned_shim_file(bin_dir: &Path) -> Result<bool, String> {
         return Err(format!("{CLI_SHIM_FILE} 不属于 GlanceMD Ultra，未删除"));
     }
     std::fs::remove_file(&shim).map_err(|e| format!("删除 {CLI_SHIM_FILE} 失败：{e}"))?;
+    let ps1 = bin_dir.join(CLI_SHIM_PS1);
+    if ps1.exists() && shim_owned(&ps1) {
+        let _ = std::fs::remove_file(ps1);
+    }
     Ok(true)
 }
 
@@ -1646,21 +1691,23 @@ mod tests {
 
     #[cfg(target_os = "windows")]
     #[test]
-    fn cli_shim脚本相对路径转义百分号且不硬编码文件名() {
+    fn cli_shim通过powershell桥接且相对定位当前exe() {
         let script = shim_script(Path::new(r"D:\Apps\GlanceMD-Ultra.exe"));
         assert!(script.starts_with("@echo off\r\n"));
         assert!(script.contains(SHIM_MARKER));
-        assert!(script.contains(r#"start "" /wait "%~dp0..\GlanceMD-Ultra.exe" %*"#));
+        assert!(script.contains(r#"-File "%~dp0gmdu.ps1" %*"#));
         assert!(script.contains("exit /b %ERRORLEVEL%"));
         assert!(script.ends_with("\r\n"));
 
         // release 产物名可变（如 GlanceMD-Ultra-windows-x64.exe）：跟随当前 exe 文件名
-        let renamed = shim_script(Path::new(r"D:\Apps\GlanceMD-Ultra-windows-x64.exe"));
-        assert!(renamed.contains(r#"start "" /wait "%~dp0..\GlanceMD-Ultra-windows-x64.exe" %*"#));
+        let renamed = shim_powershell_script(Path::new(r"D:\Apps\GlanceMD-Ultra-windows-x64.exe"));
+        assert!(renamed.contains(r#"'..\GlanceMD-Ultra-windows-x64.exe'"#));
+        assert!(renamed.contains("RedirectStandardOutput = $true"));
+        assert!(renamed.contains("Start-Process -FilePath $exe -ArgumentList $args"));
 
-        // % 在 cmd 双引号内仍参与展开，必须转义为 %%
-        let percent = shim_script(Path::new(r"D:\Apps\100%.exe"));
-        assert!(percent.contains(r#"start "" /wait "%~dp0..\100%%.exe" %*"#));
+        // PowerShell 单引号需双写，避免文件名注入脚本
+        let quote = shim_powershell_script(Path::new(r"D:\Apps\O'Brien.exe"));
+        assert!(quote.contains("O''Brien.exe"));
 
         assert_eq!(CLI_NAME, "gmdu");
     }
