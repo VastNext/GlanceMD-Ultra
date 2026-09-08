@@ -1,0 +1,26 @@
+组装页   : D:\WorkDev\MyShare\GlanceMD-Ultra\tests\.tmp\index.html（825224 字节，32 个 <script>）
+IPC mock : D:\WorkDev\MyShare\GlanceMD-Ultra\tests\.tmp\mock-ipc.js
+平台标记 : data-platform="windows"
+SyntaxError: D:\WorkDev\MyShare\GlanceMD-Ultra\tests\e2e\specs\editor-navigation-regressions.spec.js: Unterminated string constant. (74:31)
+
+  72 |   const editor = page.locator('#editor');
+  73 |   const lines = Array.from({ length: 80 }, (_, i) => `${i + 1} 中文软换行` + '宽字符内容'.repeat(i % 4 === 0 ? 100 : 2));
+> 74 |   await editor.fill(lines.join('
+     |                                ^
+  75 | '));
+  76 |   for (let i = 0; i < 3; i++) {
+  77 |     await editor.focus();
+
+   at editor-navigation-regressions.spec.js:74
+
+  72 |   const editor = page.locator('#editor');
+  73 |   const lines = Array.from({ length: 80 }, (_, i) => `${i + 1} 中文软换行` + '宽字符内容'.repeat(i % 4 === 0 ? 100 : 2));
+> 74 |   await editor.fill(lines.join('
+     |                               ^
+  75 | '));
+  76 |   for (let i = 0; i < 3; i++) {
+  77 |     await editor.focus();
+Error: No tests found.
+Make sure that arguments are regular expressions matching test files.
+You may need to escape symbols like "$" or "*" and quote the arguments.
+

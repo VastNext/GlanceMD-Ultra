@@ -1,0 +1,22 @@
+[
+  {
+    "name": "node-verified",
+    "exitCode": 0,
+    "durationMs": 11698
+  },
+  {
+    "name": "fmt-verified",
+    "exitCode": 0,
+    "durationMs": 3450
+  },
+  {
+    "name": "rust-verified",
+    "exitCode": 0,
+    "durationMs": 28995
+  },
+  {
+    "name": "release-verified",
+    "exitCode": 0,
+    "durationMs": 77018
+  }
+]

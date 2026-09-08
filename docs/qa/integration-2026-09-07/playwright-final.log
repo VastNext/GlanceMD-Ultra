@@ -1,0 +1,101 @@
+组装页   : D:\WorkDev\MyShare\GlanceMD-Ultra\tests\.tmp\index.html（825549 字节，32 个 <script>）
+IPC mock : D:\WorkDev\MyShare\GlanceMD-Ultra\tests\.tmp\mock-ipc.js
+平台标记 : data-platform="windows"
+
+Running 50 tests using 2 workers
+
+(node:13352) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:38556) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/50] tests\e2e\specs\app.spec.js:73:1 › 页面加载：标题栏、平台标记与欢迎视图就绪
+[2/50] tests\e2e\specs\app.spec.js:230:1 › 设置专项：modal 可见、七类真实分类与关闭/Escape
+[3/50] tests\e2e\specs\app.spec.js:85:1 › Alt+Shift+F O：完整脚本加载后触发一次 open_file IPC
+[4/50] tests\e2e\specs\app.spec.js:95:1 › 新建 tab 核心交互：新建后欢迎隐藏且 tab 栏出现，多 tab 可切换
+[5/50] tests\e2e\specs\app.spec.js:250:1 › 设置专项：搜索按真实中文分类聚合，点击分类后保留过滤词
+[6/50] tests\e2e\specs\app.spec.js:117:1 › 欢迎视图：启动展示最近文件，点击可触发打开，快捷新建可直接进入编辑
+[7/50] tests\e2e\specs\app.spec.js:266:1 › 设置专项：原生枚举 select 保持可操作且明暗主题 token 生效
+[8/50] tests\e2e\specs\app.spec.js:151:1 › 欢迎视图双 Tab：默认展示最近项目，可切到最近文件，点击项目触发 workspace.open
+[9/50] tests\e2e\specs\app.spec.js:286:1 › 设置与布局关键路径：窄视口保留编辑器可用区域且 modal 不溢出
+[10/50] tests\e2e\specs\app.spec.js:188:1 › 大纲单入口：顶栏 #btn-toc 切换 Outline 面板，不增加独立活动栏占宽
+[11/50] tests\e2e\specs\app.spec.js:299:1 › 侧栏自由拖宽：项目树可拖至窗口右侧附近，仅保留最小编辑区
+[12/50] tests\e2e\specs\app.spec.js:217:1 › 双入口与设置：文件、项目、设置按钮分别触发对应命令
+[13/50] tests\e2e\specs\app.spec.js:314:1 › 主题切换：data-theme 往返并通过统一 settings 命令持久化
+[14/50] tests\e2e\specs\eclipse-editor-shortcuts.spec.js:10:1 › Eclipse Outline Ctrl+O 是 toggle 并恢复编辑器焦点
+[15/50] tests\e2e\specs\app.spec.js:331:1 › Outline 左右侧拖动与停靠验收：right 拖左缘向左变宽、left 拖右缘向右变宽且边界正确、关闭无折叠窄条
+[16/50] tests\e2e\specs\eclipse-editor-shortcuts.spec.js:11:1 › Eclipse Ctrl+Up/Down 仅滚动视口且光标不动
+[17/50] tests\e2e\specs\eclipse-editor-shortcuts.spec.js:12:1 › Eclipse Ctrl+Shift+Up/Down 在 Markdown 标题间导航
+[18/50] tests\e2e\specs\eclipse-editor-shortcuts.spec.js:13:1 › Eclipse 行删除、撤销、重做
+[19/50] tests\e2e\specs\eclipse-editor-shortcuts.spec.js:14:1 › Eclipse 行移动与复制
+[20/50] tests\e2e\specs\eclipse-editor-shortcuts.spec.js:15:1 › Eclipse 大小写、HTML注释与反缩进
+[21/50] tests\e2e\specs\eclipse-editor-shortcuts.spec.js:16:1 › 默认 Scheme 全部 commandId 在真实页面中已注册且无 pageerror
+[22/50] tests\e2e\specs\eclipse-workbench-shortcuts.spec.js:10:1 › Ctrl+E、Ctrl+F6、Ctrl+Shift+F6 切换已打开标签页
+[23/50] tests\e2e\specs\eclipse-workbench-shortcuts.spec.js:11:1 › Ctrl+Shift+R 打开资源 Quick Open，F12 聚焦编辑器
+[24/50] tests\e2e\specs\eclipse-workbench-shortcuts.spec.js:12:1 › Ctrl+F7 与 Ctrl+Shift+F7 正反向切换工作区焦点
+[25/50] tests\e2e\specs\eclipse-workbench-shortcuts.spec.js:13:1 › Alt+Shift+P toggle 设置，后续 K 进入快捷键分类
+[26/50] tests\e2e\specs\eclipse-workbench-shortcuts.spec.js:14:1 › 文件与保存类 Eclipse 快捷键均分派到真实行为
+[27/50] tests\e2e\specs\editor-navigation-regressions.spec.js:22:1 › Ctrl+F searches selected text in the editor and keeps find inline
+[28/50] tests\e2e\specs\editor-navigation-regressions.spec.js:39:1 › Ctrl+L accepts an exact logical line and selects it
+[29/50] tests\e2e\specs\editor-navigation-regressions.spec.js:52:1 › Vim enters with current tab cursor and keeps a resident status hint
+[30/50] tests\e2e\specs\editor-navigation-regressions.spec.js:72:1 › Ctrl+L 31 repeated three times selects a visible logical line after long Chinese soft wraps
+[31/50] tests\e2e\specs\editor-navigation-regressions.spec.js:86:1 › Ctrl+K and Ctrl+Shift+K from find input scroll to visible next and previous matches
+[32/50] tests\e2e\specs\editor-navigation-regressions.spec.js:103:1 › Entering Vim from middle of preview preserves reading location and shows the block cursor
+[33/50] tests\e2e\specs\editor-navigation-regressions.spec.js:122:3 › F7/F12 focus flash remains visible with reduced-motion no-preference
+[34/50] tests\e2e\specs\editor-navigation-regressions.spec.js:122:3 › F7/F12 focus flash remains visible with reduced-motion reduce
+[35/50] tests\e2e\specs\keyboard-schemes-vim.spec.js:36:1 › Eclipse Scheme：Ctrl+3 打开命令面板、Ctrl+H 打开搜索、Ctrl+Shift+L 打开 Key Assist
+[36/50] tests\e2e\specs\keyboard-schemes-vim.spec.js:59:1 › Key Assist：支持搜索、方向键导航、Enter 执行与 Escape 焦点恢复
+[37/50] tests\e2e\specs\keyboard-schemes-vim.spec.js:78:1 › Vim Mode：Alt+Shift+E V 开启、i 插入、Esc 回 Normal、:w 保存与关闭恢复
+[38/50] tests\e2e\specs\outline-navigation.spec.js:22:1 › 点击 Outline：跳过 YAML frontmatter 与 fenced 伪标题，定位混排标题真实源行
+[39/50] tests\e2e\specs\popup-regressions.spec.js:36:1 › 快捷键 Ctrl+E 与 Ctrl+Shift+R 触发 Quick Open 并在明暗主题下保持选中文字高对比度
+[40/50] tests\e2e\specs\popup-regressions.spec.js:89:1 › 快捷键 Ctrl+3 触发 Command Palette 并在明暗主题下保持选中文字高对比度
+[41/50] tests\e2e\specs\popup-regressions.spec.js:124:1 › 快捷键 Ctrl+Shift+L 触发 Key Assist 并在明暗主题下确保选中项与徽章清晰可读
+[42/50] tests\e2e\specs\popup-regressions.spec.js:173:1 › 快捷键 Ctrl+H 打开 Search Panel：居中 60vw/80vh、按钮不挤压、注入结果独立滚动、Header 拖拽与缩放
+[43/50] tests\e2e\specs\vim-visible-ui.spec.js:35:1 › Vim 模式栏挂载于 #statusbar 并在视口内正确展示各模式
+  1) tests\e2e\specs\editor-navigation-regressions.spec.js:122:3 › F7/F12 focus flash remains visible with reduced-motion reduce 
+
+    Error: expect(locator).toHaveCSS(expected) failed
+
+    Locator:  locator('#editor')
+    Expected: "solid"
+    Received: "none"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCSS" with timeout 5000ms
+      - waiting for locator('#editor')
+        5 × locator resolved to <textarea id="editor" spellcheck="false" class="vim-focus-flash" placeholder="Start writing markdown..."></textarea>
+          - unexpected value "none"
+        9 × locator resolved to <textarea class="" id="editor" spellcheck="false" placeholder="Start writing markdown..."></textarea>
+          - unexpected value "none"
+
+
+      132 |     if (reducedMotion === 'reduce') {
+      133 |       await expect(editor).toHaveCSS('animation-name', 'none');
+    > 134 |       await expect(editor).toHaveCSS('outline-style', 'solid');
+          |                            ^
+      135 |       await expect(editor).toHaveCSS('outline-width', '2px');
+      136 |     } else await expect(editor).toHaveCSS('animation-name', 'vim-focus-flash');
+      137 |   });
+        at D:\WorkDev\MyShare\GlanceMD-Ultra\tests\e2e\specs\editor-navigation-regressions.spec.js:134:28
+
+    Error Context: tests\e2e\test-results\editor-navigation-regressi-9f3ec--with-reduced-motion-reduce\error-context.md
+
+
+[44/50] tests\e2e\specs\vim-visible-ui.spec.js:119:1 › Vim 真实方块光标 (.vim-block-cursor) 在 Normal 模式渲染并在 Insert 模式隐藏
+(node:42816) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[45/50] tests\e2e\specs\vim-visible-ui.spec.js:83:1 › Vim 命令行底栏实时显示输入字符、Esc 取消与 Enter 执行
+[46/50] tests\e2e\specs\vim-visible-ui.spec.js:153:1 › Vim :q! 强制关闭 dirty tab 且丢弃未保存修改
+[47/50] tests\e2e\specs\vscode-scheme-shortcuts.spec.js:4:1 › VS Code 方案面板与导航键生效
+[48/50] tests\e2e\specs\vscode-scheme-shortcuts.spec.js:5:1 › VS Code 文件、设置、Tab 与 F12 键生效
+[49/50] tests\e2e\specs\vscode-scheme-shortcuts.spec.js:6:1 › VS Code Ctrl+K Ctrl+S 打开快捷键设置
+[50/50] tests\e2e\specs\vscode-scheme-shortcuts.spec.js:7:1 › VS Code Ctrl+O、Ctrl+S、Ctrl+Shift+S、Ctrl+W 真实分派
+  1 failed
+    tests\e2e\specs\editor-navigation-regressions.spec.js:122:3 › F7/F12 focus flash remains visible with reduced-motion reduce 
+  49 passed (1.0m)

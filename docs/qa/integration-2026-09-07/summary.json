@@ -1,0 +1,27 @@
+[
+  {
+    "name": "node-tests",
+    "exitCode": 0,
+    "durationMs": 5361
+  },
+  {
+    "name": "cargo-fmt",
+    "exitCode": 0,
+    "durationMs": 2207
+  },
+  {
+    "name": "cargo-test",
+    "exitCode": 0,
+    "durationMs": 24449
+  },
+  {
+    "name": "playwright",
+    "exitCode": 1,
+    "durationMs": 2476
+  },
+  {
+    "name": "release-build",
+    "exitCode": 0,
+    "durationMs": 126802
+  }
+]

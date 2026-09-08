@@ -1,0 +1,12 @@
+   Compiling glancemd-ultra v0.1.0 (D:\WorkDev\MyShare\GlanceMD-Ultra)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 20.32s
+     Running unittests src\main.rs (target\debug\deps\GlanceMD_Ultra-95e4ba56906113d5.exe)
+     Running tests\atomic_save_probe.rs (target\debug\deps\atomic_save_probe-76d009f3abb40194.exe)
+     Running tests\file_codec_probe.rs (target\debug\deps\file_codec_probe-b28c116aeed445bf.exe)
+     Running tests\operations_probe.rs (target\debug\deps\operations_probe-40fd61639960fcce.exe)
+     Running tests\platform_probe.rs (target\debug\deps\platform_probe-98f5aa53063b9aa5.exe)
+     Running tests\recovery_probe.rs (target\debug\deps\recovery_probe-a96ec6c770861dd3.exe)
+     Running tests\search_probe.rs (target\debug\deps\search_probe-00dfac4d49526beb.exe)
+     Running tests\settings_probe.rs (target\debug\deps\settings_probe-20d5fe488b01ab33.exe)
+     Running tests\tree_probe.rs (target\debug\deps\tree_probe-28ea96fa0dbaf38a.exe)
+     Running tests\watcher_probe.rs (target\debug\deps\watcher_probe-c7fa320e0b1e981c.exe)

@@ -1,0 +1,44 @@
+组装页   : D:\WorkDev\MyShare\GlanceMD-Ultra\tests\.tmp\index.html（826271 字节，32 个 <script>）
+IPC mock : D:\WorkDev\MyShare\GlanceMD-Ultra\tests\.tmp\mock-ipc.js
+平台标记 : data-platform="windows"
+
+Running 29 tests using 2 workers
+
+(node:42480) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:32656) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/29] tests\e2e\specs\app.spec.js:73:1 › 页面加载：标题栏、平台标记与欢迎视图就绪
+[2/29] tests\e2e\specs\app.spec.js:230:1 › 设置专项：modal 可见、七类真实分类与关闭/Escape
+[3/29] tests\e2e\specs\app.spec.js:85:1 › Alt+Shift+F O：完整脚本加载后触发一次 open_file IPC
+[4/29] tests\e2e\specs\app.spec.js:95:1 › 新建 tab 核心交互：新建后欢迎隐藏且 tab 栏出现，多 tab 可切换
+[5/29] tests\e2e\specs\app.spec.js:250:1 › 设置专项：搜索按真实中文分类聚合，点击分类后保留过滤词
+[6/29] tests\e2e\specs\app.spec.js:117:1 › 欢迎视图：启动展示最近文件，点击可触发打开，快捷新建可直接进入编辑
+[7/29] tests\e2e\specs\app.spec.js:266:1 › 设置专项：原生枚举 select 保持可操作且明暗主题 token 生效
+[8/29] tests\e2e\specs\app.spec.js:151:1 › 欢迎视图双 Tab：默认展示最近项目，可切到最近文件，点击项目触发 workspace.open
+[9/29] tests\e2e\specs\app.spec.js:286:1 › 设置与布局关键路径：窄视口保留编辑器可用区域且 modal 不溢出
+[10/29] tests\e2e\specs\app.spec.js:188:1 › 大纲单入口：顶栏 #btn-toc 切换 Outline 面板，不增加独立活动栏占宽
+[11/29] tests\e2e\specs\app.spec.js:299:1 › 侧栏自由拖宽：项目树可拖至窗口右侧附近，仅保留最小编辑区
+[12/29] tests\e2e\specs\app.spec.js:217:1 › 双入口与设置：文件、项目、设置按钮分别触发对应命令
+[13/29] tests\e2e\specs\app.spec.js:314:1 › 主题切换：data-theme 往返并通过统一 settings 命令持久化
+[14/29] tests\e2e\specs\editor-navigation-regressions.spec.js:22:1 › Ctrl+F searches selected text in the editor and keeps find inline
+[15/29] tests\e2e\specs\app.spec.js:331:1 › Outline 左右侧拖动与停靠验收：right 拖左缘向左变宽、left 拖右缘向右变宽且边界正确、关闭无折叠窄条
+[16/29] tests\e2e\specs\editor-navigation-regressions.spec.js:39:1 › Ctrl+L accepts an exact logical line and selects it
+[17/29] tests\e2e\specs\editor-navigation-regressions.spec.js:52:1 › Vim enters with current tab cursor and keeps a resident status hint
+[18/29] tests\e2e\specs\editor-navigation-regressions.spec.js:72:1 › Ctrl+L 31 repeated three times selects a visible logical line after long Chinese soft wraps
+[19/29] tests\e2e\specs\editor-navigation-regressions.spec.js:86:1 › Ctrl+K and Ctrl+Shift+K from find input scroll to visible next and previous matches
+[20/29] tests\e2e\specs\editor-navigation-regressions.spec.js:103:1 › Entering Vim from middle of preview preserves reading location and shows the block cursor
+[21/29] tests\e2e\specs\editor-navigation-regressions.spec.js:123:3 › F7/F12 focus flash remains visible with reduced-motion no-preference
+[22/29] tests\e2e\specs\editor-navigation-regressions.spec.js:123:3 › F7/F12 focus flash remains visible with reduced-motion reduce
+[23/29] tests\e2e\specs\editor-navigation-regressions.spec.js:142:3 › Inline find follows actual view toggle and closes in preview: light
+[24/29] tests\e2e\specs\editor-navigation-regressions.spec.js:142:3 › Inline find follows actual view toggle and closes in preview: dark
+[25/29] tests\e2e\specs\outline-navigation.spec.js:22:1 › 点击 Outline：跳过 YAML frontmatter 与 fenced 伪标题，定位混排标题真实源行
+[26/29] tests\e2e\specs\vim-visible-ui.spec.js:35:1 › Vim 模式栏挂载于 #statusbar 并在视口内正确展示各模式
+[27/29] tests\e2e\specs\vim-visible-ui.spec.js:83:1 › Vim 命令行底栏实时显示输入字符、Esc 取消与 Enter 执行
+[28/29] tests\e2e\specs\vim-visible-ui.spec.js:119:1 › Vim 真实方块光标 (.vim-block-cursor) 在 Normal 模式渲染并在 Insert 模式隐藏
+[29/29] tests\e2e\specs\vim-visible-ui.spec.js:153:1 › Vim :q! 强制关闭 dirty tab 且丢弃未保存修改
+  29 passed (21.6s)

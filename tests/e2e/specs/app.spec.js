@@ -82,10 +82,9 @@ test('页面加载：标题栏、平台标记与欢迎视图就绪', async ({ pa
   expect(commands).toContain('ready');
 });
 
-test('Alt+Shift+F O：完整脚本加载后触发一次 open_file IPC', async ({ page }) => {
+test('Ctrl+Alt+O：完整脚本加载后触发一次 open_file IPC', async ({ page }) => {
   await page.evaluate(() => { window.__ipcLog = []; });
-  await page.keyboard.press('Alt+Shift+KeyF');
-  await page.keyboard.press('KeyO');
+  await page.keyboard.press('Control+Alt+KeyO');
   const openMessages = await page.evaluate(() =>
     (window.__ipcLog || []).map((message) => JSON.parse(message)).filter((message) => message.command === 'open_file'),
   );
