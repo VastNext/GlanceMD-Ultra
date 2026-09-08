@@ -165,7 +165,11 @@ def test_windows_lifecycle(binary: Path, expected_version: str) -> None:
         if Path(gmdu_cmd).resolve() != expected_cmd.resolve():
             raise RuntimeError(f"PATH 命中了其他安装：{gmdu_cmd}")
 
-        proc_gmdu = run_command([gmdu_cmd, "--version"], env=real_env)
+        # .cmd 必须通过真实命令解释器验收（与用户运行 `gmdu --version` 一致）；
+        # Python shell=False 直接执行 .cmd 的标准流行为不稳定，可能得到空输出。
+        proc_gmdu = run_command(
+            ["cmd.exe", "/d", "/c", "gmdu", "--version"], env=real_env
+        )
         gmdu_out = (proc_gmdu.stdout + proc_gmdu.stderr).strip()
         if proc_gmdu.returncode != 0:
             raise RuntimeError(f"gmdu --version 失败 ({proc_gmdu.returncode}):\n{gmdu_out}")

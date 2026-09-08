@@ -1341,7 +1341,7 @@ fn status_impl(exe: &Path, bin: &Path) -> CliStatusReport {
     let target = cli_link_target(exe);
     let link = bin.join(CLI_NAME);
     let exists = link.symlink_metadata().is_ok();
-    let record = load_ownership(&cli_ownership_file());
+    let record = ownership_path().as_deref().and_then(load_ownership);
     let installed = exists && unix_shim_owned(&link, &target, record.as_ref());
     let message = if installed || !exists {
         String::new()
