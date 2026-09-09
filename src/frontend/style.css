@@ -240,6 +240,11 @@ html, body {
   box-shadow: none !important;
 }
 
+#icon-preview,
+#icon-edit {
+  display: none !important;
+}
+
 /* Mode Segmented Pill Switcher */
 .mode-segmented {
   display: inline-flex;
