@@ -327,7 +327,7 @@ test('设置专项：网络分类代理配置与测试连接交互', async ({ pa
 
   // 模拟 Rust 返回成功回执
   await page.evaluate(() => {
-    window.SettingsUI.receive('net:test-proxy-result', {
+    window.SettingsUI.receive('workspace:proxy-test-result', {
       ok: true,
       message: '连通成功：https://api.github.com（45ms，状态 200）',
       status: 200,

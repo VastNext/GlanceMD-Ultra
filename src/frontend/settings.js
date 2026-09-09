@@ -626,13 +626,13 @@
       + '<div class="setting-info">'
       + '<span class="setting-label">' + esc(m.label) + (overridden ? '<em class="setting-badge">' + t('settings.projectOverridden') + '</em>' : '') + '</span>'
       + '<span class="setting-desc">' + esc(m.desc) + '</span>'
-      + (enabled ? '' : '<span class="setting-hint setting-proxy-hint">' + esc(t('settings.proxyDisabledHint')) + '</span>')
       + '</div>'
       + '<div class="setting-control setting-control-proxy">'
       + '<div class="setting-proxy-box">'
       + '<input type="text" id="setting-proxy-url" data-setting="proxy" data-category="http"' + (enabled ? '' : ' disabled') + ' value="' + esc(proxyValue) + '" placeholder="http://127.0.0.1:7890">'
       + '<button type="button" class="btn setting-proxy-test-btn" id="setting-proxy-test-btn"' + (enabled ? '' : ' disabled') + '>' + esc(t('settings.proxyTest')) + '</button>'
       + '</div>'
+      + (enabled ? '' : '<span class="setting-hint setting-proxy-hint">' + esc(t('settings.proxyDisabledHint')) + '</span>')
       + '<div class="setting-proxy-result" id="setting-proxy-result"></div>'
       + '</div>'
       + '</div>';
@@ -1354,7 +1354,7 @@
         render();
       }
     }
-    else if (e === 'net:test-proxy-result') {
+    else if (e === 'workspace:proxy-test-result' || e === 'net:test-proxy-result') {
       // FEAT-003：测试连接回执（可能晚于面板重建，元素不存在时静默忽略）
       showProxyResult(document.getElementById('setting-proxy-result'), d);
     }
@@ -1367,6 +1367,7 @@
     Workspace.on('workspace:settings-changed', function (d) { receive('workspace:settings-changed', d); });
     Workspace.on('workspace:terminal-list', function (d) { receive('workspace:terminal-list', d); });
     Workspace.on('workspace:cli-shim-status', function (d) { receive('workspace:cli-shim-status', d); });
+    Workspace.on('workspace:proxy-test-result', function (d) { receive('workspace:proxy-test-result', d); });
     Workspace.on('net:test-proxy-result', function (d) { receive('net:test-proxy-result', d); });
   }
 

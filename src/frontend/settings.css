@@ -919,9 +919,11 @@
 
 .setting-control-proxy {
   flex: 1;
-  max-width: 380px;
+  max-width: 400px;
+  display: flex;
   flex-direction: column;
   align-items: stretch;
+  gap: 4px;
 }
 
 .setting-proxy-box {
@@ -964,11 +966,11 @@
 }
 
 .setting-proxy-result {
-  margin-top: 6px;
   font-size: 11.5px;
   line-height: 1.5;
   color: var(--text-dim);
   min-height: 0;
+  word-break: break-all;
 }
 
 .setting-proxy-result.setting-proxy-ok {
@@ -992,7 +994,8 @@
 }
 
 .setting-proxy-hint {
-  margin-top: 6px;
+  margin-top: 2px;
+  font-size: 11.5px;
   line-height: 1.4;
   color: var(--text-dim);
 }
