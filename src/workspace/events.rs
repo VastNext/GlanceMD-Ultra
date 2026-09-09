@@ -89,6 +89,12 @@ pub enum Event {
         dir: String,
         message: String,
     },
+    /// 网络代理测试连接回执（FEAT-003，`net.testProxy` 命令的异步结果）。
+    ProxyTestResult {
+        /// `ok` 布尔 + `message`（成功时含 status/latencyMs/target 摘要，
+        /// 失败时为中文错误原因）。
+        payload: serde_json::Value,
+    },
 }
 
 impl Event {
@@ -113,6 +119,7 @@ impl Event {
             Event::RecoveryRestored { .. } => "workspace:recovery-restored",
             Event::RecoveryOpened { .. } => "workspace:recovery-opened",
             Event::CliShimStatus { .. } => "workspace:cli-shim-status",
+            Event::ProxyTestResult { .. } => "net:test-proxy-result",
         }
     }
 
@@ -177,6 +184,7 @@ impl Event {
             } => {
                 json!({ "installed": installed, "dir": dir, "message": message })
             }
+            Event::ProxyTestResult { payload } => payload.clone(),
         }
     }
 }

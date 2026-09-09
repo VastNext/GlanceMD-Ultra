@@ -420,6 +420,7 @@ fn 全字段v1文档_迁移无告警且逐字段相等_守护已知键表不失�
                 create_project_settings: true,
             },
             window: settings::Window::default(),
+            http: settings::Http::default(),
         }
     );
 }
@@ -682,6 +683,11 @@ fn v1_roundtrip_自定义设置_保存加载零漂移() {
         },
         window: settings::Window {
             reuse_window_for_folder: true,
+        },
+        http: settings::Http {
+            proxy_support: settings::ProxySupport::Override,
+            proxy: "http://127.0.0.1:7890".to_string(),
+            proxy_strict_ssl: true,
         },
     };
     save(&dir, &original).unwrap();

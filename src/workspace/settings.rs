@@ -80,6 +80,8 @@ pub struct Settings {
     pub recovery: Recovery,
     /// 窗口行为（FEAT-001：命令行打开目录的多开/复用策略）。
     pub window: Window,
+    /// 网络代理（FEAT-003：HTTP/HTTPS/SOCKS5 代理配置）。
+    pub http: Http,
 }
 
 impl Default for Settings {
@@ -94,6 +96,7 @@ impl Default for Settings {
             keybindings: Keybindings::default(),
             recovery: Recovery::default(),
             window: Window::default(),
+            http: Http::default(),
         }
     }
 }
@@ -113,6 +116,55 @@ impl Default for Window {
         Window {
             reuse_window_for_folder: false,
         }
+    }
+}
+
+/// 网络代理（FEAT-003，方案 §7 需求：设置页支持 HTTP/HTTPS/SOCKS5 网络代理，
+/// 支持系统代理跟随与自定义覆盖）。
+///
+/// 为**全局限定**分类（与 `window` 同处理）：网络代理本质是本机/全局概念，
+/// 打开工作区文件不得静默改变网络出口；项目补丁中的 http 段一律忽略并告警。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Http {
+    /// 代理工作模式：`system` 自动读取系统/环境代理、`override` 显式覆盖、
+    /// `off` 直连禁用。默认 `off`（与现状一致：不启用代理）。
+    pub proxy_support: ProxySupport,
+    /// 代理服务器地址，支持 `http://127.0.0.1:7890`、`socks5://127.0.0.1:7890`
+    /// 等（协议 + host[:port]）。仅 `override` 模式下生效。
+    pub proxy: String,
+    /// 是否严格校验 SSL 证书。默认 `true`；`false` 为明确的安全降级，
+    /// 仅在用户主动关闭时生效（用于自签/中间人代理场景）。
+    /// 键名按需求文档 FEAT-003 保持 `proxyStrictSSL`（全大写 SSL）。
+    #[serde(rename = "proxyStrictSSL")]
+    pub proxy_strict_ssl: bool,
+}
+
+impl Default for Http {
+    fn default() -> Self {
+        Http {
+            proxy_support: ProxySupport::Off,
+            proxy: String::new(),
+            proxy_strict_ssl: true,
+        }
+    }
+}
+
+/// 代理工作模式取值。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ProxySupport {
+    /// 自动读取系统/环境变量代理。
+    System,
+    /// 显式覆盖为 `Http::proxy` 指定的代理。
+    Override,
+    /// 直连，禁用代理。
+    Off,
+}
+
+impl Default for ProxySupport {
+    fn default() -> Self {
+        ProxySupport::Off
     }
 }
 
@@ -648,6 +700,9 @@ pub fn effective(global: &Settings, project: &SettingsPatch) -> Settings {
         // 窗口多开策略仅为全局设置：第二实例启动时尚未进入项目，无法可靠
         // 消费项目补丁；因此 effective 也明确只取 global，避免 UI 显示伪覆盖。
         window: global.window,
+        // 网络代理为全局限定分类（与 window 同处理）：打开工作区不得静默改变
+        // 网络出口，项目 http 段在 load_project_checked 即被忽略并告警。
+        http: global.http.clone(),
     }
 }
 
@@ -936,6 +991,9 @@ pub fn load_project_checked(root: &Path) -> Option<LoadedPatch> {
     collect_unknown_keys(&raw, &mut warnings);
     if raw.get("window").is_some() {
         warnings.push("项目设置不支持 window 分类，已忽略；窗口复用策略仅为全局设置".into());
+    }
+    if raw.get("http").is_some() {
+        warnings.push("项目设置不支持 http 分类，已忽略；网络代理仅为全局设置".into());
     }
     match serde_json::from_value::<SettingsPatch>(raw) {
         Ok(mut patch) => {
@@ -1255,6 +1313,7 @@ const KNOWN_TOP_LEVEL: &[&str] = &[
     "keybindings",
     "recovery",
     "window",
+    "http",
 ];
 
 /// 已知类内字段（JSON 键名）。快捷键 schemes 内层为方案 ID，命令记录字段另行校验。
@@ -1300,6 +1359,7 @@ const KNOWN_CATEGORY_FIELDS: &[(&str, &[&str])] = &[
         ],
     ),
     ("window", &["reuseWindowForFolder"]),
+    ("http", &["proxySupport", "proxy", "proxyStrictSSL"]),
 ];
 
 /// 收集未知键告警（向后兼容优先：不拒绝、不删除，serde 默认忽略之）。

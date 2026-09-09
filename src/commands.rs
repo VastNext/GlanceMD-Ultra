@@ -175,6 +175,7 @@ pub fn register_builtin() {
         ("workspace.settings.load-project", settings_project),
         ("workspace.settings.save-global", settings_set),
         ("workspace.settings.open-settings-json", settings_open),
+        ("net.testProxy", net_test_proxy),
         ("workspace.recovery.snapshot", recovery_snapshot),
         ("workspace.recovery.list", recovery_list),
         ("workspace.recovery.restore", recovery_restore),
@@ -1621,6 +1622,55 @@ fn settings_set(_: &CommandContext, p: &CommandPayload) {
     };
     if let Err(e) = apply_settings_at(&settings_base(), raw) {
         error(e);
+    }
+}
+
+/// `net.testProxy`（FEAT-003）：测试代理连通性。
+///
+/// 前端传当前表单值（未保存也能测）：`proxy`（代理地址 URI）、`strictSsl`
+/// （是否严格校验 SSL，可选，缺省 true）。后端据此构造 ureq Agent 请求
+/// `https://api.github.com`，结果经 `net:test-proxy-result` 事件回执。
+///
+/// 说明：测试使用**前端传入的地址**而非已保存设置——用户可先填地址再点
+/// 测试，无需先保存；`proxy` 为空时按直连测试（验证本机公网可达性）。
+fn net_test_proxy(_: &CommandContext, p: &CommandPayload) {
+    let proxy = string(p, &["proxy", "data.proxy"]).unwrap_or_default();
+    let strict_ssl = p
+        .extra
+        .get("strictSsl")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let proxy_uri = if proxy.trim().is_empty() {
+        None
+    } else {
+        // 校验并规范化为标准 URI（纯解析，不发起请求）
+        match crate::net::parse_proxy_url(&proxy) {
+            Ok(spec) => Some(spec.to_uri()),
+            Err(e) => {
+                emit(workspace::events::Event::ProxyTestResult {
+                    payload: serde_json::json!({ "ok": false, "message": e }),
+                });
+                return;
+            }
+        }
+    };
+    let timeout = std::time::Duration::from_secs(8);
+    match crate::net::test_proxy(proxy_uri.as_deref(), strict_ssl, timeout) {
+        Ok(r) => emit(workspace::events::Event::ProxyTestResult {
+            payload: serde_json::json!({
+                "ok": true,
+                "message": format!(
+                    "连通成功：{}（{}ms，状态 {}）",
+                    r.target, r.latency_ms, r.status
+                ),
+                "status": r.status,
+                "latencyMs": r.latency_ms,
+                "target": r.target,
+            }),
+        }),
+        Err(e) => emit(workspace::events::Event::ProxyTestResult {
+            payload: serde_json::json!({ "ok": false, "message": e }),
+        }),
     }
 }
 

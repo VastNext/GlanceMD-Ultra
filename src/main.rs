@@ -23,6 +23,7 @@ mod data_dir;
 mod file_codec;
 mod file_ops;
 mod ipc;
+mod net;
 mod platform;
 #[cfg(target_os = "windows")]
 mod single_instance;
@@ -176,6 +177,36 @@ fn forwarded_path_command(path: &str) -> &'static str {
         "workspace.open"
     } else {
         "open_file"
+    }
+}
+
+/// 把全局代理设置解析为 wry 的 [`ProxyConfig`]（FEAT-003）。
+///
+/// 仅 `override` 模式且地址合法时返回 `Some`；`system`/`off` 或解析失败返回
+/// `None`（跟随系统代理 / 直连）。wry 0.49 只支持 HTTP CONNECT 与 SOCKSv5，
+/// 其他协议（socks4 等）视为不支持并忽略。
+///
+/// 注意：`with_proxy_config` 是构建时设置，运行中无法动态修改——代理变更
+/// 需重启应用生效（设置页会提示）。
+fn resolve_wry_proxy_config(http: &workspace::settings::Http) -> Option<wry::ProxyConfig> {
+    use workspace::settings::ProxySupport;
+    if http.proxy_support != ProxySupport::Override {
+        return None;
+    }
+    let spec = crate::net::parse_proxy_url(&http.proxy).ok()?;
+    let endpoint = wry::ProxyEndpoint {
+        host: spec.host,
+        port: spec.port.to_string(),
+    };
+    match spec.scheme {
+        crate::net::ProxyScheme::Http | crate::net::ProxyScheme::Https => {
+            Some(wry::ProxyConfig::Http(endpoint))
+        }
+        crate::net::ProxyScheme::Socks5 | crate::net::ProxyScheme::Socks5h => {
+            Some(wry::ProxyConfig::Socks5(endpoint))
+        }
+        // wry 不支持 socks4/socks4a，忽略（保持直连）
+        crate::net::ProxyScheme::Socks4 | crate::net::ProxyScheme::Socks4a => None,
     }
 }
 
@@ -436,6 +467,10 @@ fn main() {
     // unused_unsafe），且此处仅在 main 启动早期、单线程、事件循环与任何后台
     // 线程启动之前调用一次，不存在并发读写环境变量的竞态。
     let data_base = data_dir::data_base();
+    // FEAT-003：启动早期读取全局网络代理设置，供 WebView 构建时注入
+    // （with_proxy_config 为构建时生效，运行中变更需重启应用）。
+    let http_settings = workspace::settings::load_global(data_base).http;
+    let wry_proxy = resolve_wry_proxy_config(&http_settings);
     // 无 CLI 路径时恢复上次打开的工作区；显式路径（目录或文件）保持既有行为。
     if cli_file.is_none() {
         if let Some(last_root) = workspace::session::restore_pending_root(data_base, None) {
@@ -600,6 +635,12 @@ fn main() {
             true
         })
         .with_devtools(cfg!(debug_assertions));
+
+    // FEAT-003：override 模式下把全局代理设置注入 WebView（构建时生效）。
+    let webview_builder = match wry_proxy {
+        Some(proxy) => webview_builder.with_proxy_config(proxy),
+        None => webview_builder,
+    };
 
     #[cfg(target_os = "windows")]
     let webview_builder = {

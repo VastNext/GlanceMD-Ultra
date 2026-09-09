@@ -40,7 +40,8 @@ fn registry_command_id(wire_command: &str) -> Option<String> {
             || wire_command.starts_with("search.")
             || wire_command.starts_with("quickopen.")
             || wire_command.starts_with("palette.")
-            || wire_command.starts_with("settings.") =>
+            || wire_command.starts_with("settings.")
+            || wire_command.starts_with("net.") =>
         {
             Some(wire_command.to_string())
         }
@@ -276,6 +277,10 @@ mod tests {
         assert_eq!(
             registry_command_id("workspace.tree.list"),
             Some("workspace.tree.list".to_string())
+        );
+        assert_eq!(
+            registry_command_id("net.testProxy"),
+            Some("net.testProxy".to_string())
         );
         assert_eq!(
             registry_command_id("open_file"),

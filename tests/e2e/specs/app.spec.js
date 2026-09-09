@@ -41,6 +41,7 @@ const SETTINGS_FIXTURE = {
   editor: { fontSize: 14, tabSize: 4, wordWrap: true, lineNumbers: true, largeFileMB: 5 },
   keybindings: { overrides: {} },
   recovery: { confirmCloseDirty: true, crashRecovery: true, createProjectSettings: false },
+  http: { proxySupport: 'off', proxy: '', proxyStrictSSL: true },
 };
 
 async function installSettingsMock(page) {
@@ -226,15 +227,16 @@ test('双入口与设置：文件、项目、设置按钮分别触发对应命�
   await expect(page.locator('#settings-panel')).toBeVisible();
 });
 
-test('设置专项：modal 可见、八类真实分类与关闭/Escape', async ({ page }) => {
+test('设置专项：modal 可见、九类真实分类与关闭/Escape', async ({ page }) => {
   await page.click('#btn-settings');
   const panel = page.locator('#settings-panel');
   await expect(panel).toBeVisible();
-  await expect(panel.locator('#settings-categories button')).toHaveCount(8);
+  await expect(panel.locator('#settings-categories button')).toHaveCount(9);
   await expect(panel.locator('#settings-categories')).toContainText('外观');
   await expect(panel.locator('#settings-categories')).toContainText('文件');
   await expect(panel.locator('#settings-categories')).toContainText('监听');
   await expect(panel.locator('#settings-categories')).toContainText('窗口与命令行');
+  await expect(panel.locator('#settings-categories')).toContainText('网络');
   await expect(panel.locator('#settings-categories')).toContainText('搜索');
   await expect(panel.locator('#settings-categories')).toContainText('编辑器');
   await expect(panel.locator('#settings-categories')).toContainText('快捷键');
@@ -281,6 +283,61 @@ test('设置专项：原生枚举 select 保持可操作且明暗主题 token �
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 
   await expect(theme).toBeAttached();
+});
+
+test('设置专项：网络分类代理配置与测试连接交互', async ({ page }) => {
+  await installSettingsMock(page);
+  await page.click('#btn-settings');
+  const panel = page.locator('#settings-panel');
+  await panel.locator('#settings-categories button[data-category="http"]').click();
+
+  const proxyInput = panel.locator('#setting-proxy-url');
+  const testBtn = panel.locator('#setting-proxy-test-btn');
+  const resultBox = panel.locator('#setting-proxy-result');
+
+  // 默认 off 模式：输入框与按钮禁用
+  await expect(proxyInput).toBeDisabled();
+  await expect(testBtn).toBeDisabled();
+
+  // 切换为 override 模式
+  await page.evaluate(() => {
+    window.SettingsUI.receive('workspace:settings-effective', {
+      settings: {
+        version: 1,
+        http: { proxySupport: 'override', proxy: 'http://127.0.0.1:7890', proxyStrictSSL: true }
+      },
+      warnings: [],
+      overridden: []
+    });
+  });
+
+  await expect(proxyInput).toBeEnabled();
+  await expect(testBtn).toBeEnabled();
+  await expect(proxyInput).toHaveValue('http://127.0.0.1:7890');
+
+  // 点击测试连接：发出 net.testProxy 命令
+  await testBtn.click();
+  await expect(resultBox).toHaveText('测试中…');
+
+  const ipcMessages = await page.evaluate(() => (window.__ipcLog || []).map((msg) => JSON.parse(msg)));
+  const testCmd = ipcMessages.find((m) => m.command === 'net.testProxy');
+  expect(testCmd).toBeTruthy();
+  expect(testCmd.proxy).toBe('http://127.0.0.1:7890');
+  expect(testCmd.strictSsl).toBe(true);
+
+  // 模拟 Rust 返回成功回执
+  await page.evaluate(() => {
+    window.SettingsUI.receive('net:test-proxy-result', {
+      ok: true,
+      message: '连通成功：https://api.github.com（45ms，状态 200）',
+      status: 200,
+      latencyMs: 45,
+      target: 'https://api.github.com'
+    });
+  });
+
+  await expect(resultBox).toContainText('连通成功');
+  await expect(resultBox).toHaveClass(/setting-proxy-ok/);
 });
 
 test('设置与布局关键路径：窄视口保留编辑器可用区域且 modal 不溢出', async ({ page }) => {

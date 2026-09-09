@@ -51,7 +51,7 @@
 |---|---|---|---|---|---|
 | FEAT-001 | 2026-09-07 | CLI / 工作区 | 命令行支持打开目录为工作区（如 `gmdu .`，类似 `code .`） | 高 (P1) | ✅ 已完成 |
 | FEAT-002 | 2026-09-07 | 软件更新 / 发布 | 软件内支持“检查并一键更新”，自动获取 GitHub Latest Release 匹配当前平台的包并覆盖更新 | 中 (P2) | ⏳ 待排期 |
-| FEAT-003 | 2026-09-07 | 网络 / 系统设置 | 设置页支持配置 HTTP/HTTPS/SOCKS5 网络代理，支持系统代理跟随与自定义覆盖（FEAT-002 前置） | 中 (P2) | ⏳ 待排期 |
+| FEAT-003 | 2026-09-07 | 网络 / 系统设置 | 设置页支持配置 HTTP/HTTPS/SOCKS5 网络代理，支持系统代理跟随与自定义覆盖（FEAT-002 前置） | 中 (P2) | ✅ 已完成 |
 | FEAT-004 | 2026-09-09 | 体积 / 发布 | 二进制减重：内嵌前端资产 gzip 预压缩 + `opt-level="z"`，使 Windows 产物回到 5 MB 以内（预算放宽后的偿还计划） | 中 (P2) | ⏳ 待排期 |
 | FEAT-005 | 2026-09-09 | 翻译 / 编辑器 | 集成翻译功能：选中文本划词翻译，复用 VastTranslator 引擎层（Google/Bing/自定义 AI），Rust IPC 代理网络请求 | 中 (P2) | ⏳ 待排期 |
 
@@ -119,10 +119,18 @@
   3. **测试连接按钮**：
      - 设置页代理输入框旁提供【测试连接】按钮，一键探测代理有效性与延迟，提升配置体验。
 - **涉及模块 / 影响范围**：
-  - `src/workspace/settings.rs`（新增 `HttpSettings` 结构及 schema）
-  - `src/frontend/settings.js` & `settings.css`（设置面板新增“网络 / Network”分节及测试按钮）
-   - Rust HTTP client 初始化层（如 `reqwest` / `ureq` 加载全局 proxy 设置）
-- **处理状态**：⏳ 待排期 (`backlog`)
+  - `src/workspace/settings.rs`（新增 `Http` 结构、`ProxySupport` 枚举、`effective` 合并与已知键表登记）
+  - `src/net.rs`（新增网络层：纯函数 `parse_proxy_url`、`ProxySpec` 标准化、`build_agent`、`test_proxy`，引入 `ureq` + `rustls` + `socks-proxy`）
+  - `src/main.rs`（启动早期加载全局代理设置，经 wry `with_proxy_config` 注入 WebView2 / WKWebView / WebKitGTK 全局代理）
+  - `src/commands.rs` & `src/ipc.rs`（新增 `net.testProxy` 命令处理前端测试请求，登记 `net.` IPC 通配前缀）
+  - `src/frontend/settings.js`、`settings.css`、`i18n.js`（设置面板新增“网络 / Network”分节、代理模式联动禁用、测试连接按钮与回执展示）
+- **处理状态**：✅ 已完成 (`resolved`) 2026-09-09
+- **实现内容**：
+  1. **Schema & 合并**：`settings.rs` 新增 `http` 分类（`proxySupport`、`proxy`、`proxyStrictSSL`），保持全局限定（打开工作区文件不静默改变网络出口）；serde default 保证向后兼容。
+  2. **轻量网络层**：`net.rs` 基于 `ureq` 3.x（零 async 运行时）实现纯解析与测试客户端，支持 HTTP/HTTPS/SOCKS5 及认证；严格校验开关支持自签证书场景；纯逻辑覆盖 9 项探针单测。
+  3. **WebView 代理注入**：`main.rs` 启动时若为 `override` 模式，将规范化后的 `ProxyConfig` 经 wry `with_proxy_config` 注入各平台原生引擎，外部图片自然走代理。
+  4. **前端设置交互**：九大分类新增“网络”；代理模式非 override 时输入框与测试按钮联动禁用；测试连接支持未保存地址即时探测；中英双语与明暗主题自适应。
+  5. **验证全绿**：Rust 全量单测（含 9 项 net_probe、30 项 settings_probe）、457 项前端 Node 测试、94 项 Playwright 端到端冒烟全绿；明暗双主题截图通过。
 
 #### FEAT-004: 二进制减重——内嵌资产预压缩与体积优化（2026-09-09 放宽预算后的偿还计划）
 - **背景 / 决策来源**：v0.3.0 集成双键位方案、Key Assist 与 Vim 后，Windows 正式 MSVC 产物实测 5,695,488 字节（5.695 MB / 5.432 MiB），超出原 2–5 MB 预算。维护者决策（2026-09-09）：预算放宽为 2–8 MB 以维持发布节奏，减重作为独立事项偿还，`strip = "none"` 与零外部运行时约束不变。

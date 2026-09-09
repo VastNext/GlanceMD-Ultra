@@ -68,6 +68,14 @@
       icon: '<svg class="svg-icon nav-icon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2"></rect><line x1="2" y1="9" x2="22" y2="9"></line><polyline points="6 14 8 16 6 18"></polyline><line x1="11" y1="18" x2="15" y2="18"></line></svg>'
     },
     {
+      key: 'http',
+      label: '网络',
+      desc: 'HTTP/HTTPS/SOCKS5 代理与连接测试',
+      labelKey: 'settings.httpCategory',
+      descKey: 'settings.httpCategoryDesc',
+      icon: '<svg class="svg-icon nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>'
+    },
+    {
       key: 'keybindings',
       label: '快捷键',
       desc: '查看并修改命令快捷键',
@@ -112,7 +120,25 @@
     },
     'recovery.confirmCloseDirty': { label: '关闭未保存确认', desc: '关闭有未保存修改的标签时弹出确认' },
     'recovery.crashRecovery': { label: '崩溃恢复', desc: '定期把编辑内容写入恢复区' },
-    'recovery.createProjectSettings': { label: '自动创建项目设置', desc: '打开工作区时自动创建 .glancemd/settings.json' }
+    'recovery.createProjectSettings': { label: '自动创建项目设置', desc: '打开工作区时自动创建 .glancemd/settings.json' },
+    'http.proxySupport': {
+      label: '代理模式',
+      desc: '跟随系统代理、显式指定代理，或直连禁用',
+      labelKey: 'settings.proxySupport',
+      descKey: 'settings.proxySupportDesc'
+    },
+    'http.proxy': {
+      label: '代理服务器',
+      desc: '支持 http://、https://、socks5:// 地址，如 http://127.0.0.1:7890',
+      labelKey: 'settings.proxyUrl',
+      descKey: 'settings.proxyUrlDesc'
+    },
+    'http.proxyStrictSSL': {
+      label: '严格校验 SSL 证书',
+      desc: '关闭后跳过证书校验（仅用于自签证书/中间人代理等特殊场景）',
+      labelKey: 'settings.proxyStrictSSL',
+      descKey: 'settings.proxyStrictSSLDesc'
+    }
   };
 
   // 默认设置值（重置分类兜底）
@@ -131,7 +157,8 @@
     search: { exclude: DEFAULT_EXCLUDES.slice(), maxFileSizeMB: 5, maxResults: 2000 },
     editor: { fontSize: 14, tabSize: 4, wordWrap: true, lineNumbers: true, largeFileMB: 5 },
     window: { reuseWindowForFolder: false },
-    recovery: { confirmCloseDirty: true, crashRecovery: true, createProjectSettings: false }
+    recovery: { confirmCloseDirty: true, crashRecovery: true, createProjectSettings: false },
+    http: { proxySupport: 'off', proxy: '', proxyStrictSSL: true }
   };
 
   // 枚举键：取值清单（渲染 <select>；当前值不在清单内时补一项兜底）。
@@ -153,6 +180,11 @@
       { value: 'off', label: '关闭' },
       { value: 'afterDelay', label: '延时后保存' },
       { value: 'onFocusLost', label: '失焦时保存' }
+    ],
+    'http.proxySupport': [
+      { value: 'off', label: '直连（禁用代理）' },
+      { value: 'system', label: '跟随系统代理' },
+      { value: 'override', label: '使用下方指定代理' }
     ]
   };
 
@@ -584,6 +616,57 @@
     };
   }
 
+  // ── 网络分类：代理地址输入行（随模式联动禁用）+ 测试连接按钮 ──
+  function renderProxyRow(objHttp) {
+    var enabled = objHttp.proxySupport === 'override';
+    var m = metaOf('http', 'proxy');
+    var overridden = isOverridden('http', 'proxy');
+    var proxyValue = (objHttp.proxy !== undefined && objHttp.proxy !== null) ? String(objHttp.proxy) : '';
+    return '<div class="setting-row">'
+      + '<div class="setting-info">'
+      + '<span class="setting-label">' + esc(m.label) + (overridden ? '<em class="setting-badge">' + t('settings.projectOverridden') + '</em>' : '') + '</span>'
+      + '<span class="setting-desc">' + esc(m.desc) + '</span>'
+      + '</div>'
+      + '<div class="setting-control">'
+      + '<div class="setting-proxy-box">'
+      + '<input type="text" id="setting-proxy-url" data-setting="proxy" data-category="http"' + (enabled ? '' : ' disabled') + ' value="' + esc(proxyValue) + '" placeholder="http://127.0.0.1:7890">'
+      + '<button type="button" class="btn setting-proxy-test-btn" id="setting-proxy-test-btn"' + (enabled ? '' : ' disabled') + '>' + esc(t('settings.proxyTest')) + '</button>'
+      + '</div>'
+      + (enabled ? '' : '<span class="setting-hint">' + esc(t('settings.proxyDisabledHint')) + '</span>')
+      + '<div class="setting-proxy-result" id="setting-proxy-result"></div>'
+      + '</div>'
+      + '</div>';
+  }
+
+  function showProxyResult(el, d) {
+    if (!el) return;
+    var ok = !!(d && d.ok);
+    el.className = 'setting-proxy-result' + (ok ? ' setting-proxy-ok' : ' setting-proxy-fail');
+    el.textContent = (d && d.message) || '';
+  }
+
+  function wireProxyTest(container, objHttp) {
+    var btn = container.querySelector('#setting-proxy-test-btn');
+    if (!btn) return;
+    btn.onclick = function () {
+      var input = container.querySelector('#setting-proxy-url');
+      var result = container.querySelector('#setting-proxy-result');
+      var proxy = ((input && input.value) || '').trim();
+      if (!proxy) {
+        showProxyResult(result, { ok: false, message: t('settings.proxyTestEmpty') });
+        return;
+      }
+      var strictSsl = true;
+      var sw = container.querySelector('[data-setting="proxyStrictSSL"]');
+      if (sw && sw.type === 'checkbox') strictSsl = !!sw.checked;
+      if (result) {
+        result.className = 'setting-proxy-result setting-proxy-testing';
+        result.textContent = t('settings.proxyTesting');
+      }
+      send({ command: 'net.testProxy', proxy: proxy, strictSsl: strictSsl });
+    };
+  }
+
   // ── 设置行：左（中文标签 + 说明 + 项目覆盖徽标）/ 右（控件）──
   function rowHTML(cat, key, v) {
     if (cat === 'files' && key === 'terminalPath') {
@@ -922,6 +1005,28 @@
       enhanceSelects(body);
       return;
     }
+    if (catKey === 'http') {
+      // 网络分类专用渲染：proxy 输入框随模式联动禁用，附测试连接按钮
+      var objHttp = Object.assign({}, DEFAULT_SETTINGS.http || {}, state.effective.http || {});
+      var keysHttp = ['proxySupport', 'proxyStrictSSL'].filter(function (k) {
+        if (!q) return true;
+        var m = metaOf('http', k);
+        return (k + ' ' + m.label + ' ' + m.desc).toLowerCase().indexOf(q) >= 0;
+      });
+      var proxyVisible = !q || ('proxy ' + metaOf('http', 'proxy').label + ' ' + metaOf('http', 'proxy').desc + ' 测试连接').toLowerCase().indexOf(q) >= 0;
+      if (!keysHttp.length && !proxyVisible) {
+        html += '<p class="settings-empty">' + (q ? t('settings.noMatch') : t('settings.categoryEmpty')) + '</p>';
+      } else {
+        keysHttp.forEach(function (k) { html += rowHTML('http', k, objHttp[k]); });
+        if (proxyVisible) html += renderProxyRow(objHttp);
+        html += '<p class="settings-note">' + esc(t('settings.proxyRestartHint')) + '</p>';
+      }
+      body.innerHTML = html;
+      Array.prototype.forEach.call(p.querySelectorAll('[data-setting]'), wire);
+      enhanceSelects(body);
+      wireProxyTest(body, objHttp);
+      return;
+    }
     var obj = Object.assign({}, DEFAULT_SETTINGS[catKey] || {}, state.effective[catKey] || {});
     var keys = Object.keys(obj).filter(function (k) {
       if (catKey === 'files' && k === 'terminalArgs') return false;
@@ -1249,6 +1354,10 @@
         render();
       }
     }
+    else if (e === 'net:test-proxy-result') {
+      // FEAT-003：测试连接回执（可能晚于面板重建，元素不存在时静默忽略）
+      showProxyResult(document.getElementById('setting-proxy-result'), d);
+    }
   }
 
   if (window.Workspace && Workspace.on) {
@@ -1258,6 +1367,7 @@
     Workspace.on('workspace:settings-changed', function (d) { receive('workspace:settings-changed', d); });
     Workspace.on('workspace:terminal-list', function (d) { receive('workspace:terminal-list', d); });
     Workspace.on('workspace:cli-shim-status', function (d) { receive('workspace:cli-shim-status', d); });
+    Workspace.on('net:test-proxy-result', function (d) { receive('net:test-proxy-result', d); });
   }
 
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
