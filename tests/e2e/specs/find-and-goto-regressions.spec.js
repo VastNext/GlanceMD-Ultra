@@ -753,4 +753,101 @@ test('问题16：Ctrl+Shift+V 切换编辑预览与 Ctrl+\\ 切换分屏生效�
   await expect(page.locator('#btn-split')).not.toHaveClass(/active/);
 });
 
+test('问题17：推进到 16/54 后 Escape，点击正文移动光标再按 Ctrl+F，仍保持在 16 of 54 绝不跳回 1 of 54', async ({ page }) => {
+  const editor = page.locator('#editor');
+  const fixture54 = Array.from({ length: 54 }, (_, i) => `line ${i + 1}: is target item`).join('\n');
+  await editor.evaluate((el, val) => {
+    el.value = val;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }, fixture54);
+  await editor.focus();
+
+  // 1. 打开 Ctrl+F 搜索 target
+  await page.keyboard.press('Control+f');
+  const findInput = page.locator('#find-input');
+  await findInput.fill('target');
+
+  const findCount = page.locator('#find-count');
+  await expect(findCount).toHaveText('1 of 54');
+
+  // 2. 连续推进 15 次 Enter 到第 16 个匹配项 (16 of 54)
+  for (let i = 0; i < 15; i++) {
+    await findInput.press('Enter');
+  }
+  await expect(findCount).toHaveText('16 of 54');
+  const pos16 = await editor.evaluate(el => ({ start: el.selectionStart, end: el.selectionEnd }));
+
+  // 3. 按 Escape 关闭查找条
+  await page.keyboard.press('Escape');
+  const findBar = page.locator('#find-bar');
+  await expect(findBar).toBeHidden();
+
+  // 4. 点击正文并移动光标到文档最开头（无选区）
+  await editor.click();
+  await editor.evaluate(el => el.setSelectionRange(0, 0));
+  const curPos = await editor.evaluate(el => ({ start: el.selectionStart, end: el.selectionEnd }));
+  expect(curPos.start).toBe(0);
+  expect(curPos.end).toBe(0);
+
+  // 5. 再次按下 Ctrl+F
+  await page.keyboard.press('Control+f');
+  await expect(findBar).toBeVisible();
+  await expect(findInput).toHaveValue('target');
+
+  // 核心断言：计数器必须依然保持在 16 of 54！绝不能因为光标在开头而跳回 1 of 54！
+  await expect(findCount).toHaveText('16 of 54');
+
+  // 选区仍然停留在第 16 个匹配项
+  const reopenedPos = await editor.evaluate(el => ({ start: el.selectionStart, end: el.selectionEnd }));
+  expect(reopenedPos.start).toBe(pos16.start);
+  expect(reopenedPos.end).toBe(pos16.end);
+});
+
+test('问题18：查询词变化时从选区或光标锚点开始定位', async ({ page }) => {
+  const editor = page.locator('#editor');
+  const content = Array.from({ length: 20 }, (_, i) => `item ${i + 1}: keyword_alpha\nitem ${i + 1}: keyword_beta`).join('\n');
+  await editor.evaluate((el, val) => {
+    el.value = val;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }, content);
+  await editor.focus();
+
+  // 1. 先搜索 keyword_alpha
+  await page.keyboard.press('Control+f');
+  const findInput = page.locator('#find-input');
+  await findInput.fill('keyword_alpha');
+  const findCount = page.locator('#find-count');
+  await expect(findCount).toHaveText('1 of 20');
+
+  // 2. 关闭搜索框
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#find-bar')).toBeHidden();
+
+  // 3. 在正文中选中第 10 处 keyword_beta（位置偏后）
+  const betaMatches = await editor.evaluate(() => {
+    const text = document.getElementById('editor').value;
+    const list = [];
+    let idx = 0;
+    while ((idx = text.indexOf('keyword_beta', idx)) !== -1) {
+      list.push({ start: idx, end: idx + 'keyword_beta'.length });
+      idx += 'keyword_beta'.length;
+    }
+    return list;
+  });
+  expect(betaMatches.length).toBe(20);
+  const match10 = betaMatches[9]; // 第 10 处
+  await editor.evaluate((el, m) => el.setSelectionRange(m.start, m.end), match10);
+
+  // 4. 按 Ctrl+F，词变成 keyword_beta，必须精确命中第 10 项 (10 of 20)
+  await page.keyboard.press('Control+f');
+  await expect(page.locator('#find-bar')).toBeVisible();
+  await expect(findInput).toHaveValue('keyword_beta');
+  await expect(findCount).toHaveText('10 of 20');
+
+  const selPos = await editor.evaluate(el => ({ start: el.selectionStart, end: el.selectionEnd }));
+  expect(selPos.start).toBe(match10.start);
+  expect(selPos.end).toBe(match10.end);
+});
+
+
 

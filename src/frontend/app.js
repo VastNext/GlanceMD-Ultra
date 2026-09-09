@@ -840,6 +840,7 @@ function openFind(options) {
   var editor = document.getElementById('editor');
   var anchorStart = null;
   var anchorEnd = null;
+  var preserveCurrent = false;
   findState.incremental = false;
   bar.classList.add('open');
   findState.open = true;
@@ -852,8 +853,11 @@ function openFind(options) {
       anchorStart = editor.selectionStart;
       anchorEnd = editor.selectionEnd;
     } else {
-      input.value = findState.lastQuery || input.value || '';
-      if (editor) {
+      var candidateQuery = findState.lastQuery || input.value || '';
+      input.value = candidateQuery;
+      if (candidateQuery && candidateQuery === findState.lastQuery && findState.lastMatch) {
+        preserveCurrent = true;
+      } else if (editor) {
         anchorStart = editor.selectionStart;
         anchorEnd = editor.selectionEnd;
       }
@@ -880,7 +884,7 @@ function openFind(options) {
   input.setSelectionRange(input.value.length, input.value.length);
   findState.lastQuery = input.value;
   if (input.value) {
-    doFind(input.value, { preserveFocus: true, anchorStart: anchorStart, anchorEnd: anchorEnd });
+    doFind(input.value, { preserveFocus: true, anchorStart: anchorStart, anchorEnd: anchorEnd, preserveCurrent: preserveCurrent });
     if (findState.matches.length > 0 && findState.current >= 0) {
       showMatchBadge(findState.current, findState.matches.length);
     }
