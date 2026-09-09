@@ -149,6 +149,18 @@
 
   /* ── 各设置项落地 ── */
 
+  function updateWordWrapButton(on) {
+    var btn = document.getElementById('btn-word-wrap');
+    if (!btn) return;
+    var isOn = Boolean(on);
+    btn.classList.toggle('active', isOn);
+    btn.setAttribute('aria-pressed', isOn ? 'true' : 'false');
+    var t = window.I18n && typeof window.I18n.t === 'function' ? window.I18n.t : function(k) { return k; };
+    var title = isOn ? t('toolbar.wordWrapOn') : t('toolbar.wordWrapOff');
+    btn.setAttribute('title', title);
+    btn.setAttribute('aria-label', title);
+  }
+
   // wordWrap：切 wrap 属性（soft/off）与 .wrap-off 类。
   // 注意：保留 selection 锚点，不重写 editor.value，防止光标丢失或跳回开头
   function applyWordWrap(on) {
@@ -167,6 +179,7 @@
       editor.setSelectionRange(selStart, selEnd);
     }
     syncGutter();
+    updateWordWrapButton(on);
   }
 
   // lineNumbers：行号槽显隐 + 立即同步一次内容。
@@ -358,6 +371,24 @@
     };
   }
 
+  // 局部更新全局设置并持久化落盘
+  function patch(partial) {
+    var cur = get();
+    var merged = JSON.parse(JSON.stringify(cur));
+    if (partial) {
+      Object.keys(partial).forEach(function (sec) {
+        if (typeof partial[sec] === 'object' && partial[sec] !== null && !Array.isArray(partial[sec])) {
+          merged[sec] = Object.assign({}, cur[sec], partial[sec]);
+        } else {
+          merged[sec] = partial[sec];
+        }
+      });
+    }
+    latest = merged;
+    apply(merged, false);
+    send({ command: 'workspace.settings.set-global', data: JSON.stringify(merged) });
+  }
+
   // 开机即生效：先用内置默认值立即生效一次（避免等待回执期间行号槽隐藏），再拉一次有效设置并订阅后续变更。
   function init() {
     apply(DEFAULTS);
@@ -368,6 +399,12 @@
       });
       window.Workspace.on('workspace:settings-changed', requestEffective);
       window.Workspace.on('workspace:opened', requestEffective);
+    }
+    if (typeof window.addEventListener === 'function') {
+      window.addEventListener('i18n-changed', function () {
+        var eff = get();
+        updateWordWrapButton(eff.editor && eff.editor.wordWrap !== false);
+      });
     }
     if (typeof window.setInterval === 'function') {
       window.setInterval(function () {
@@ -392,10 +429,12 @@
 
   window.SettingsApply = {
     apply: apply,
+    patch: patch,
     applyTheme: applyTheme,
     applyEditorFontSize: applyEditorFontSize,
     editorLineHeightPx: editorLineHeightPx,
     applyWordWrap: applyWordWrap,
+    updateWordWrapButton: updateWordWrapButton,
     applyLineNumbers: applyLineNumbers,
     get: get,
     init: init,

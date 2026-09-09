@@ -419,13 +419,21 @@
 
   function toggleEditorWrap(force) {
     if (!editor) return false;
-    var isCurrentlyWrapping = typeof editor.getAttribute === 'function'
-      ? (editor.getAttribute('wrap') !== 'off' && (!editor.classList || !editor.classList.contains('wrap-off')))
-      : true;
+    var isCurrentlyWrapping = true;
+    if (window.SettingsApply && typeof window.SettingsApply.get === 'function') {
+      var eff = window.SettingsApply.get();
+      if (eff && eff.editor && typeof eff.editor.wordWrap === 'boolean') {
+        isCurrentlyWrapping = eff.editor.wordWrap;
+      }
+    } else if (typeof editor.getAttribute === 'function') {
+      isCurrentlyWrapping = (editor.getAttribute('wrap') !== 'off' && (!editor.classList || !editor.classList.contains('wrap-off')));
+    }
     var nextWrap = force !== undefined ? Boolean(force) : !isCurrentlyWrapping;
     var savedOffset = (editor && typeof editor.selectionStart === 'number') ? editor.selectionStart : 0;
 
-    if (window.SettingsApply && typeof window.SettingsApply.applyWordWrap === 'function') {
+    if (window.SettingsApply && typeof window.SettingsApply.patch === 'function') {
+      window.SettingsApply.patch({ editor: { wordWrap: nextWrap } });
+    } else if (window.SettingsApply && typeof window.SettingsApply.applyWordWrap === 'function') {
       window.SettingsApply.applyWordWrap(nextWrap);
     } else {
       var wrapAttr = nextWrap ? 'soft' : 'off';
@@ -439,6 +447,9 @@
       }
       if (window.SettingsApply && typeof window.SettingsApply.syncGutter === 'function') {
         window.SettingsApply.syncGutter();
+      }
+      if (window.SettingsApply && typeof window.SettingsApply.updateWordWrapButton === 'function') {
+        window.SettingsApply.updateWordWrapButton(nextWrap);
       }
     }
 
@@ -454,8 +465,13 @@
     if (typeof window.updateEditorFindMarkers === 'function') {
       window.updateEditorFindMarkers();
     }
+    if (typeof window.showAppToast === 'function') {
+      var t = window.I18n && typeof window.I18n.t === 'function' ? window.I18n.t : function(k) { return k; };
+      window.showAppToast(nextWrap ? t('toast.wordWrapOn') : t('toast.wordWrapOff'), 1200);
+    }
     return nextWrap;
   }
+  window.toggleEditorWrap = toggleEditorWrap;
 
   function toggleVimMode(force) {
     var next = force !== undefined ? Boolean(force) : !vimEnabled;

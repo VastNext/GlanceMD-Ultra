@@ -109,7 +109,24 @@
   function addComment() { return transact(function(el){var s=el.selectionStart,e=el.selectionEnd,v=el.value.slice(s,e);replace(el,s,e,'<!-- '+v+' -->',s,s+v.length+9);}); }
   function removeComment() { return transact(function(el){var s=el.selectionStart,e=el.selectionEnd,v=el.value.slice(s,e),m=v.match(/^\s*<!--\s?([\s\S]*?)\s?-->\s*$/);if(!m)return;replace(el,s,e,m[1],s,s+m[1].length);}); }
   function toggleComment() { var el=editor(); if(!el)return false; var v=el.value.slice(el.selectionStart,el.selectionEnd); return /^\s*<!--[\s\S]*-->\s*$/.test(v) ? removeComment() : addComment(); }
-  function toggleWrap() { var el=editor(); if(!el)return false; var off=el.getAttribute('wrap')==='off'; el.setAttribute('wrap',off?'soft':'off'); el.classList.toggle('wrap-off',!off); return true; }
+  function toggleWrap() {
+    if (typeof root.toggleEditorWrap === 'function') {
+      root.toggleEditorWrap();
+      return true;
+    }
+    if (root.SettingsApply && typeof root.SettingsApply.patch === 'function') {
+      var cur = root.SettingsApply.get();
+      var next = !(cur && cur.editor && cur.editor.wordWrap);
+      root.SettingsApply.patch({ editor: { wordWrap: next } });
+      return true;
+    }
+    var el = editor();
+    if (!el) return false;
+    var off = el.getAttribute('wrap') === 'off';
+    el.setAttribute('wrap', off ? 'soft' : 'off');
+    el.classList.toggle('wrap-off', !off);
+    return true;
+  }
   function nativeEdit(command) { var el=editor(); if(!el)return false; el.focus(); try{return document.execCommand(command);}catch(e){return false;} }
   function selectAll() { var el=editor(); if(!el)return false; el.focus(); el.setSelectionRange(0,el.value.length); return true; }
 

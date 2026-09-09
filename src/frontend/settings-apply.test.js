@@ -102,7 +102,8 @@ function load() {
   const editor = makeElement('editor');
   const gutter = makeElement('editor-gutter');
   const container = makeElement('editor-container');
-  const byId = { editor, 'editor-gutter': gutter, 'editor-container': container };
+  const btnWordWrap = makeElement('btn-word-wrap');
+  const byId = { editor, 'editor-gutter': gutter, 'editor-container': container, 'btn-word-wrap': btnWordWrap };
 
   const documentElement = {
     dataset: {},
@@ -138,7 +139,7 @@ function load() {
   vm.runInNewContext(fs.readFileSync(SETTINGS_APPLY_JS, 'utf8'), ctx, {
     filename: 'settings-apply.js',
   });
-  return { ctx, vars, ipcMessages, subs, editor, gutter, container };
+  return { ctx, vars, ipcMessages, subs, editor, gutter, container, btnWordWrap };
 }
 
 /* ── get() 默认值与缓存 ── */
@@ -379,4 +380,33 @@ test('editor.js Tab 插入空格数读 SettingsApply：缺省 4、设置 2 生�
   pressTab(h);
   assert.equal(h.editor.value, 'ab      ', '再插入 2 空格');
   assert.equal(h.editor.selectionStart, 8);
+});
+
+test('patch 局部更新设置并发送 workspace.settings.set-global，且乐观生效', () => {
+  const h = load();
+  h.ctx.SettingsApply.patch({ editor: { wordWrap: false } });
+
+  // 1. 内存中立即更新
+  assert.equal(h.ctx.SettingsApply.get().editor.wordWrap, false);
+  // 2. DOM wrap 立即生效
+  assert.equal(h.editor.getAttribute('wrap'), 'off');
+  assert.equal(h.editor.classList.contains('wrap-off'), true);
+  // 3. 按钮状态联动
+  assert.equal(h.btnWordWrap.classList.contains('active'), false);
+  // 4. 发送 set-global 消息
+  const lastMsg = h.ipcMessages[h.ipcMessages.length - 1];
+  assert.equal(lastMsg.command, 'workspace.settings.set-global');
+  const payload = JSON.parse(lastMsg.data);
+  assert.equal(payload.editor.wordWrap, false);
+});
+
+test('applyWordWrap 驱动按钮 active 状态与 title/aria', () => {
+  const h = load();
+  h.ctx.SettingsApply.applyWordWrap(true);
+  assert.equal(h.btnWordWrap.classList.contains('active'), true);
+  assert.equal(h.btnWordWrap.getAttribute('aria-pressed'), 'true');
+
+  h.ctx.SettingsApply.applyWordWrap(false);
+  assert.equal(h.btnWordWrap.classList.contains('active'), false);
+  assert.equal(h.btnWordWrap.getAttribute('aria-pressed'), 'false');
 });

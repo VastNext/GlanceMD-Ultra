@@ -230,6 +230,54 @@ html, body {
   background: var(--heading-glow);
 }
 
+/* Mode Segmented Pill Switcher */
+.mode-segmented {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(128, 128, 128, 0.08);
+  border: 1px solid var(--border-subtle, rgba(128, 128, 128, 0.16));
+  border-radius: 7px;
+  padding: 1px;
+  gap: 1px;
+  box-sizing: border-box;
+}
+
+.mode-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: var(--text-dim);
+  width: 25px;
+  height: 24px;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.mode-seg-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+.mode-seg-btn:hover {
+  color: var(--text);
+  background: rgba(128, 128, 128, 0.1);
+}
+
+.mode-seg-btn.active {
+  color: var(--mk-heading);
+  background: var(--heading-glow);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.mode-seg-btn.active:hover {
+  color: var(--mk-link-hover);
+  background: var(--heading-glow);
+}
+
 /* Separator dot between groups */
 .titlebar-sep {
   width: 3px;

@@ -263,6 +263,7 @@ var TabManager = (function() {
       if (previewContainer) previewContainer.classList.remove('active');
       document.body.classList.remove('split-mode');
       if (imageContainer) imageContainer.classList.add('active');
+      if (typeof updateModeSwitchUI === 'function') updateModeSwitchUI('image');
 
       if (typeof showImageTab === 'function') {
         showImageTab(tab);
@@ -292,6 +293,7 @@ var TabManager = (function() {
       if (btnToggle) btnToggle.classList.remove('active');
       if (iconPreview) iconPreview.style.display = 'none';
       if (iconEdit) iconEdit.style.display = '';
+      if (typeof updateModeSwitchUI === 'function') updateModeSwitchUI('split');
       document.getElementById('status-mode').textContent = 'SPLIT';
       editor.scrollTop = tab.scrollTop;
       editor.selectionStart = tab.cursorStart;
@@ -319,6 +321,7 @@ var TabManager = (function() {
         if (btnToggle) btnToggle.classList.remove('active');
         if (iconPreview) iconPreview.style.display = '';
         if (iconEdit) iconEdit.style.display = 'none';
+        if (typeof updateModeSwitchUI === 'function') updateModeSwitchUI('edit');
         document.getElementById('status-mode').textContent = 'EDIT';
         editor.scrollTop = tab.scrollTop;
         editor.selectionStart = tab.cursorStart;
@@ -330,6 +333,7 @@ var TabManager = (function() {
         if (btnToggle) btnToggle.classList.add('active');
         if (iconPreview) iconPreview.style.display = 'none';
         if (iconEdit) iconEdit.style.display = '';
+        if (typeof updateModeSwitchUI === 'function') updateModeSwitchUI('preview');
         document.getElementById('status-mode').textContent = 'PREVIEW';
         if (!canRenderLive(tab.content)) {
           document.getElementById('preview').textContent = t('tabs.largeFilePreviewDisabled');

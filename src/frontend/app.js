@@ -278,6 +278,44 @@ function showImageTab(tab) {
   img.src = url;
 }
 
+// Mode Switch UI 联动（微型双格胶囊开关）
+function updateModeSwitchUI(mode) {
+  var segEdit = document.getElementById('btn-mode-edit');
+  var segPreview = document.getElementById('btn-mode-preview');
+  var isSplit = typeof splitMode !== 'undefined' && splitMode;
+  if (segEdit && segPreview) {
+    if (isSplit) {
+      segEdit.classList.add('active');
+      segPreview.classList.add('active');
+    } else if (mode === 'preview') {
+      segEdit.classList.remove('active');
+      segPreview.classList.add('active');
+    } else {
+      segEdit.classList.add('active');
+      segPreview.classList.remove('active');
+    }
+  }
+  var btnToggle = document.getElementById('btn-toggle');
+  if (btnToggle) {
+    btnToggle.classList.toggle('active', mode === 'preview');
+  }
+}
+window.updateModeSwitchUI = updateModeSwitchUI;
+
+var appToastTimer = null;
+function showAppToast(text, duration) {
+  var toast = (typeof $ !== 'undefined' && $.zoomToast) || document.getElementById('zoom-toast');
+  if (!toast) return;
+  toast.textContent = text;
+  toast.classList.add('visible');
+  if (appToastTimer) clearTimeout(appToastTimer);
+  appToastTimer = setTimeout(function () {
+    toast.classList.remove('visible');
+    appToastTimer = null;
+  }, duration || 1200);
+}
+window.showAppToast = showAppToast;
+
 // Mode Toggle
 function toggleMode() {
   if (currentMode === 'image') return;
@@ -312,9 +350,10 @@ function toggleMode() {
     ($.previewContainer || document.getElementById('preview-container')).classList.add('active');
     document.getElementById('btn-toggle').classList.add('active');
     document.getElementById('status-mode').textContent = 'PREVIEW';
-    iconPreview.style.display = 'none';
-    iconEdit.style.display = '';
+    if (iconPreview) iconPreview.style.display = 'none';
+    if (iconEdit) iconEdit.style.display = '';
     currentMode = 'preview';
+    updateModeSwitchUI('preview');
     setTimeout(function() {
       if (!selectedText || !selectInPreview(selectedText, scrollRatio)) {
         if (window.PreviewNavigation && typeof window.PreviewNavigation.scrollToRatio === 'function') {
@@ -338,9 +377,10 @@ function toggleMode() {
     ($.editorContainer || document.getElementById('editor-container')).classList.add('active');
     document.getElementById('btn-toggle').classList.remove('active');
     document.getElementById('status-mode').textContent = 'EDIT';
-    iconPreview.style.display = '';
-    iconEdit.style.display = 'none';
+    if (iconPreview) iconPreview.style.display = '';
+    if (iconEdit) iconEdit.style.display = 'none';
     currentMode = 'edit';
+    updateModeSwitchUI('edit');
     var editor = $.editor || document.getElementById('editor');
     editor.focus();
     if (!selectedText || !selectInEditor(selectedText, scrollRatio)) {
@@ -388,8 +428,9 @@ function toggleSplit() {
     currentMode = 'edit';
     document.getElementById('btn-toggle').classList.remove('active');
     document.getElementById('status-mode').textContent = 'EDIT';
-    iconPreview.style.display = '';
-    iconEdit.style.display = 'none';
+    if (iconPreview) iconPreview.style.display = '';
+    if (iconEdit) iconEdit.style.display = 'none';
+    updateModeSwitchUI('edit');
     ($.editor || document.getElementById('editor')).focus();
   } else {
     splitMode = true;
@@ -414,8 +455,9 @@ function toggleSplit() {
     currentMode = 'edit';
     document.getElementById('btn-toggle').classList.remove('active');
     document.getElementById('status-mode').textContent = 'SPLIT';
-    iconPreview.style.display = '';
-    iconEdit.style.display = 'none';
+    if (iconPreview) iconPreview.style.display = '';
+    if (iconEdit) iconEdit.style.display = 'none';
+    updateModeSwitchUI('split');
     document.getElementById('editor').focus();
   }
 }
@@ -1649,10 +1691,50 @@ document.getElementById('btn-save').addEventListener('click', function() {
   if (window.Commands && Commands.has('file.save')) Commands.run('file.save');
   else doSave();
 });
-document.getElementById('btn-toggle').addEventListener('click', function() {
-  if (window.Commands && Commands.has('editor.togglePreview')) Commands.run('editor.togglePreview');
-  else toggleMode();
-});
+var btnToggleEl = document.getElementById('btn-toggle');
+if (btnToggleEl) {
+  btnToggleEl.addEventListener('click', function() {
+    if (window.Commands && Commands.has('editor.togglePreview')) Commands.run('editor.togglePreview');
+    else toggleMode();
+  });
+}
+var btnModeEdit = document.getElementById('btn-mode-edit');
+if (btnModeEdit) {
+  btnModeEdit.addEventListener('click', function() {
+    if (currentMode === 'image') return;
+    if (splitMode) {
+      toggleSplit();
+    } else if (currentMode === 'preview') {
+      if (window.Commands && Commands.has('editor.togglePreview')) Commands.run('editor.togglePreview');
+      else toggleMode();
+    } else {
+      var ed = (typeof $ !== 'undefined' && $.editor) || document.getElementById('editor');
+      if (ed) ed.focus();
+    }
+  });
+}
+var btnModePreview = document.getElementById('btn-mode-preview');
+if (btnModePreview) {
+  btnModePreview.addEventListener('click', function() {
+    if (currentMode === 'image') return;
+    if (splitMode) {
+      toggleSplit();
+    } else if (currentMode === 'edit') {
+      if (window.Commands && Commands.has('editor.togglePreview')) Commands.run('editor.togglePreview');
+      else toggleMode();
+    } else {
+      if (window.Commands && Commands.has('editor.togglePreview')) Commands.run('editor.togglePreview');
+      else toggleMode();
+    }
+  });
+}
+var btnWordWrap = document.getElementById('btn-word-wrap');
+if (btnWordWrap) {
+  btnWordWrap.addEventListener('click', function() {
+    if (window.Commands && Commands.has('editor.toggleWrap')) Commands.run('editor.toggleWrap');
+    else if (typeof toggleEditorWrap === 'function') toggleEditorWrap();
+  });
+}
 document.getElementById('btn-split').addEventListener('click', function() {
   if (window.Commands && Commands.has('editor.toggleSplit')) Commands.run('editor.toggleSplit');
   else toggleSplit();
