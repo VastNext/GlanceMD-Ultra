@@ -596,15 +596,16 @@
 
     render();
 
-    // 聚焦输入框
+    // 聚焦输入框：同步聚焦优先，微延迟补强
+    if (dom.searchInput && typeof dom.searchInput.focus === 'function') {
+      try { dom.searchInput.focus(); } catch (e) {}
+    }
     if (typeof setTimeout === 'function') {
       setTimeout(function () {
-        if (dom.searchInput && typeof dom.searchInput.focus === 'function') {
-          dom.searchInput.focus();
+        if (state.isOpen && dom.searchInput && typeof dom.searchInput.focus === 'function') {
+          try { dom.searchInput.focus(); } catch (e) {}
         }
       }, 10);
-    } else if (dom.searchInput && typeof dom.searchInput.focus === 'function') {
-      dom.searchInput.focus();
     }
 
     return true;
@@ -665,6 +666,12 @@
 
   if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
     document.addEventListener('DOMContentLoaded', initCommands);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && state.isOpen) {
+        e.preventDefault();
+        close();
+      }
+    });
   } else {
     initCommands();
   }
