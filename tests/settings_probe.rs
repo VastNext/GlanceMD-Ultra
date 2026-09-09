@@ -12,16 +12,17 @@
 #[path = "../src/workspace/settings.rs"]
 mod settings;
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use settings::{
     effective, global_settings_path, is_overridden, load_global, load_global_checked, load_project,
     load_project_checked, migrate, migrate_checked, project_settings_path, save, save_project,
-    Appearance, AppearancePatch, AutoSave, Editor, EditorPatch, Files, FilesPatch, Keybindings,
-    KeybindingsPatch, LoadedSettings, MigrateError, Recovery, RecoveryPatch, Search, SearchPatch,
-    Settings, SettingsPatch, Theme, Watching, WatchingPatch, PROJECT_SETTINGS_DIR, SCHEMA_VERSION,
-    SETTINGS_FILE_NAME,
+    Appearance, AppearancePatch, AutoSave, Editor, EditorPatch, Files, FilesPatch, Keybinding,
+    Keybindings, KeybindingsPatch, LoadedSettings, MigrateError, Recovery, RecoveryPatch, Search,
+    SearchPatch, Settings, SettingsPatch, Theme, Watching, WatchingPatch, PROJECT_SETTINGS_DIR,
+    SCHEMA_VERSION, SETTINGS_FILE_NAME,
 };
 
 /// 测试临时目录计数器（进程内唯一，避免并行测试互相覆盖）。
@@ -54,8 +55,10 @@ fn write_json(path: &Path, text: &str) {
 #[test]
 fn 默认值与主计划及基线一致() {
     let s = Settings::default();
-    assert_eq!(s.version, 1);
+    assert_eq!(s.version, 2);
     assert!(!s.window.reuse_window_for_folder);
+    assert_eq!(s.keybindings.active_scheme, "ultra.eclipse");
+    assert!(s.keybindings.schemes.is_empty());
     // 阶段 1：默认可见扩展名与排除清单
     assert_eq!(
         s.files.visible_exts,
@@ -101,7 +104,7 @@ fn 默认值与主计划及基线一致() {
     // 侧栏基准字号默认 14（换算比例后视觉 ≈ 基线树行 13px）
     assert_eq!(s.appearance.sidebar_font_size, 14);
     assert_eq!(s.appearance.outline_side, "right");
-    assert!(s.keybindings.overrides.is_empty());
+    assert!(s.keybindings.schemes.is_empty());
     assert!(s.recovery.confirm_close_dirty);
     assert!(s.recovery.crash_recovery);
     assert!(!s.recovery.create_project_settings);
@@ -187,7 +190,11 @@ fn v1_部分文档_缺省字段由默认值填充() {
         r#"{ "version": 1, "appearance": { "theme": "dark" } }"#,
     );
     let loaded = load_global_checked(&dir);
-    assert!(loaded.warnings.is_empty());
+    assert!(
+        loaded.warnings.iter().any(|w| w.contains("v1→v2")),
+        "{:?}",
+        loaded.warnings
+    );
     assert_eq!(loaded.settings.appearance.theme, Theme::Dark);
     // 其余字段取默认
     assert_eq!(loaded.settings.editor, Editor::default());
@@ -237,15 +244,21 @@ fn keybindings_内层键是命令_id_不产生未知键告警() {
         r#"{ "version": 1, "keybindings": { "overrides": { "file.save": "Ctrl+Alt+S" } } }"#,
     );
     let loaded = load_global_checked(&dir);
-    assert!(loaded.warnings.is_empty(), "{:?}", loaded.warnings);
-    assert_eq!(
+    assert!(
         loaded
-            .settings
-            .keybindings
-            .overrides
-            .get("file.save")
-            .map(String::as_str),
-        Some("Ctrl+Alt+S")
+            .warnings
+            .iter()
+            .any(|w| w.contains("keybindings.overrides") && w.contains("ultra.eclipse")),
+        "{:?}",
+        loaded.warnings
+    );
+    assert_eq!(
+        loaded.settings.keybindings.schemes["ultra.eclipse"],
+        vec![Keybinding {
+            command_id: "file.save".to_string(),
+            sequence: "Ctrl+Alt+S".to_string(),
+            ..Keybinding::default()
+        }]
     );
     cleanup(&dir);
 }
@@ -254,10 +267,11 @@ fn keybindings_内层键是命令_id_不产生未知键告警() {
 
 #[test]
 fn 高于当前版本的文档_迁移报错_加载回退默认并告警() {
-    let raw = serde_json::json!({ "version": 2, "appearance": { "theme": "dark" } });
+    let future = SCHEMA_VERSION + 1;
+    let raw = serde_json::json!({ "version": future, "appearance": { "theme": "dark" } });
     match migrate(&raw) {
         Err(MigrateError::UnsupportedVersion { found, current }) => {
-            assert_eq!(found, 2);
+            assert_eq!(found, future);
             assert_eq!(current, SCHEMA_VERSION);
         }
         other => panic!("期望 UnsupportedVersion，实际 {other:?}"),
@@ -343,7 +357,14 @@ fn 全字段v1文档_迁移无告警且逐字段相等_守护已知键表不失�
         }
     });
     let migrated = migrate_checked(&raw).unwrap();
-    assert!(migrated.warnings.is_empty(), "{:?}", migrated.warnings);
+    assert!(
+        migrated
+            .warnings
+            .iter()
+            .any(|w| w.contains("keybindings.overrides") && w.contains("ultra.eclipse")),
+        "{:?}",
+        migrated.warnings
+    );
     assert_eq!(
         migrated.settings,
         Settings {
@@ -380,9 +401,18 @@ fn 全字段v1文档_迁移无告警且逐字段相等_守护已知键表不失�
                 large_file_mb: 20,
             },
             keybindings: Keybindings {
-                overrides: [("file.save".to_string(), "Ctrl+Alt+S".to_string())]
-                    .into_iter()
-                    .collect(),
+                active_scheme: "ultra.eclipse".to_string(),
+                schemes: [(
+                    "ultra.eclipse".to_string(),
+                    vec![Keybinding {
+                        command_id: "file.save".to_string(),
+                        sequence: "Ctrl+Alt+S".to_string(),
+                        ..Keybinding::default()
+                    }]
+                )]
+                .into_iter()
+                .collect(),
+                overrides: BTreeMap::new(),
             },
             recovery: Recovery {
                 confirm_close_dirty: false,
@@ -461,17 +491,18 @@ fn 嵌套vec与map为整体覆盖_不做并集合并() {
     // 快捷键覆盖同理：整体替换
     let project = SettingsPatch {
         keybindings: Some(KeybindingsPatch {
-            overrides: Some(
-                [("worktree.custom".to_string(), "Ctrl+Alt+K".to_string())]
-                    .into_iter()
-                    .collect(),
-            ),
+            active_scheme: Some("custom".to_string()),
+            schemes: Some(BTreeMap::new()),
+            overrides: None,
         }),
         ..SettingsPatch::default()
     };
     let merged = effective(&global, &project);
-    assert_eq!(merged.keybindings.overrides.len(), 1);
-    assert!(merged.keybindings.overrides.contains_key("worktree.custom"));
+    assert_eq!(
+        merged.keybindings.active_scheme,
+        Settings::default().keybindings.active_scheme
+    );
+    assert!(merged.keybindings.schemes.is_empty());
 }
 
 #[test]
@@ -559,12 +590,25 @@ fn v1_roundtrip_自定义设置_保存加载零漂移() {
             large_file_mb: 12,
         },
         keybindings: Keybindings {
-            overrides: [
-                ("file.save".to_string(), "Ctrl+Alt+S".to_string()),
-                ("workspace.open".to_string(), "Ctrl+Shift+O".to_string()),
-            ]
+            active_scheme: "ultra.eclipse".to_string(),
+            schemes: [(
+                "ultra.eclipse".to_string(),
+                vec![
+                    Keybinding {
+                        command_id: "file.save".to_string(),
+                        sequence: "Ctrl+Alt+S".to_string(),
+                        ..Keybinding::default()
+                    },
+                    Keybinding {
+                        command_id: "workspace.open".to_string(),
+                        sequence: "Ctrl+Shift+O".to_string(),
+                        ..Keybinding::default()
+                    },
+                ],
+            )]
             .into_iter()
             .collect(),
+            overrides: BTreeMap::new(),
         },
         recovery: Recovery {
             confirm_close_dirty: false,
@@ -612,7 +656,11 @@ fn 项目设置_无文件返回none_有文件解析为补丁() {
         r#"{ "version": 1, "editor": { "fontSize": 22 } }"#,
     );
     let loaded = load_project_checked(&dir).unwrap();
-    assert!(loaded.warnings.is_empty(), "{:?}", loaded.warnings);
+    assert!(
+        loaded.warnings.iter().any(|w| w.contains("v1→v2")),
+        "{:?}",
+        loaded.warnings
+    );
     assert_eq!(loaded.patch.editor.as_ref().unwrap().font_size, Some(22));
     // 未出现的类别为 None（沿用全局）
     assert!(loaded.patch.appearance.is_none());
@@ -663,13 +711,18 @@ fn 项目设置_补丁保存加载roundtrip且只落盘覆盖项() {
 #[test]
 fn 项目设置_版本过新_整体忽略并告警() {
     let dir = temp_dir("project-future");
+    let future = SCHEMA_VERSION + 1;
     write_json(
         &project_settings_path(&dir),
-        r#"{ "version": 2, "editor": { "fontSize": 30 } }"#,
+        &format!(r#"{{ "version": {future}, "editor": {{ "fontSize": 30 }} }}"#),
     );
     let loaded = load_project_checked(&dir).unwrap();
     assert_eq!(loaded.patch, SettingsPatch::default());
-    assert!(loaded.warnings[0].contains("2"), "{}", loaded.warnings[0]);
+    assert!(
+        loaded.warnings[0].contains(&future.to_string()),
+        "{}",
+        loaded.warnings[0]
+    );
     // 损坏 JSON → 空补丁 + 告警
     let dir2 = temp_dir("project-corrupt");
     write_json(&project_settings_path(&dir2), "[[[");

@@ -85,6 +85,12 @@ jobs:
       - name: 构建发行版
         run: cargo build --release --target ${{ matrix.target }}
 
+      - name: 记录原生二进制体积
+        shell: bash
+        env:
+          BINARY: ${{ matrix.binary }}
+        run: python -c 'import os; from pathlib import Path; p = Path(os.environ["BINARY"]); n = p.stat().st_size; print(f"{p.name}: {n} bytes / {n / 1000000:.3f} MB / {n / 1048576:.3f} MiB")'
+
       - name: 安装打包工具
         if: matrix.formats != ''
         run: cargo install cargo-packager --version 0.11.8 --locked

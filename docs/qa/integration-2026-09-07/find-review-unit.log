@@ -1,0 +1,322 @@
+TAP version 13
+# Subtest: 装载后暴露 window.Commands 并注册阶段 0 内置命令
+ok 1 - 装载后暴露 window.Commands 并注册阶段 0 内置命令
+  ---
+  duration_ms: 7.9788
+  type: 'test'
+  ...
+# Subtest: run(file.open) 发送与原按钮等效的 open_file 上行消息
+ok 2 - run(file.open) 发送与原按钮等效的 open_file 上行消息
+  ---
+  duration_ms: 3.9286
+  type: 'test'
+  ...
+# Subtest: 导航命令注册并可在模块延迟加载后执行
+ok 3 - 导航命令注册并可在模块延迟加载后执行
+  ---
+  duration_ms: 2.7765
+  type: 'test'
+  ...
+# Subtest: register 保存 category, description, visibleInPalette 与 isEnabled 元数据
+ok 4 - register 保存 category, description, visibleInPalette 与 isEnabled 元数据
+  ---
+  duration_ms: 1.9011
+  type: 'test'
+  ...
+# Subtest: run(workspace.open) 有路径时直接打开，无路径时请求原生目录选择器
+ok 5 - run(workspace.open) 有路径时直接打开，无路径时请求原生目录选择器
+  ---
+  duration_ms: 5.8427
+  type: 'test'
+  ...
+# Subtest: 未知命令与重复注册都报错
+ok 6 - 未知命令与重复注册都报错
+  ---
+  duration_ms: 2.553
+  type: 'test'
+  ...
+# Subtest: register 后可 run，unregister 后不可再 run
+ok 7 - register 后可 run，unregister 后不可再 run
+  ---
+  duration_ms: 2.1065
+  type: 'test'
+  ...
+# Subtest: 上方文件夹按钮经命令表请求打开项目目录
+ok 8 - 上方文件夹按钮经命令表请求打开项目目录
+  ---
+  duration_ms: 2.1838
+  type: 'test'
+  ...
+# Subtest: 接管打开按钮：克隆替换原节点，旧 app.js 绑定不再触发
+ok 9 - 接管打开按钮：克隆替换原节点，旧 app.js 绑定不再触发
+  ---
+  duration_ms: 3.5458
+  type: 'test'
+  ...
+# Subtest: 独立打开文件按钮经 file.open 命令工作
+ok 10 - 独立打开文件按钮经 file.open 命令工作
+  ---
+  duration_ms: 3.9595
+  type: 'test'
+  ...
+# Subtest: settings.toggle 可执行并由按钮触发 SettingsUI.toggle
+ok 11 - settings.toggle 可执行并由按钮触发 SettingsUI.toggle
+  ---
+  duration_ms: 2.0313
+  type: 'test'
+  ...
+# Subtest: 按钮不存在时优雅跳过且命令表仍可用
+ok 12 - 按钮不存在时优雅跳过且命令表仍可用
+  ---
+  duration_ms: 1.9369
+  type: 'test'
+  ...
+# Subtest: editor commands register complete Eclipse edit command set
+ok 13 - editor commands register complete Eclipse edit command set
+  ---
+  duration_ms: 7.524
+  type: 'test'
+  ...
+# Subtest: delete line and undo redo roundtrip
+ok 14 - delete line and undo redo roundtrip
+  ---
+  duration_ms: 4.1935
+  type: 'test'
+  ...
+# Subtest: move and copy selected lines
+ok 15 - move and copy selected lines
+  ---
+  duration_ms: 2.2337
+  type: 'test'
+  ...
+# Subtest: uppercase lowercase and comments preserve selections
+ok 16 - uppercase lowercase and comments preserve selections
+  ---
+  duration_ms: 2.2716
+  type: 'test'
+  ...
+# Subtest: scroll line keeps selection unchanged
+ok 17 - scroll line keeps selection unchanged
+  ---
+  duration_ms: 10.3049
+  type: 'test'
+  ...
+# Subtest: delete to line end, insert above/below and outdent
+ok 18 - delete to line end, insert above/below and outdent
+  ---
+  duration_ms: 2.757
+  type: 'test'
+  ...
+# Subtest: go to line and toggle wrap
+ok 19 - go to line and toggle wrap
+  ---
+  duration_ms: 3.3866
+  type: 'test'
+  ...
+# Subtest: ordinary beforeinput/input changes enter application undo history
+ok 20 - ordinary beforeinput/input changes enter application undo history
+  ---
+  duration_ms: 8.9727
+  type: 'test'
+  ...
+# Subtest: VimUI: mount 初始化挂载、DOM结构与 ARIA 属性验证
+ok 21 - VimUI: mount 初始化挂载、DOM结构与 ARIA 属性验证
+  ---
+  duration_ms: 29.7652
+  type: 'test'
+  ...
+# Subtest: VimUI: 模式切换与展示适配 (NORMAL / INSERT / VISUAL / VISUAL LINE / VISUAL BLOCK / REPLACE / COMMAND)
+ok 22 - VimUI: 模式切换与展示适配 (NORMAL / INSERT / VISUAL / VISUAL LINE / VISUAL BLOCK / REPLACE / COMMAND)
+  ---
+  duration_ms: 7.7496
+  type: 'test'
+  ...
+# Subtest: VimUI: Pending Count / Operator / KeyBuffer 徽章展示与清除
+ok 23 - VimUI: Pending Count / Operator / KeyBuffer 徽章展示与清除
+  ---
+  duration_ms: 7.606
+  type: 'test'
+  ...
+# Subtest: VimUI: Macro 宏录制状态指示与脉冲动画标记
+ok 24 - VimUI: Macro 宏录制状态指示与脉冲动画标记
+  ---
+  duration_ms: 2.5972
+  type: 'test'
+  ...
+# Subtest: VimUI: 状态与错误/提示消息展示
+ok 25 - VimUI: 状态与错误/提示消息展示
+  ---
+  duration_ms: 4.2532
+  type: 'test'
+  ...
+# Subtest: VimUI: showCommandLine 命令行浮层唤起、提交与取消交互
+ok 26 - VimUI: showCommandLine 命令行浮层唤起、提交与取消交互
+  ---
+  duration_ms: 10.4132
+  type: 'test'
+  ...
+# Subtest: VimUI: 命令行历史记录上下导航 (ArrowUp / ArrowDown)
+ok 27 - VimUI: 命令行历史记录上下导航 (ArrowUp / ArrowDown)
+  ---
+  duration_ms: 2.5522
+  type: 'test'
+  ...
+# Subtest: VimUI: 多语言与 Fallback 支持 (zh-CN & en 及 i18n-changed 事件)
+ok 28 - VimUI: 多语言与 Fallback 支持 (zh-CN & en 及 i18n-changed 事件)
+  ---
+  duration_ms: 2.4247
+  type: 'test'
+  ...
+# Subtest: VimUI: unmount 卸载清理 DOM 与样式类
+ok 29 - VimUI: unmount 卸载清理 DOM 与样式类
+  ---
+  duration_ms: 3.8443
+  type: 'test'
+  ...
+# Subtest: VimUI: 默认容器解析优先匹配 \#statusbar 并挂载方块光标
+ok 30 - VimUI: 默认容器解析优先匹配 \#statusbar 并挂载方块光标
+  ---
+  duration_ms: 5.3646
+  type: 'test'
+  ...
+# Subtest: VimUI: CommandLine 模式统一归一化与实时命令行同步
+ok 31 - VimUI: CommandLine 模式统一归一化与实时命令行同步
+  ---
+  duration_ms: 5.768
+  type: 'test'
+  ...
+# Subtest: VimUI: 方块光标在 Normal 模式显示、Insert 模式隐藏
+ok 32 - VimUI: 方块光标在 Normal 模式显示、Insert 模式隐藏
+  ---
+  duration_ms: 2.2622
+  type: 'test'
+  ...
+# Subtest: 组装页包含全部 19 个产品脚本且顺序与 build_html 一致
+ok 33 - 组装页包含全部 19 个产品脚本且顺序与 build_html 一致
+  ---
+  duration_ms: 20.1851
+  type: 'test'
+  ...
+# Subtest: 组装页 CSS 注入完整、平台标记正确且无残留占位符
+ok 34 - 组装页 CSS 注入完整、平台标记正确且无残留占位符
+  ---
+  duration_ms: 1.8813
+  type: 'test'
+  ...
+# Subtest: mock 引导脚本先于全部产品脚本注入
+ok 35 - mock 引导脚本先于全部产品脚本注入
+  ---
+  duration_ms: 2.6789
+  type: 'test'
+  ...
+# Subtest: Commands.run(file.open) 统一触发 open_file IPC
+ok 36 - Commands.run(file.open) 统一触发 open_file IPC
+  ---
+  duration_ms: 11.2163
+  type: 'test'
+  ...
+# Subtest: Commands.run(file.save) 触发保存行为
+ok 37 - Commands.run(file.save) 触发保存行为
+  ---
+  duration_ms: 8.0582
+  type: 'test'
+  ...
+# Subtest: 初始化：进入欢迎态、0 个 tab、向 Rust 发送 ready 与 set_title
+ok 38 - 初始化：进入欢迎态、0 个 tab、向 Rust 发送 ready 与 set_title
+  ---
+  duration_ms: 65.1339
+  type: 'test'
+  ...
+# Subtest: 创建路径 tab：路径归一、进入预览模式
+ok 39 - 创建路径 tab：路径归一、进入预览模式
+  ---
+  duration_ms: 10.5649
+  type: 'test'
+  ...
+# Subtest: tab 激活切换：编辑内容随 tab 保存与恢复
+ok 40 - tab 激活切换：编辑内容随 tab 保存与恢复
+  ---
+  duration_ms: 4.6697
+  type: 'test'
+  ...
+# Subtest: dirty 标记：驱动 set_dirty_state、标题星号与 tab 圆点
+ok 41 - dirty 标记：驱动 set_dirty_state、标题星号与 tab 圆点
+  ---
+  duration_ms: 7.8759
+  type: 'test'
+  ...
+# Subtest: 同一路径重复打开复用既有 tab（分隔符与大小写归一）
+ok 42 - 同一路径重复打开复用既有 tab（分隔符与大小写归一）
+  ---
+  duration_ms: 4.4227
+  type: 'test'
+  ...
+# Subtest: 关闭当前 tab 自动切换相邻 tab；关闭未保存 tab 需确认；全部关完进入欢迎态
+ok 43 - 关闭当前 tab 自动切换相邻 tab；关闭未保存 tab 需确认；全部关完进入欢迎态
+  ---
+  duration_ms: 4.8468
+  type: 'test'
+  ...
+# Subtest: 关闭预览模式中的最后一个文件 tab：恢复干净欢迎态并清空预览
+ok 44 - 关闭预览模式中的最后一个文件 tab：恢复干净欢迎态并清空预览
+  ---
+  duration_ms: 46.7768
+  type: 'test'
+  ...
+# Subtest: tab 右键弹出菜单：四项齐全、menuitem 语义、首尾 tab 对应侧禁用
+ok 45 - tab 右键弹出菜单：四项齐全、menuitem 语义、首尾 tab 对应侧禁用
+  ---
+  duration_ms: 5.4917
+  type: 'test'
+  ...
+# Subtest: 右键菜单关闭左侧/右侧：只关对应集合、活动 tab 沿用相邻规则
+ok 46 - 右键菜单关闭左侧/右侧：只关对应集合、活动 tab 沿用相邻规则
+  ---
+  duration_ms: 7.75
+  type: 'test'
+  ...
+# Subtest: 右键菜单关闭所有：dirty 单次 confirm 且文案含数量，关完进入欢迎态
+ok 47 - 右键菜单关闭所有：dirty 单次 confirm 且文案含数量，关完进入欢迎态
+  ---
+  duration_ms: 5.4503
+  type: 'test'
+  ...
+# Subtest: 右键菜单取消确认整批保留；"关闭"项保留单 tab dirty 确认语义
+ok 48 - 右键菜单取消确认整批保留；"关闭"项保留单 tab dirty 确认语义
+  ---
+  duration_ms: 7.4683
+  type: 'test'
+  ...
+# Subtest: 菜单开着时：菜单外点击 / Esc / 其他右键均关闭菜单
+ok 49 - 菜单开着时：菜单外点击 / Esc / 其他右键均关闭菜单
+  ---
+  duration_ms: 37.7247
+  type: 'test'
+  ...
+# Subtest: 主题切换：light/dark 往返并请求持久化到统一 settings
+ok 50 - 主题切换：light/dark 往返并请求持久化到统一 settings
+  ---
+  duration_ms: 24.269
+  type: 'test'
+  ...
+# Subtest: 初始化忽略旧 localStorage 主题，等待 effective settings 成为事实源
+ok 51 - 初始化忽略旧 localStorage 主题，等待 effective settings 成为事实源
+  ---
+  duration_ms: 8.2961
+  type: 'test'
+  ...
+# Subtest: IPC 事件桥：file_opened 建 tab 并记录最近文件，error 显示状态栏
+ok 52 - IPC 事件桥：file_opened 建 tab 并记录最近文件，error 显示状态栏
+  ---
+  duration_ms: 5.9723
+  type: 'test'
+  ...
+1..52
+# tests 52
+# suites 0
+# pass 52
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1277.737

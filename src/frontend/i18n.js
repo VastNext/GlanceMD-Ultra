@@ -33,6 +33,7 @@
       'app.recentFiles': '最近文件',
       'app.noResults': '无结果',
       'app.find': '查找…',
+      'app.unsavedCloseTitle': '未保存的修改',
       'app.unsavedClose': '有未保存的修改，确定关闭窗口吗？',
       'app.noHeadings': '无标题',
       'app.findProgress': '{n}/{m}',
@@ -126,6 +127,61 @@
       'search.completed': '完成：{n} 个结果',
       'search.truncated': '（已截断）',
       'search.failed': '搜索失败',
+      'search.closeHint': '关闭 (Escape)',
+      'search.resizeHandle': '拖动调整搜索面板大小',
+
+      // commands：命令集中翻译表（keybindings-settings 显示与搜索共用）。
+      // 覆盖 default-keybindings.js 全量键位命令；未收录的命令回退注册 label 或命令 ID。
+      'command.file.new': '新建文件',
+      'command.file.open': '打开文件…',
+      'command.file.save': '保存',
+      'command.file.saveAll': '全部保存',
+      'command.file.saveAs': '另存为…',
+      'command.file.close': '关闭标签页',
+      'command.workspace.open': '打开项目文件夹…',
+      'command.settings.toggle': '设置',
+      'command.settings.keybindings': '快捷键设置',
+      'command.editor.vim.toggle': '切换 Vim 模式',
+      'command.editor.focus': '聚焦编辑器',
+      'command.palette.toggle': '命令面板',
+      'command.keyassist.toggle': '快捷键速查',
+      'command.search.toggle': '全文搜索',
+      'command.tabs.quickSwitch': '快速切换标签页',
+      'command.resource.open': '快速打开文件',
+      'command.tabs.next': '下一个标签页',
+      'command.tabs.previous': '上一个标签页',
+      'command.focus.next': '下一个焦点区域',
+      'command.focus.previous': '上一个焦点区域',
+      'command.outline.toggle': '切换大纲',
+      'command.outline.focus': '聚焦大纲',
+      'command.quickopen.toggle': '快速打开',
+      'commandDesc.file.new': '创建新的 Markdown 文件',
+      'commandDesc.file.open': '打开单个文件或从对话框选择',
+      'commandDesc.file.save': '保存当前标签页',
+      'commandDesc.file.saveAll': '保存所有未保存的标签页',
+      'commandDesc.file.saveAs': '将当前文档另存为新文件',
+      'commandDesc.file.close': '关闭当前标签页',
+      'commandDesc.workspace.open': '选择并打开一个项目目录',
+      'commandDesc.settings.toggle': '打开或关闭设置面板',
+      'commandDesc.settings.keybindings': '打开快捷键设置页',
+      'commandDesc.editor.vim.toggle': '启用或禁用 Vim 模态编辑',
+      'commandDesc.editor.focus': '将焦点移动到编辑器',
+      'commandDesc.palette.toggle': '打开或关闭命令面板',
+      'commandDesc.keyassist.toggle': '打开或关闭快捷键速查面板',
+      'commandDesc.search.toggle': '打开或关闭项目全文搜索',
+      'commandDesc.tabs.quickSwitch': '在已打开的标签页间快速切换',
+      'commandDesc.resource.open': '按文件名快速打开项目内文件',
+      'commandDesc.tabs.next': '切换到后一个标签页',
+      'commandDesc.tabs.previous': '切换到前一个标签页',
+      'commandDesc.focus.next': '按顺序聚焦下一个工作区区域',
+      'commandDesc.focus.previous': '按顺序聚焦上一个工作区区域',
+      'commandDesc.outline.toggle': '显示或隐藏大纲面板',
+      'commandDesc.outline.focus': '显示大纲面板并将焦点移入',
+      'commandDesc.quickopen.toggle': '按路径快速打开项目内文件',
+
+      // kbScheme：键位方案显示名称（keybindings-settings 方案下拉）
+      'kbScheme.ultra.eclipse': 'Ultra Eclipse 键位',
+      'kbScheme.ultra.vscode': 'VS Code 键位',
 
       // quickopen：快速打开
       'quickopen.placeholder': '快速打开文件',
@@ -171,15 +227,15 @@
       'recovery.restoredHint': '以 dirty tab 打开恢复内容需后端 recovery.open-as-tab 命令（见契约 §5），当前请复制后自行粘贴',
 
       // toolbar：titlebar 按钮 / 窗口控制 / tab 导航 / 查找栏按钮 / 面板骨架
-      'toolbar.new': '新建 (Ctrl+N)',
+      'toolbar.new': '新建',
       'toolbar.openFolder': '打开文件夹',
-      'toolbar.openFile': '打开文件 (Ctrl+O)',
+      'toolbar.openFile': '打开文件',
       'toolbar.openFileAria': '打开文件',
       'toolbar.settings': '设置',
-      'toolbar.save': '保存 (Ctrl+S)',
-      'toolbar.togglePreview': '切换预览 (Ctrl+E)',
-      'toolbar.splitView': '分屏 (Ctrl+\\)',
-      'toolbar.outline': '大纲 (Ctrl+Shift+O)',
+      'toolbar.save': '保存',
+      'toolbar.togglePreview': '切换预览',
+      'toolbar.splitView': '分屏',
+      'toolbar.outline': '大纲',
       'toolbar.toggleTheme': '切换主题',
       'toolbar.minimize': '最小化',
       'toolbar.maximize': '最大化',
@@ -212,6 +268,7 @@
       'app.recentFiles': 'Recent Files',
       'app.noResults': 'No results',
       'app.find': 'Find...',
+      'app.unsavedCloseTitle': 'Unsaved Changes',
       'app.unsavedClose': 'You have unsaved changes. Close anyway?',
       'app.noHeadings': 'No headings',
       'app.findProgress': '{n} of {m}',
@@ -304,6 +361,60 @@
       'search.completed': 'Done: {n} results',
       'search.truncated': ' (truncated)',
       'search.failed': 'Search failed',
+      'search.closeHint': 'Close (Escape)',
+      'search.resizeHandle': 'Drag to resize search panel',
+
+      // commands：命令集中翻译表（与 zh-CN 的 command.* / commandDesc.* / kbScheme.* 一一对应）
+      'command.file.new': 'New File',
+      'command.file.open': 'Open File…',
+      'command.file.save': 'Save',
+      'command.file.saveAll': 'Save All',
+      'command.file.saveAs': 'Save As…',
+      'command.file.close': 'Close Tab',
+      'command.workspace.open': 'Open Project Folder…',
+      'command.settings.toggle': 'Settings',
+      'command.settings.keybindings': 'Keyboard Shortcuts',
+      'command.editor.vim.toggle': 'Toggle Vim Mode',
+      'command.editor.focus': 'Focus Editor',
+      'command.palette.toggle': 'Command Palette',
+      'command.keyassist.toggle': 'Key Assist',
+      'command.search.toggle': 'Full-Text Search',
+      'command.tabs.quickSwitch': 'Quick Switch Tabs',
+      'command.resource.open': 'Quick Open File',
+      'command.tabs.next': 'Next Tab',
+      'command.tabs.previous': 'Previous Tab',
+      'command.focus.next': 'Next Focus Area',
+      'command.focus.previous': 'Previous Focus Area',
+      'command.outline.toggle': 'Toggle Outline',
+      'command.outline.focus': 'Focus Outline',
+      'command.quickopen.toggle': 'Quick Open',
+      'commandDesc.file.new': 'Create a new Markdown file',
+      'commandDesc.file.open': 'Open a single file or pick one via dialog',
+      'commandDesc.file.save': 'Save the active tab',
+      'commandDesc.file.saveAll': 'Save all unsaved tabs',
+      'commandDesc.file.saveAs': 'Save the current document as a new file',
+      'commandDesc.file.close': 'Close the active tab',
+      'commandDesc.workspace.open': 'Choose and open a project directory',
+      'commandDesc.settings.toggle': 'Toggle the settings panel',
+      'commandDesc.settings.keybindings': 'Open keyboard shortcuts settings',
+      'commandDesc.editor.vim.toggle': 'Enable or disable Vim modal editing',
+      'commandDesc.editor.focus': 'Move focus to the editor',
+      'commandDesc.palette.toggle': 'Toggle the command palette',
+      'commandDesc.keyassist.toggle': 'Toggle the key assist panel',
+      'commandDesc.search.toggle': 'Toggle project full-text search',
+      'commandDesc.tabs.quickSwitch': 'Quickly switch between open tabs',
+      'commandDesc.resource.open': 'Quickly open a project file by name',
+      'commandDesc.tabs.next': 'Switch to the next tab',
+      'commandDesc.tabs.previous': 'Switch to the previous tab',
+      'commandDesc.focus.next': 'Focus the next workspace area in order',
+      'commandDesc.focus.previous': 'Focus the previous workspace area in order',
+      'commandDesc.outline.toggle': 'Show or hide the outline panel',
+      'commandDesc.outline.focus': 'Show the outline panel and focus it',
+      'commandDesc.quickopen.toggle': 'Quickly open project files by path',
+
+      // kbScheme
+      'kbScheme.ultra.eclipse': 'Ultra Eclipse keymap',
+      'kbScheme.ultra.vscode': 'VS Code keymap',
 
       // quickopen
       'quickopen.placeholder': 'Quick open file',
@@ -349,15 +460,15 @@
       'recovery.restoredHint': 'Opening restored content as a dirty tab needs the recovery.open-as-tab command (see contract §5); for now, copy and paste it yourself',
 
       // toolbar
-      'toolbar.new': 'New (Ctrl+N)',
+      'toolbar.new': 'New',
       'toolbar.openFolder': 'Open Folder',
-      'toolbar.openFile': 'Open File (Ctrl+O)',
+      'toolbar.openFile': 'Open File',
       'toolbar.openFileAria': 'Open File',
       'toolbar.settings': 'Settings',
-      'toolbar.save': 'Save (Ctrl+S)',
-      'toolbar.togglePreview': 'Toggle Preview (Ctrl+E)',
-      'toolbar.splitView': 'Split View (Ctrl+\\)',
-      'toolbar.outline': 'Outline (Ctrl+Shift+O)',
+      'toolbar.save': 'Save',
+      'toolbar.togglePreview': 'Toggle Preview',
+      'toolbar.splitView': 'Split View',
+      'toolbar.outline': 'Outline',
       'toolbar.toggleTheme': 'Toggle Theme',
       'toolbar.minimize': 'Minimize',
       'toolbar.maximize': 'Maximize',
@@ -408,6 +519,22 @@
     var raw = hasOwn(dict, key) ? dict[key]
       : (hasOwn(fallbackDict, key) ? fallbackDict[key] : key);
     return interpolate(raw, params);
+  }
+
+  /* ── 命令集中翻译（keybindings-settings 显示与搜索共用） ──
+   * 以 zh-CN 字典收录与否判定命令是否入表；入表命令按活动语言取词，
+   * 未收录命令回退调用方传入的注册 label（通常已内联中文）或命令 ID 本身。 */
+  function commandLabel(id, fallbackLabel) {
+    var key = 'command.' + String(id == null ? '' : id);
+    if (hasOwn(LOCALES[DEFAULT_LANGUAGE], key)) return t(key);
+    if (fallbackLabel != null && fallbackLabel !== '') return String(fallbackLabel);
+    return String(id == null ? '' : id);
+  }
+
+  function commandDescription(id, fallbackDescription) {
+    var key = 'commandDesc.' + String(id == null ? '' : id);
+    if (hasOwn(LOCALES[DEFAULT_LANGUAGE], key)) return t(key);
+    return fallbackDescription != null ? String(fallbackDescription) : '';
   }
 
   /* ── 语言切换与持久化 ── */
@@ -507,6 +634,8 @@
     getLanguage: getLanguage,
     init: init,
     applyDom: applyDom,
+    commandLabel: commandLabel,
+    commandDescription: commandDescription,
     LOCALES: LOCALES,
     DEFAULT_LANGUAGE: DEFAULT_LANGUAGE,
     LOCALE_KEY: LOCALE_KEY,

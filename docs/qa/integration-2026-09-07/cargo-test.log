@@ -1,0 +1,286 @@
+
+running 71 tests
+test atomic_save::tests::temp_path_同目录进程内唯一 ... ok
+test commands::tests::payload_defaults ... ok
+test commands::tests::registry_rejects_duplicate ... ok
+test data_dir::tests::exe_dir_缺失时直接采用回退 ... ok
+test commands::tests::ensure_global_settings_file_缺失时写入默认 ... ok
+test data_dir::tests::probe_失败且回退为_none_时同样落入第三兜底 ... ok
+test data_dir::tests::probe_失败时回退用户配置目录 ... ok
+test data_dir::tests::probe_通过时采用_exe_旁的_data_候选 ... ok
+test data_dir::tests::回退也为_none_时使用第三兜底 ... ok
+test commands::tests::apply_settings_监听开关落盘并可回切 ... ok
+test file_codec::tests::detect_eol_四种形态 ... ok
+test file_codec::tests::encode_对_crlf_输入幂等 ... ok
+test commands::tests::apply_settings_接受字符串与对象两种_data_形态 ... ok
+test tests::clean_window_closes_without_prompting ... ok
+test tests::dirty_window_closes_when_discard_is_confirmed ... ok
+test tests::dirty_window_stays_open_when_discard_is_rejected ... ok
+test tests::仅允许应用根页面和页内导航 ... ok
+test data_dir::tests::真实探针_路径被同名文件占用_返回_false ... ok
+test workspace::events::tests::事件名与负载映射正确 ... ok
+test workspace::events::tests::未安装发送器时_事件静默忽略 ... ok
+test data_dir::tests::真实探针_临时目录可写_返回_true_且不留残留 ... ok
+test workspace::recovery::tests::sanitize_tab_id_白名单清洗与防御 ... ok
+test workspace::search::tests::bom_剥离后列号不受影响 ... ok
+test workspace::search::tests::find_bytes_与_word_bounded_基本语义 ... ok
+test workspace::search::tests::glob_匹配_ascii_大小写不敏感 ... ok
+test workspace::search::tests::全词边界判断 ... ok
+test workspace::search::tests::双星号跨段且可吞零段 ... ok
+test workspace::search::tests::同行多命中分别给列 ... ok
+test workspace::search::tests::大小写折叠查找 ... ok
+test workspace::search::tests::字面量行列与行文本提取 ... ok
+test workspace::search::tests::无斜杠模式按文件名匹配 ... ok
+test workspace::search::tests::星号不跨路径段 ... ok
+test workspace::search::tests::段内双星折叠为单星语义 ... ok
+test workspace::search::tests::花括号展开候选 ... ok
+test workspace::search::tests::行文本剔除_crlf_回车符 ... ok
+test workspace::search::tests::超长行截断保留命中窗口 ... ok
+test workspace::search::tests::问号恰配单字符 ... ok
+test workspace::search::tests::非_ascii_视为非词字符_全词搜索中文可命中 ... ok
+test workspace::search::tests::非法_glob_报错而不_panic ... ok
+test workspace::session::tests::抑制令牌_无监听服务时为空操作 ... ok
+test workspace::session::tests::搜索代际号_单调递增 ... ok
+test tests::拖放目录打开工作区_文本文件打开文件_其他文件忽略 ... ok
+test workspace::session::tests::搜索取消_登记后可取消_注销后失效 ... ok
+test workspace::session::tests::撤销栈_空栈撤销报_mismatch ... ok
+test workspace::session::tests::文件元数据_存取与取走语义 ... ok
+test workspace::session::tests::最近工作区_损坏_json回退_none ... ok
+test workspace::tests::display_path_剥离_windows_verbatim_前缀 ... ok
+test workspace::session::tests::最近工作区_不存在目录回退_none ... ok
+test workspace::session::tests::启动恢复_无_cli路径时返回记录_显式cli时不恢复 ... ok
+test workspace::session::tests::最近工作区_写入读取_roundtrip ... ok
+test workspace::tests::ensure_within_root_拒绝根外绝对路径 ... ok
+test workspace::tests::ensure_within_root_接受根内尚不存在的新路径 ... ok
+test workspace::tests::ensure_within_root_拒绝穿越相对路径逃逸根边界 ... ok
+test workspace::tests::open_and_scan_不存在时广播错误并拒绝 ... ok
+test workspace::tests::open_root_不存在时拒绝 ... ok
+test workspace::tests::ensure_within_root_接受根内已存在路径 ... ok
+test workspace::tests::open_root_文件路径拒绝 ... ok
+test workspace::tests::open_root_相对路径按工作目录解析为绝对路径 ... ok
+test workspace::tests::open_root_正常打开并规范化路径 ... ok
+test workspace::tests::暂存根路径_写入后取走即清空 ... ok
+test workspace::tree::tests::rel_dir_校验_拒绝越界语义 ... ok
+test workspace::tree::tests::rel_dir_校验_接受空串点段与冗余分隔符 ... ok
+test workspace::tree::tests::可见性判断_大小写不敏感且无扩展名不可见 ... ok
+test workspace::tree::tests::扩展名提取_取最后一个点 ... ok
+test workspace::tree::tests::扩展名集合规范化_补点与小写 ... ok
+test workspace::tree::tests::排除目录判断_大小写不敏感 ... ok
+test workspace::tree::tests::错误显示为中文 ... ok
+test workspace::tree::tests::隐藏名判断为点前缀 ... ok
+test workspace::tree::tests::默认过滤器取主计划阶段1默认值 ... ok
+test workspace::tests::open_and_scan_正常打开并返回成功 ... ok
+test workspace::tests::scan_counting_统计文件数量并跳过目录符号链接 ... ok
+
+test result: ok. 71 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+
+running 6 tests
+test atomic_save::tests::temp_path_同目录进程内唯一 ... ok
+test save_error_错误消息可读 ... ok
+test atomic_write_目标目录不存在时显式报错 ... ok
+test atomic_write_替换失败时清理临时文件 ... ok
+test 中断模拟_写入中途崩溃目标文件完好 ... ok
+test atomic_write_成功覆盖已有文件且无临时残留 ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+
+running 8 tests
+test detect_区分三种形态 ... ok
+test encode_按原风格转换新增行并回填bom ... ok
+test file_codec::tests::detect_eol_四种形态 ... ok
+test file_codec::tests::encode_对_crlf_输入幂等 ... ok
+test read_text_换行检测与lf统一存储语义 ... ok
+test read_text_非utf8显式报错 ... ok
+test 往返_全组合_读写出原始字节零漂移 ... ok
+test 往返_空文件与仅bom文件零漂移 ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 22 tests
+test op_error_回收站提示文案面向用户 ... ok
+test 事件负载形状_与_workspace_fs_op_done_契约一致 ... ok
+test 撤销栈_pop_不移除文件_仅取条目 ... ok
+test 回收站删除_撤销返回需手动还原 ... ok
+test 操作类型与事件_op_字段映射 ... ok
+test 撤销栈_严格后进先出_顺序不符报错 ... ok
+test 新建文件_带扩展名保持原样_父目录须已存在 ... ok
+test 复制_中途失败回滚_已复制项被清理 ... ok
+test 新建文件_无扩展名自动补_md ... ok
+test 新建文件_重名拒绝 ... ok
+test 真实回收站冒烟_临时文件移入回收站 ... ignored, 真实写入系统回收站：cargo test -- --ignored 手动运行；验证后请清理回收站
+test 复制_文件与目录递归_目标重名拒绝 ... ok
+test 永久删除_文件与目录树_不可撤销 ... ok
+test 新建文件夹_支持多层与重名拒绝 ... ok
+test 越界相对路径拒绝 ... ok
+test 边界校验经注入委托_拒绝型注入阻断一切操作 ... ok
+test 移动_目录递归后撤销往返 ... ok
+test 移动_目标重名拒绝_目标目录不存在拒绝_移入自身拒绝 ... ok
+test 项目根自身不可创建删除移动 ... ok
+test 移动_降级复制后删源失败_回滚目标副本 ... ok
+test 重命名_成功后撤销往返 ... ok
+test 重命名_重名拒绝与非法名拒绝 ... ok
+
+test result: ok. 21 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+
+running 14 tests
+test factories_dispatch_to_current_platform_impl ... ok
+test linux_reveal_args_handle_bare_filename_and_root ... ok
+test linux_reveal_args_open_parent_directory ... ok
+test linux_terminal_candidates_order_gnome_konsole_then_fallback ... ok
+test macos_reveal_args_use_open_upper_r ... ok
+test macos_terminal_candidates_open_terminal_app ... ok
+test platform_error_command_failed_display_includes_program_and_status ... ok
+test platform_error_display_is_informative ... ok
+test spawn_first_ok_without_candidates_reports_unsupported ... ok
+test windows_reveal_args_keeps_spaced_path_in_single_arg ... ok
+test windows_reveal_args_uses_select_comma_without_space ... ok
+test windows_terminal_candidates_prefer_wt_then_fallback_to_cmd ... ok
+test trash_ops_delete_permanently_removes_files_and_dirs_on_all_impls ... ok
+test trash_ops_to_trash_missing_path_reports_io_error_not_unsupported ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 8 tests
+test recovery::tests::sanitize_tab_id_白名单清洗与防御 ... ok
+test discard_移除条目且对不存在的tab静默 ... ok
+test 快照_列出_取走_全链路与幂等 ... ok
+test 含非法字符的tab_id_文件名清洗且存取对称还原 ... ok
+test 损坏条目被跳过且收集警告_不影响其他条目 ... ok
+test 重复快照原子覆盖不产生重复条目 ... ok
+test prune_before_按保留期清理并顺带清除损坏与临时残留 ... ok
+test 非json文件与临时残留不进入条目列表 ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+
+running 38 tests
+test search::tests::bom_剥离后列号不受影响 ... ok
+test search::tests::find_bytes_与_word_bounded_基本语义 ... ok
+test search::tests::glob_匹配_ascii_大小写不敏感 ... ok
+test search::tests::全词边界判断 ... ok
+test search::tests::双星号跨段且可吞零段 ... ok
+test search::tests::同行多命中分别给列 ... ok
+test search::tests::大小写折叠查找 ... ok
+test search::tests::字面量行列与行文本提取 ... ok
+test search::tests::无斜杠模式按文件名匹配 ... ok
+test search::tests::星号不跨路径段 ... ok
+test search::tests::段内双星折叠为单星语义 ... ok
+test search::tests::花括号展开候选 ... ok
+test search::tests::行文本剔除_crlf_回车符 ... ok
+test search::tests::超长行截断保留命中窗口 ... ok
+test crlf_文件的行文本不含_carriage ... ok
+test nul_在嗅探窗口之外仍参与搜索 ... ok
+test search::tests::问号恰配单字符 ... ok
+test search::tests::非_ascii_视为非词字符_全词搜索中文可命中 ... ok
+test search::tests::非法_glob_报错而不_panic ... ok
+test wire_序列化形状 ... ok
+test use_regex_返回_unsupported_feature ... ok
+test utf8_bom_不影响首行列号 ... ok
+test 全词边界_英文 ... ok
+test 全词边界_非_ascii_视为边界_中文可整词命中 ... ok
+test 前_8kb_含_nul_判为二进制跳过 ... ok
+test 大小写敏感开关 ... ok
+test 性能_10k_搜索实测 ... ignored, 需要 tests/.tmp/tree-10k（tools/gen-test-tree.py 生成）；跑完即删，不入库
+test glob_包含收窄与排除剪枝 ... ok
+test 空查询与根校验 ... ok
+test 复用树的默认过滤语义_排除目录与隐藏文件不搜索 ... ok
+test 字面量命中_相对路径行列与行文本 ... ok
+test 超过_max_file_bytes_的文件跳过 ... ok
+test 达到_max_results_置_truncated_并停止 ... ok
+test 非法_glob_返回错误而不_panic ... ok
+test 默认上限为_5mb_与_10000_条 ... ok
+test 预置取消_立即返回_cancelled ... ok
+test 运行中取消_在文件检查点停下 ... ok
+test 遍历顺序确定_目录内文件名升序_深度优先 ... ok
+
+test result: ok. 37 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+
+running 26 tests
+test is_overridden_字段级_类级_未知路径 ... ok
+test overridden_keys_只返回真实显式字段 ... ok
+test v0_迁移演练_缺version视为v0并补默认version1 ... ok
+test v0_迁移演练_非法theme值被忽略且不阻断 ... ok
+test keybindings_内层键是命令_id_不产生未知键告警 ... ok
+test outline位置_非法值加载回退并告警_保存拒绝 ... ok
+test sidebar字号_超出范围加载回退并告警_保存拒绝 ... ok
+test 全字段v1文档_迁移无告警且逐字段相等_守护已知键表不失同步 ... ok
+test 全默认加载_无文件时零告警 ... ok
+test v1_roundtrip_自定义设置_保存加载零漂移 ... ok
+test v1_部分文档_缺省字段由默认值填充 ... ok
+test v1_roundtrip_默认设置_保存加载零漂移 ... ok
+test 嵌套vec与map为整体覆盖_不做并集合并 ... ok
+test 空补丁_有效设置等于全局 ... ok
+test 路径约定_全局与项目文件名 ... ok
+test 非对象文档_迁移报错 ... ok
+test 未知键_顶层与字段级均收集进告警且不阻断 ... ok
+test 损坏_json_回退默认并产生告警 ... ok
+test 项目设置_无文件返回none_有文件解析为补丁 ... ok
+test 项目设置_未知键_收集进告警 ... ok
+test 项目设置_补丁保存加载roundtrip且只落盘覆盖项 ... ok
+test 项目部分覆盖全局_未覆盖字段保留全局值 ... ok
+test 默认值与主计划及基线一致 ... ok
+test 项目设置_版本过新_整体忽略并告警 ... ok
+test 端到端_全局加载_项目覆盖_合并_保存有效值 ... ok
+test 高于当前版本的文档_迁移报错_加载回退默认并告警 ... ok
+
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 21 tests
+test tree::tests::rel_dir_校验_拒绝越界语义 ... ok
+test tree::tests::rel_dir_校验_接受空串点段与冗余分隔符 ... ok
+test tree::tests::可见性判断_大小写不敏感且无扩展名不可见 ... ok
+test tree::tests::扩展名提取_取最后一个点 ... ok
+test tree::tests::扩展名集合规范化_补点与小写 ... ok
+test tree::tests::排除目录判断_大小写不敏感 ... ok
+test tree::tests::错误显示为中文 ... ok
+test tree::tests::隐藏名判断为点前缀 ... ok
+test tree::tests::默认过滤器取主计划阶段1默认值 ... ok
+test 性能_10k_树逐层_list_dir_实测 ... ignored, 需要 tests/.tmp/tree-10k（tools/gen-test-tree.py 生成）；跑完即删，不入库
+test 不存在与非目录返回对应错误 ... ok
+test rel_path_使用斜杠分隔且随层级拼接 ... ok
+test 单次只列一层_子目录内容不外泄 ... ok
+test 文件符号链接显示为_symlink_file_目录符号链接不显示 ... ok
+test 空目录返回空列表 ... ok
+test 扩展名白名单过滤 ... ok
+test 非法_rel_dir_返回_invalid_rel_dir ... ok
+test 默认过滤器与主计划阶段1默认值一致 ... ok
+test 目录排前且组内不区分大小写排序 ... ok
+test 排除目录不显示且大小写不敏感 ... ok
+test 隐藏文件与隐藏目录默认隐藏_开启后显示 ... ok
+
+test result: ok. 20 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+
+running 22 tests
+test notify映射_剥离windows_verbatim前缀 ... ok
+test notify映射_重命名三形态 ... ok
+test notify映射_创建修改删除与多路径 ... ok
+test watchservice_真实后端冒烟_变更到达_排除过滤_暂停恢复 ... ignored, 真实文件系统 + notify 集成，时序敏感；本地以 cargo test -- --ignored 验证
+test 不同路径各自独立去抖并按字典序产出 ... ok
+test 关键常量与规格一致 ... ok
+test 同窗口内修改加删除合并为删除 ... ok
+test 事件风暴_1秒内同文件100次写入只产生1个事件 ... ok
+test 同窗口内创建加修改合并为创建 ... ok
+test 同窗口内创建加删除对消_不产出任何事件 ... ok
+test 同窗口内创建加重命名合并为一次重命名 ... ok
+test 同窗口内删除加创建视为重建 ... ok
+test 强制冲刷无视窗口届满 ... ok
+test 抑制器匹配兼容windows_verbatim前缀与斜杠大小写差异 ... ok
+test 排除过滤_按组件名整段精确匹配 ... ok
+test 窗口边界_间隔299毫秒合并_间隔300毫秒开新窗口 ... ok
+test 类型_display完整 ... ok
+test watch_service构造校验_不启动真实监听 ... ok
+test 重命名事件合并产出_保留来源与目标 ... ok
+test 重命名后目标路径的修改单独产出 ... ok
+test 抑制器并发mark_complete与is_self无死锁 ... ok
+test 抑制器_mark后命中_complete后宽限期内仍命中_过期后放行 ... ok
+
+test result: ok. 21 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.13s
+

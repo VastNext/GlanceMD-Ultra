@@ -88,13 +88,17 @@ var TabManager = (function() {
     return tab;
   }
 
-  function closeTab(id) {
+  function syncProjectTree(tab) {
+    if (!window.ProjectTree || typeof window.ProjectTree.setActiveFile !== 'function') return;
+    window.ProjectTree.setActiveFile(tab && tab.path ? tab.path : null);
+    if (tab && tab.path && typeof window.ProjectTree.revealCurrent === 'function') {
+      window.ProjectTree.revealCurrent(true);
+    }
+  }
+
+  function executeCloseTab(id) {
     var idx = tabs.findIndex(function(t) { return t.id === id; });
     if (idx === -1) return;
-    var tab = tabs[idx];
-    if (tab.dirty && shouldConfirmCloseDirty()) {
-      if (!confirm(t('tabs.closeConfirm', { name: tab.filename }))) return;
-    }
     tabs.splice(idx, 1);
     syncDirtyState();
     if (tabs.length === 0) {
@@ -109,6 +113,8 @@ var TabManager = (function() {
       if (typeof resetToWelcomeState === 'function') resetToWelcomeState();
       else if (typeof updateWelcome === 'function') updateWelcome();
       else if (typeof showRecentPanel === 'function') showRecentPanel();
+      syncProjectTree(null);
+      if (window.SettingsApply && typeof window.SettingsApply.syncGutter === 'function') window.SettingsApply.syncGutter();
       return;
     }
     if (activeTabId === id) {
@@ -119,19 +125,38 @@ var TabManager = (function() {
     }
   }
 
+  function closeTab(id) {
+    var idx = tabs.findIndex(function(t) { return t.id === id; });
+    if (idx === -1) return;
+    var tab = tabs[idx];
+    if (tab.dirty && shouldConfirmCloseDirty()) {
+      if (window.ConfirmDialog && typeof window.ConfirmDialog.show === 'function') {
+        window.ConfirmDialog.show({
+          title: t('app.unsavedCloseTitle') || '未保存的修改',
+          message: t('tabs.closeConfirm', { name: tab.filename }),
+          confirmText: '放弃修改并关闭',
+          cancelText: '取消',
+          danger: true
+        }).then(function(confirmed) {
+          if (confirmed) executeCloseTab(id);
+        });
+        return;
+      } else if (typeof confirm === 'function' && !confirm(t('tabs.closeConfirm', { name: tab.filename }))) {
+        return;
+      }
+    }
+    executeCloseTab(id);
+  }
+
   /* ── 批量关闭 ──
      整批只做一次 dirty 确认（文案含数量），不走逐个 closeTab 的确认；
      关闭后活动 tab 沿用 closeTab 的相邻规则：以被移除的最左下标为锚，
      取移除后占据该位置的 tab（min(锚下标, 末位)）；全部关完进入欢迎态 */
-  function closeTabs(ids) {
+  function executeCloseTabs(ids) {
     var idSet = {};
     (ids || []).forEach(function(id) { idSet[id] = true; });
     var targets = tabs.filter(function(t) { return idSet[t.id]; });
     if (targets.length === 0) return;
-    var dirtyCount = targets.filter(function(t) { return t.dirty; }).length;
-    if (dirtyCount > 0 && shouldConfirmCloseDirty()) {
-      if (!confirm(t('tabs.closeBatchConfirm', { n: dirtyCount }))) return;
-    }
     var anchorIdx = tabs.indexOf(targets[0]);
     tabs = tabs.filter(function(t) { return !idSet[t.id]; });
     syncDirtyState();
@@ -147,6 +172,7 @@ var TabManager = (function() {
       if (typeof resetToWelcomeState === 'function') resetToWelcomeState();
       else if (typeof updateWelcome === 'function') updateWelcome();
       else if (typeof showRecentPanel === 'function') showRecentPanel();
+      syncProjectTree(null);
       return;
     }
     if (!getActiveTab() || idSet[activeTabId]) {
@@ -154,6 +180,31 @@ var TabManager = (function() {
     } else {
       renderTabBar();
     }
+  }
+
+  function closeTabs(ids) {
+    var idSet = {};
+    (ids || []).forEach(function(id) { idSet[id] = true; });
+    var targets = tabs.filter(function(t) { return idSet[t.id]; });
+    if (targets.length === 0) return;
+    var dirtyCount = targets.filter(function(t) { return t.dirty; }).length;
+    if (dirtyCount > 0 && shouldConfirmCloseDirty()) {
+      if (window.ConfirmDialog && typeof window.ConfirmDialog.show === 'function') {
+        window.ConfirmDialog.show({
+          title: t('app.unsavedCloseTitle') || '未保存的修改',
+          message: t('tabs.closeBatchConfirm', { n: dirtyCount }),
+          confirmText: '放弃修改并关闭',
+          cancelText: '取消',
+          danger: true
+        }).then(function(confirmed) {
+          if (confirmed) executeCloseTabs(ids);
+        });
+        return;
+      } else if (typeof confirm === 'function' && !confirm(t('tabs.closeBatchConfirm', { n: dirtyCount }))) {
+        return;
+      }
+    }
+    executeCloseTabs(ids);
   }
 
   function switchTab(id) {
@@ -192,11 +243,14 @@ var TabManager = (function() {
     if (currentMode === 'edit') {
       tab.scrollTop = editor.scrollTop;
     } else {
-      tab.scrollTop = document.getElementById('preview-container').scrollTop;
+      tab.scrollTop = window.PreviewNavigation && typeof window.PreviewNavigation.getScrollTop === 'function'
+        ? window.PreviewNavigation.getScrollTop()
+        : 0;
     }
   }
 
   function restoreTabState(tab) {
+    syncProjectTree(tab);
     var imageContainer = document.getElementById('image-container');
     var editorContainer = document.getElementById('editor-container');
     var previewContainer = document.getElementById('preview-container');
@@ -205,22 +259,23 @@ var TabManager = (function() {
       clearTimeout(splitPreviewTimer);
       currentMode = 'image';
       if (typeof setToolbarForImage === 'function') setToolbarForImage(true);
-      editorContainer.classList.remove('active');
-      previewContainer.classList.remove('active');
+      if (editorContainer) editorContainer.classList.remove('active');
+      if (previewContainer) previewContainer.classList.remove('active');
       document.body.classList.remove('split-mode');
       if (imageContainer) imageContainer.classList.add('active');
 
       if (typeof showImageTab === 'function') {
         showImageTab(tab);
       }
-      document.getElementById('status-mode').textContent = 'IMAGE';
-      document.getElementById('status-file').textContent = tab.filename;
+      var statusMode = document.getElementById('status-mode');
+      if (statusMode) statusMode.textContent = 'IMAGE';
+      var statusFile = document.getElementById('status-file');
+      if (statusFile) statusFile.textContent = tab.filename;
       return;
     }
 
     if (typeof setToolbarForImage === 'function') setToolbarForImage(false);
     if (imageContainer) imageContainer.classList.remove('active');
-
     var editor = document.getElementById('editor');
     editor.value = tab.content;
     var iconPreview = document.getElementById('icon-preview');
@@ -289,7 +344,9 @@ var TabManager = (function() {
         if (typeof resolveLocalImages === 'function' && canRenderLive(tab.content)) resolveLocalImages();
         if (typeof renderMermaidCharts === 'function' && canRenderLive(tab.content)) renderMermaidCharts();
         setTimeout(function() {
-          document.getElementById('preview-container').scrollTop = tab.scrollTop;
+          if (window.PreviewNavigation && typeof window.PreviewNavigation.setScrollTop === 'function') {
+            window.PreviewNavigation.setScrollTop(tab.scrollTop);
+          }
         }, 0);
       }
     }
@@ -300,6 +357,9 @@ var TabManager = (function() {
     if (typeof updateWelcome === 'function') updateWelcome();
     else if (typeof showRecentPanel === 'function') showRecentPanel();
     if (typeof tocOpen !== 'undefined' && tocOpen && typeof updateTOC === 'function') updateTOC();
+    if (window.SettingsApply && typeof window.SettingsApply.syncGutter === 'function') {
+      window.SettingsApply.syncGutter();
+    }
   }
 
   function markDirty(id) {
@@ -712,6 +772,7 @@ var TabManager = (function() {
       tab.filename = path ? path.split(/[/\\]/).pop() : t('tabs.untitled');
       /* 注意：不在此处根据扩展名翻转 isImage——图片模式只由"打开图片"流程决定，
          避免另存为图片扩展名时把文本标签误转为只读图片标签 */
+      syncProjectTree(tab);
       renderTabBar();
       updateWindowTitle();
       document.getElementById('status-file').textContent = tab.filename;
@@ -765,6 +826,114 @@ var TabManager = (function() {
     return true;
   }
 
+  var tabSwitcher = { open: false, selected: 0, previousFocus: null };
+
+  function switcherItems() { return tabs.slice(); }
+  function renderTabSwitcher() {
+    var panel = document.getElementById('tab-switcher');
+    if (!panel) {
+      panel = document.createElement('section');
+      panel.id = 'tab-switcher';
+      panel.setAttribute('role', 'dialog');
+      panel.tabIndex = -1;
+      document.body.appendChild(panel);
+    }
+    var items = switcherItems();
+    if (tabSwitcher.selected >= items.length) tabSwitcher.selected = Math.max(0, items.length - 1);
+    panel.innerHTML = items.map(function(tab, index) {
+      return '<button type="button" data-tab-id="' + tab.id + '" class="tab-switcher-item' + (index === tabSwitcher.selected ? ' active' : '') + '">' +
+        String(tab.filename).replace(/[&<>\"]/g, function(ch) { return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '\"':'&quot;' })[ch]; }) + (tab.dirty ? ' •' : '') + '</button>';
+    }).join('') || '<p>暂无已打开标签页</p>';
+    Array.prototype.forEach.call(panel.querySelectorAll('button'), function(button, index) {
+      button.addEventListener('click', function() { switchTab(Number(button.dataset.tabId)); closeTabSwitcher(); });
+      if (index === tabSwitcher.selected && button.scrollIntoView) button.scrollIntoView({ block: 'nearest' });
+    });
+    panel.hidden = !tabSwitcher.open;
+  }
+  function openTabSwitcher() {
+    if (!tabs.length) return;
+    tabSwitcher.open = true;
+    tabSwitcher.selected = Math.max(0, tabs.findIndex(function(t) { return t.id === activeTabId; }));
+    tabSwitcher.previousFocus = document.activeElement;
+    renderTabSwitcher();
+    var panel = document.getElementById('tab-switcher');
+    if (panel && panel.focus) panel.focus();
+  }
+  function closeTabSwitcher() {
+    tabSwitcher.open = false;
+    renderTabSwitcher();
+    if (tabSwitcher.previousFocus && tabSwitcher.previousFocus.focus) tabSwitcher.previousFocus.focus();
+    tabSwitcher.previousFocus = null;
+  }
+  function toggleTabSwitcher() { tabSwitcher.open ? closeTabSwitcher() : openTabSwitcher(); }
+  function moveTabSwitcher(delta) {
+    if (!tabSwitcher.open) return;
+    tabSwitcher.selected = Math.max(0, Math.min(tabs.length - 1, tabSwitcher.selected + delta));
+    renderTabSwitcher();
+  }
+  document.addEventListener('keydown', function(e) {
+    if (!tabSwitcher.open) return;
+    if (e.key === 'Escape') { e.preventDefault(); closeTabSwitcher(); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); moveTabSwitcher(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); moveTabSwitcher(-1); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (tabs[tabSwitcher.selected]) { switchTab(tabs[tabSwitcher.selected].id); closeTabSwitcher(); } }
+  });
+
+  function initCommands() {
+    if (!window.Commands || typeof window.Commands.register !== 'function') return;
+    var reg = window.Commands.register;
+    function safeReg(id, def) {
+      if (!window.Commands.has(id)) reg(id, def);
+    }
+    var nextDef = { label: '下一个标签页', category: 'View', run: function() { nextTab(); } };
+    var prevDef = { label: '上一个标签页', category: 'View', run: function() { prevTab(); } };
+    safeReg('tabs.next', nextDef);
+    safeReg('tabs.previous', prevDef);
+    // Ex 与旧调用保留安全别名，逻辑只有一份。
+    safeReg('tab.next', { label: nextDef.label, category: nextDef.category, run: nextDef.run });
+    safeReg('tab.previous', { label: prevDef.label, category: prevDef.category, run: prevDef.run });
+    safeReg('tab.close', {
+      label: '关闭标签页',
+      category: 'File',
+      run: function(arg) {
+        var id = arg && typeof arg === 'object' ? arg.tabId : arg;
+        closeTab(id || activeTabId);
+      }
+    });
+    safeReg('tab.closeAll', {
+      label: '关闭所有标签页',
+      category: 'File',
+      run: function() {
+        closeTabs(tabs.map(function(t) { return t.id; }));
+      }
+    });
+    safeReg('tab.closeLeft', {
+      label: '关闭左侧标签页',
+      category: 'File',
+      run: function(arg) {
+        var id = (arg && typeof arg === 'object' ? arg.tabId : arg) || activeTabId;
+        var idx = tabs.findIndex(function(t) { return t.id === id; });
+        if (idx > 0) closeTabs(tabs.slice(0, idx).map(function(t) { return t.id; }));
+      }
+    });
+    safeReg('tab.closeRight', {
+      label: '关闭右侧标签页',
+      category: 'File',
+      run: function(arg) {
+        var id = (arg && typeof arg === 'object' ? arg.tabId : arg) || activeTabId;
+        var idx = tabs.findIndex(function(t) { return t.id === id; });
+        if (idx !== -1 && idx < tabs.length - 1) closeTabs(tabs.slice(idx + 1).map(function(t) { return t.id; }));
+      }
+    });
+    safeReg('tabs.quickSwitch', {
+      label: '快速切换标签页',
+      category: 'View',
+      run: function() { toggleTabSwitcher(); }
+    });
+  }
+
+  // commands.js 晚于 tabs.js 加载，由 DOMContentLoaded 统一补挂
+  document.addEventListener('DOMContentLoaded', initCommands);
   return {
     createTab: createTab,
     closeTab: closeTab,
@@ -780,6 +949,12 @@ var TabManager = (function() {
     updateTabPath: updateTabPath,
     reloadTabContent: reloadTabContent,
     updateWindowTitle: updateWindowTitle,
-    ensureActiveTabVisible: ensureActiveTabVisible
+    ensureActiveTabVisible: ensureActiveTabVisible,
+    initCommands: initCommands,
+    openSwitcher: openTabSwitcher,
+    closeSwitcher: closeTabSwitcher,
+    toggleSwitcher: toggleTabSwitcher,
+    getTabs: function() { return tabs.slice(); },
+    getState: function() { return { tabs: tabs.slice(), activeTabId: activeTabId }; }
   };
 })();

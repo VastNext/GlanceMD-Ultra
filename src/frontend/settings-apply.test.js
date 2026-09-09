@@ -51,6 +51,36 @@ function makeElement(id) {
     style: {},
   };
   el.classList = makeClassList();
+  el.children = [];
+  el.appendChild = (child) => {
+    el.children.push(child);
+    return child;
+  };
+  el.removeChild = (child) => {
+    const idx = el.children.indexOf(child);
+    if (idx >= 0) el.children.splice(idx, 1);
+    return child;
+  };
+  Object.defineProperty(el, 'textContent', {
+    get() {
+      if (el.children.length > 0) {
+        return el.children.map((c) => c.textContent).join('\n');
+      }
+      return el._textContent || '';
+    },
+    set(v) {
+      el._textContent = String(v);
+      el.children = [];
+    },
+  });
+  el.getBoundingClientRect = () => ({
+    width: 800,
+    height: 20,
+    top: 0,
+    bottom: 20,
+    left: 0,
+    right: 800,
+  });
   el.addEventListener = (type, handler) => {
     (el.listeners[type] = el.listeners[type] || []).push(handler);
   };
@@ -93,6 +123,7 @@ function load() {
     document: {
       documentElement,
       getElementById: (id) => (id in byId ? byId[id] : null),
+      createElement: (tag) => makeElement(tag),
     },
   };
   ctx.window = ctx;
@@ -112,11 +143,11 @@ function load() {
 
 /* ── get() 默认值与缓存 ── */
 
-test('get() 未收到事件时返回内置默认值（与 Rust schema v1 Default 一致）', () => {
+test('get() 未收到事件时返回内置默认值（与 Rust schema v2 Default 一致）', () => {
   const h = load();
   // JSON round-trip：vm 上下文与宿主的原型不同，deepStrictEqual 需同源对象
   assert.deepEqual(JSON.parse(JSON.stringify(h.ctx.SettingsApply.get())), {
-    version: 1,
+    version: 2,
     appearance: { theme: 'light', sidebarFontSize: 14, language: 'zh-CN', outlineSide: 'right' },
     files: {
       visibleExts: ['md', 'markdown', 'txt', 'json', 'yaml', 'yml', 'toml', 'ini', 'csv', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico', 'avif'],
@@ -132,7 +163,7 @@ test('get() 未收到事件时返回内置默认值（与 Rust schema v1 Default
     },
     editor: { fontSize: 14, tabSize: 4, wordWrap: true, lineNumbers: true, largeFileMB: 5 },
     window: { reuseWindowForFolder: false },
-    keybindings: { overrides: {} },
+    keybindings: { activeScheme: 'ultra.eclipse', schemes: {} },
     recovery: { confirmCloseDirty: true, crashRecovery: true, createProjectSettings: false },
   });
 });
@@ -196,6 +227,42 @@ test('settings-changed 与 workspace-opened 重新请求 effective', () => {
   h.subs['workspace:settings-changed'][0]({});
   h.subs['workspace:opened'][0]({});
   assert.equal(h.ipcMessages.length, before + 2);
+});
+
+/* ── keybindings 装载（settings JSON 为事实源） ── */
+
+test('apply(fromDocument) 把 keybindings 段传给 Keybindings.loadFromSettings', () => {
+  const h = load();
+  const calls = [];
+  h.ctx.Keybindings = { loadFromSettings: (kb) => { calls.push(kb); return true; } };
+  const kb = { activeScheme: 'ultra.vscode', schemes: { 'ultra.vscode': [{ commandId: 'file.open', sequence: 'Ctrl+O' }] } };
+  h.subs['workspace:settings-effective'][0]({ settings: { keybindings: kb } });
+  assert.equal(calls.length, 1, '真实文档回执装载一次');
+  assert.equal(calls[0].activeScheme, 'ultra.vscode');
+  assert.equal(calls[0].schemes['ultra.vscode'][0].sequence, 'Ctrl+O');
+  // 事件负载同时驱动 DOM 生效（latest 缓存更新）
+  assert.equal(h.ctx.SettingsApply.get().keybindings.activeScheme, 'ultra.vscode');
+});
+
+test('apply 内置默认值（非文档回执）不触发 keybindings 装载', () => {
+  const h = load();
+  const calls = [];
+  h.ctx.Keybindings = { loadFromSettings: (kb) => { calls.push(kb); return true; } };
+  // 直接调用 apply（相当于 init 的 apply(DEFAULTS)），fromDocument 缺省为假
+  h.ctx.SettingsApply.apply({ keybindings: { activeScheme: 'ultra.vscode', schemes: {} } });
+  assert.equal(calls.length, 0, '内置默认值不视为设置文档');
+});
+
+test('get() 的 keybindings 形状为 v2（activeScheme + schemes），合并有效值', () => {
+  const h = load();
+  const got = h.ctx.SettingsApply.get();
+  assert.deepEqual(JSON.parse(JSON.stringify(got.keybindings)), { activeScheme: 'ultra.eclipse', schemes: {} });
+  h.ctx.SettingsApply.apply({
+    keybindings: { activeScheme: 'ultra.vscode', schemes: { 'ultra.vscode': [] } },
+  }, true);
+  const after = h.ctx.SettingsApply.get();
+  assert.equal(after.keybindings.activeScheme, 'ultra.vscode');
+  assert.deepEqual(JSON.parse(JSON.stringify(after.keybindings.schemes)), { 'ultra.vscode': [] });
 });
 
 test('apply wordWrap 切换 textarea wrap 属性且 value 不丢，wrap-off 类随动', () => {
@@ -274,6 +341,27 @@ function pressTab(h) {
     fn({ key: 'Tab', ctrlKey: false, metaKey: false, preventDefault() {} }),
   );
 }
+
+test('syncGutter 响应 editor 真实换行状态：关闭换行时行高严格等于 lineHeight', () => {
+  const h = load();
+  h.editor.value = 'line1\nline2\nline3';
+
+  // 1. 换行模式开启：子项创建
+  h.ctx.SettingsApply.applyWordWrap(true);
+  assert.equal(h.editor.getAttribute('wrap'), 'soft');
+  assert.equal(h.editor.classList.contains('wrap-off'), false);
+  assert.equal(h.gutter.children.length, 3);
+
+  // 2. 换行模式关闭（如 Alt+Shift+Y）：每个 row 的 style.height 严格设为 lineHeight + 'px'
+  h.ctx.SettingsApply.applyWordWrap(false);
+  assert.equal(h.editor.getAttribute('wrap'), 'off');
+  assert.equal(h.editor.classList.contains('wrap-off'), true);
+  assert.equal(h.gutter.children.length, 3);
+  h.gutter.children.forEach((row) => {
+    assert.match(row.style.height, /px$/);
+    assert.equal(row.style.height, row.style.lineHeight, '未开启换行时行号高度严格等于单行行高');
+  });
+});
 
 test('editor.js Tab 插入空格数读 SettingsApply：缺省 4、设置 2 生效', () => {
   const h = loadEditorWithSettingsApply();

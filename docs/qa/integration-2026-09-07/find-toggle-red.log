@@ -1,0 +1,24 @@
+组装页   : D:\WorkDev\MyShare\GlanceMD-Ultra\tests\.tmp\index.html（825647 字节，32 个 <script>）
+IPC mock : D:\WorkDev\MyShare\GlanceMD-Ultra\tests\.tmp\mock-ipc.js
+平台标记 : data-platform="windows"
+SyntaxError: D:\WorkDev\MyShare\GlanceMD-Ultra\tests\e2e\specs\editor-navigation-regressions.spec.js: Unterminated string constant. (145:22)
+
+  143 |     await page.locator('html').evaluate((el, t) => el.setAttribute('data-theme', t), theme);
+  144 |     const editor = page.locator('#editor');
+> 145 |     await editor.fill('needle first
+      |                       ^
+  146 |
+  147 | needle second');
+  148 |     await editor.evaluate(el => el.setSelectionRange(0, 6));
+
+   at editor-navigation-regressions.spec.js:145
+
+  143 |     await page.locator('html').evaluate((el, t) => el.setAttribute('data-theme', t), theme);
+  144 |     const editor = page.locator('#editor');
+> 145 |     await editor.fill('needle first
+      |                      ^
+  146 |
+  147 | needle second');
+  148 |     await editor.evaluate(el => el.setSelectionRange(0, 6));
+Error: No tests found
+

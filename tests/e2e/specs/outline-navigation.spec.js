@@ -66,4 +66,14 @@ test('点击 Outline：跳过 YAML frontmatter 与 fenced 伪标题，定位混�
   }));
   expect(editorState.selected).toBe('## 目标标题');
   expect(editorState.line).toBe(15);
+  const shellState = await page.evaluate(() => ({
+    bodyScrollTop: document.body.scrollTop,
+    htmlScrollTop: document.documentElement.scrollTop,
+    titlebarTop: document.getElementById('titlebar').getBoundingClientRect().top,
+    controlsTop: document.getElementById('window-controls').getBoundingClientRect().top
+  }));
+  expect(shellState.bodyScrollTop).toBe(0);
+  expect(shellState.htmlScrollTop).toBe(0);
+  expect(shellState.titlebarTop).toBe(0);
+  expect(shellState.controlsTop).toBeGreaterThanOrEqual(0);
 });

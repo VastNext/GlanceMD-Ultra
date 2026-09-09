@@ -960,6 +960,25 @@ test('定位当前文件：tab 同步高亮不滚动，命令展开祖先选中�
   assert.equal(row.scrolled !== null, true, 'tab 切换不新增滚动（仍为定位时的记录）');
 });
 
+test('命令注册：向 window.Commands 注册 projectTree.* 系列 UI 命令', () => {
+  const h = loadTree();
+  assert.ok(h.commands.has('projectTree.focus'));
+  assert.ok(h.commands.has('projectTree.openSelection'));
+  assert.ok(h.commands.has('projectTree.rename'));
+  assert.ok(h.commands.has('projectTree.createFile'));
+  assert.ok(h.commands.has('projectTree.createDirectory'));
+  assert.ok(h.commands.has('projectTree.delete'));
+  assert.ok(h.commands.has('projectTree.deletePermanently'));
+  assert.ok(h.commands.has('projectTree.cut'));
+  assert.ok(h.commands.has('projectTree.copy'));
+  assert.ok(h.commands.has('projectTree.paste'));
+  assert.ok(h.commands.has('projectTree.undo'));
+  assert.ok(h.commands.has('projectTree.refresh'));
+  assert.ok(h.commands.has('projectTree.revealCurrent'));
+  assert.ok(h.commands.has('projectTree.openInTerminal'));
+  assert.ok(h.commands.has('projectTree.openContextMenu'));
+});
+
 test('命令注册：project.* 进入 window.Commands 且 open-file 拼接绝对路径', () => {
   const h = loadTree();
   h.open();

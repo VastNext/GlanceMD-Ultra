@@ -1,0 +1,664 @@
+{
+  "counts": {
+    "ultra.eclipse": {
+      "PASS": 34,
+      "NOT TESTED": 18
+    },
+    "ultra.vscode": {
+      "PASS": 11,
+      "NOT TESTED": 2
+    }
+  },
+  "rows": [
+    {
+      "scheme": "ultra.eclipse",
+      "number": 1,
+      "key": "Ctrl+O",
+      "command": "outline.toggle",
+      "test": "eclipse-editor-shortcuts.spec.js — Eclipse Outline Ctrl+O 是 toggle 并恢复编辑器焦点",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 2,
+      "key": "Ctrl+Shift+S",
+      "command": "file.saveAll",
+      "test": "无充分独立按键行为证据",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "NOT TESTED",
+      "limitation": "仅默认绑定声明，无实际按键保存全部行为"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 3,
+      "key": "Alt+Shift+S",
+      "command": "file.saveAs",
+      "test": "无充分独立按键行为证据",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "NOT TESTED",
+      "limitation": "按键存在，但累计IPC未清空，前一步保存已有save_as；不能独立证明本键"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 4,
+      "key": "Alt+Shift+F O",
+      "command": "file.open",
+      "test": "app.spec.js — Alt+Shift+F O：完整脚本加载后触发一次 open_file IPC",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 5,
+      "key": "Alt+Shift+F P",
+      "command": "workspace.open",
+      "test": "无充分独立按键行为证据",
+      "unit": "commands.test.js — run(workspace.open) 有路径时直接打开，无路径时请求原生目录选择器",
+      "status": "NOT TESTED",
+      "limitation": "缺真实按键+预期效果断言"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 6,
+      "key": "Alt+Shift+P",
+      "command": "settings.toggle",
+      "test": "eclipse-workbench-shortcuts.spec.js — Alt+Shift+P toggle 设置，后续 K 进入快捷键分类",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 7,
+      "key": "Alt+Shift+P K",
+      "command": "settings.keybindings",
+      "test": "eclipse-workbench-shortcuts.spec.js — Alt+Shift+P toggle 设置，后续 K 进入快捷键分类",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 8,
+      "key": "Alt+Shift+E V",
+      "command": "editor.vim.toggle",
+      "test": "keyboard-schemes-vim.spec.js — Vim Mode：Alt+Shift+E V 开启、i 插入、Esc 回 Normal、:w 保存与关闭恢复",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 9,
+      "key": "Ctrl+3",
+      "command": "palette.toggle",
+      "test": "keyboard-schemes-vim.spec.js — Eclipse Scheme：Ctrl+3 打开命令面板、Ctrl+H 打开搜索、Ctrl+Shift+L 打开 Key Assist",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 10,
+      "key": "Ctrl+Shift+L",
+      "command": "keyassist.toggle",
+      "test": "keyboard-schemes-vim.spec.js — Eclipse Scheme：Ctrl+3 打开命令面板、Ctrl+H 打开搜索、Ctrl+Shift+L 打开 Key Assist",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 11,
+      "key": "Ctrl+H",
+      "command": "search.toggle",
+      "test": "keyboard-schemes-vim.spec.js — Eclipse Scheme：Ctrl+3 打开命令面板、Ctrl+H 打开搜索、Ctrl+Shift+L 打开 Key Assist",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 12,
+      "key": "Ctrl+E",
+      "command": "tabs.quickSwitch",
+      "test": "eclipse-workbench-shortcuts.spec.js — Ctrl+E、Ctrl+F6、Ctrl+Shift+F6 切换已打开标签页",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 13,
+      "key": "Ctrl+Shift+R",
+      "command": "resource.open",
+      "test": "eclipse-workbench-shortcuts.spec.js — Ctrl+Shift+R 打开资源 Quick Open，F12 聚焦编辑器",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 14,
+      "key": "Ctrl+F6",
+      "command": "tabs.next",
+      "test": "eclipse-workbench-shortcuts.spec.js — Ctrl+E、Ctrl+F6、Ctrl+Shift+F6 切换已打开标签页",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 15,
+      "key": "Ctrl+Shift+F6",
+      "command": "tabs.previous",
+      "test": "eclipse-workbench-shortcuts.spec.js — Ctrl+E、Ctrl+F6、Ctrl+Shift+F6 切换已打开标签页",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 16,
+      "key": "Ctrl+F7",
+      "command": "focus.next",
+      "test": "eclipse-workbench-shortcuts.spec.js — Ctrl+F7 与 Ctrl+Shift+F7 正反向切换工作区焦点",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 17,
+      "key": "Ctrl+Shift+F7",
+      "command": "focus.previous",
+      "test": "eclipse-workbench-shortcuts.spec.js — Ctrl+F7 与 Ctrl+Shift+F7 正反向切换工作区焦点",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 18,
+      "key": "F12",
+      "command": "editor.focus",
+      "test": "eclipse-workbench-shortcuts.spec.js — Ctrl+Shift+R 打开资源 Quick Open，F12 聚焦编辑器",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 19,
+      "key": "Ctrl+S",
+      "command": "file.save",
+      "test": "eclipse-workbench-shortcuts.spec.js — 文件与保存类 Eclipse 快捷键均分派到真实行为",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 20,
+      "key": "Ctrl+N",
+      "command": "file.new",
+      "test": "eclipse-workbench-shortcuts.spec.js — 文件与保存类 Eclipse 快捷键均分派到真实行为",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 21,
+      "key": "Ctrl+W",
+      "command": "file.close",
+      "test": "eclipse-workbench-shortcuts.spec.js — 文件与保存类 Eclipse 快捷键均分派到真实行为",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 22,
+      "key": "Ctrl+Z",
+      "command": "editor.undo",
+      "test": "eclipse-editor-shortcuts.spec.js — Eclipse 行删除、撤销、重做",
+      "unit": "editor-commands.test.js — delete line and undo redo roundtrip",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 23,
+      "key": "Ctrl+Y",
+      "command": "editor.redo",
+      "test": "eclipse-editor-shortcuts.spec.js — Eclipse 行删除、撤销、重做",
+      "unit": "editor-commands.test.js — delete line and undo redo roundtrip",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 24,
+      "key": "Ctrl+X",
+      "command": "editor.cut",
+      "test": "无充分独立按键行为证据",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "NOT TESTED",
+      "limitation": "无系统剪贴板行为断言"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 25,
+      "key": "Ctrl+C",
+      "command": "editor.copy",
+      "test": "无充分独立按键行为证据",
+      "unit": "wave1-keybinding.test.js — BindingService passthrough binding executes without preventDefault（自造copy绑定，非系统剪贴板）",
+      "status": "NOT TESTED",
+      "limitation": "无系统剪贴板行为断言"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 26,
+      "key": "Ctrl+V",
+      "command": "editor.paste",
+      "test": "无充分独立按键行为证据",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "NOT TESTED",
+      "limitation": "无系统剪贴板行为断言"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 27,
+      "key": "Ctrl+A",
+      "command": "editor.selectAll",
+      "test": "无充分独立按键行为证据",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "NOT TESTED",
+      "limitation": "缺真实按键+预期效果断言"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 28,
+      "key": "Ctrl+D",
+      "command": "editor.deleteLines",
+      "test": "eclipse-editor-shortcuts.spec.js — Eclipse 行删除、撤销、重做",
+      "unit": "editor-commands.test.js — delete line and undo redo roundtrip",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 29,
+      "key": "Ctrl+Shift+Delete",
+      "command": "editor.deleteToLineEnd",
+      "test": "无充分独立按键行为证据",
+      "unit": "editor-commands.test.js — delete to line end, insert above/below and outdent",
+      "status": "NOT TESTED",
+      "limitation": "缺真实按键+预期效果断言"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 30,
+      "key": "Alt+ArrowUp",
+      "command": "editor.moveLinesUp",
+      "test": "eclipse-editor-shortcuts.spec.js — Eclipse 行移动与复制",
+      "unit": "editor-commands.test.js — move and copy selected lines",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 31,
+      "key": "Alt+ArrowDown",
+      "command": "editor.moveLinesDown",
+      "test": "无充分独立按键行为证据",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "NOT TESTED",
+      "limitation": "缺真实按键+预期效果断言"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 32,
+      "key": "Ctrl+Alt+ArrowUp",
+      "command": "editor.copyLinesUp",
+      "test": "无充分独立按键行为证据",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "NOT TESTED",
+      "limitation": "缺真实按键+预期效果断言"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 33,
+      "key": "Ctrl+Alt+ArrowDown",
+      "command": "editor.copyLinesDown",
+      "test": "eclipse-editor-shortcuts.spec.js — Eclipse 行移动与复制",
+      "unit": "editor-commands.test.js — move and copy selected lines",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 34,
+      "key": "Shift+Enter",
+      "command": "editor.insertLineBelow",
+      "test": "无充分独立按键行为证据",
+      "unit": "editor-commands.test.js — delete to line end, insert above/below and outdent",
+      "status": "NOT TESTED",
+      "limitation": "缺真实按键+预期效果断言"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 35,
+      "key": "Ctrl+Shift+Enter",
+      "command": "editor.insertLineAbove",
+      "test": "无充分独立按键行为证据",
+      "unit": "editor-commands.test.js — delete to line end, insert above/below and outdent",
+      "status": "NOT TESTED",
+      "limitation": "缺真实按键+预期效果断言"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 36,
+      "key": "Shift+Tab",
+      "command": "editor.outdent",
+      "test": "eclipse-editor-shortcuts.spec.js — Eclipse 大小写、HTML注释与反缩进",
+      "unit": "editor-commands.test.js — delete to line end, insert above/below and outdent",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 37,
+      "key": "Ctrl+ArrowUp",
+      "command": "editor.scrollLineUp",
+      "test": "无充分独立按键行为证据",
+      "unit": "editor-commands.test.js — scroll line keeps selection unchanged",
+      "status": "NOT TESTED",
+      "limitation": "按键存在，仅断言光标未动，未断言向上滚动"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 38,
+      "key": "Ctrl+ArrowDown",
+      "command": "editor.scrollLineDown",
+      "test": "eclipse-editor-shortcuts.spec.js — Eclipse Ctrl+Up/Down 仅滚动视口且光标不动",
+      "unit": "editor-commands.test.js — scroll line keeps selection unchanged",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 39,
+      "key": "Ctrl+Shift+ArrowUp",
+      "command": "editor.previousHeading",
+      "test": "eclipse-editor-shortcuts.spec.js — Eclipse Ctrl+Shift+Up/Down 在 Markdown 标题间导航",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 40,
+      "key": "Ctrl+Shift+ArrowDown",
+      "command": "editor.nextHeading",
+      "test": "eclipse-editor-shortcuts.spec.js — Eclipse Ctrl+Shift+Up/Down 在 Markdown 标题间导航",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 41,
+      "key": "Ctrl+L",
+      "command": "editor.goToLine",
+      "test": "editor-navigation-regressions.spec.js — Ctrl+L 31 repeated three times selects a visible logical line after long Chinese soft wraps",
+      "unit": "editor-commands.test.js — go to line and toggle wrap",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 42,
+      "key": "Ctrl+F",
+      "command": "actions.find",
+      "test": "editor-navigation-regressions.spec.js — Ctrl+F searches selected text in the editor and keeps find inline",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 43,
+      "key": "Ctrl+K",
+      "command": "actions.find.next",
+      "test": "editor-navigation-regressions.spec.js — Ctrl+K and Ctrl+Shift+K from find input scroll to visible next and previous matches",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "find-input焦点实际按键；editorTextFocus独立路径未单独验证"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 44,
+      "key": "Ctrl+Shift+K",
+      "command": "actions.find.previous",
+      "test": "editor-navigation-regressions.spec.js — Ctrl+K and Ctrl+Shift+K from find input scroll to visible next and previous matches",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "find-input焦点实际按键；editorTextFocus独立路径未单独验证"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 45,
+      "key": "Ctrl+J",
+      "command": "actions.find.incrementalNext",
+      "test": "无充分独立按键行为证据",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "NOT TESTED",
+      "limitation": "缺真实按键+预期效果断言"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 46,
+      "key": "Ctrl+Shift+J",
+      "command": "actions.find.incrementalPrevious",
+      "test": "无充分独立按键行为证据",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "NOT TESTED",
+      "limitation": "缺真实按键+预期效果断言"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 47,
+      "key": "Ctrl+Shift+X",
+      "command": "editor.uppercase",
+      "test": "eclipse-editor-shortcuts.spec.js — Eclipse 大小写、HTML注释与反缩进",
+      "unit": "editor-commands.test.js — uppercase lowercase and comments preserve selections",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 48,
+      "key": "Ctrl+Shift+Y",
+      "command": "editor.lowercase",
+      "test": "eclipse-editor-shortcuts.spec.js — Eclipse 大小写、HTML注释与反缩进",
+      "unit": "editor-commands.test.js — uppercase lowercase and comments preserve selections",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 49,
+      "key": "Ctrl+/",
+      "command": "editor.toggleComment",
+      "test": "eclipse-editor-shortcuts.spec.js — Eclipse 大小写、HTML注释与反缩进",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 50,
+      "key": "Ctrl+Shift+/",
+      "command": "editor.addBlockComment",
+      "test": "无充分独立按键行为证据",
+      "unit": "editor-commands.test.js — uppercase lowercase and comments preserve selections",
+      "status": "NOT TESTED",
+      "limitation": "缺真实按键+预期效果断言"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 51,
+      "key": "Ctrl+Shift+\\",
+      "command": "editor.removeBlockComment",
+      "test": "无充分独立按键行为证据",
+      "unit": "editor-commands.test.js — uppercase lowercase and comments preserve selections",
+      "status": "NOT TESTED",
+      "limitation": "缺真实按键+预期效果断言"
+    },
+    {
+      "scheme": "ultra.eclipse",
+      "number": 52,
+      "key": "Alt+Shift+Y",
+      "command": "editor.toggleWrap",
+      "test": "无充分独立按键行为证据",
+      "unit": "editor-commands.test.js — go to line and toggle wrap",
+      "status": "NOT TESTED",
+      "limitation": "缺真实按键+预期效果断言"
+    },
+    {
+      "scheme": "ultra.vscode",
+      "number": 1,
+      "key": "Ctrl+O",
+      "command": "file.open",
+      "test": "vscode-scheme-shortcuts.spec.js — VS Code Ctrl+O、Ctrl+S、Ctrl+Shift+S、Ctrl+W 真实分派",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.vscode",
+      "number": 2,
+      "key": "Ctrl+N",
+      "command": "file.new",
+      "test": "vscode-scheme-shortcuts.spec.js — VS Code 文件、设置、Tab 与 F12 键生效",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.vscode",
+      "number": 3,
+      "key": "Ctrl+S",
+      "command": "file.save",
+      "test": "无充分独立按键行为证据",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "NOT TESTED",
+      "limitation": "两个按键后共同OR断言，无法分别证明保存/另存为"
+    },
+    {
+      "scheme": "ultra.vscode",
+      "number": 4,
+      "key": "Ctrl+Shift+S",
+      "command": "file.saveAs",
+      "test": "无充分独立按键行为证据",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "NOT TESTED",
+      "limitation": "两个按键后共同OR断言，无法分别证明保存/另存为"
+    },
+    {
+      "scheme": "ultra.vscode",
+      "number": 5,
+      "key": "Ctrl+W",
+      "command": "file.close",
+      "test": "vscode-scheme-shortcuts.spec.js — VS Code Ctrl+O、Ctrl+S、Ctrl+Shift+S、Ctrl+W 真实分派",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.vscode",
+      "number": 6,
+      "key": "Ctrl+P",
+      "command": "quickopen.toggle",
+      "test": "vscode-scheme-shortcuts.spec.js — VS Code 方案面板与导航键生效",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.vscode",
+      "number": 7,
+      "key": "Ctrl+Shift+F",
+      "command": "search.toggle",
+      "test": "vscode-scheme-shortcuts.spec.js — VS Code 方案面板与导航键生效",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.vscode",
+      "number": 8,
+      "key": "Ctrl+Shift+P",
+      "command": "palette.toggle",
+      "test": "vscode-scheme-shortcuts.spec.js — VS Code 方案面板与导航键生效",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.vscode",
+      "number": 9,
+      "key": "Ctrl+Shift+O",
+      "command": "outline.toggle",
+      "test": "vscode-scheme-shortcuts.spec.js — VS Code 方案面板与导航键生效",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.vscode",
+      "number": 10,
+      "key": "Ctrl+K Ctrl+S",
+      "command": "settings.keybindings",
+      "test": "vscode-scheme-shortcuts.spec.js — VS Code Ctrl+K Ctrl+S 打开快捷键设置",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.vscode",
+      "number": 11,
+      "key": "Ctrl+,",
+      "command": "settings.toggle",
+      "test": "vscode-scheme-shortcuts.spec.js — VS Code 文件、设置、Tab 与 F12 键生效",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.vscode",
+      "number": 12,
+      "key": "Ctrl+Tab",
+      "command": "tabs.quickSwitch",
+      "test": "vscode-scheme-shortcuts.spec.js — VS Code 文件、设置、Tab 与 F12 键生效",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    },
+    {
+      "scheme": "ultra.vscode",
+      "number": 13,
+      "key": "F12",
+      "command": "editor.focus",
+      "test": "vscode-scheme-shortcuts.spec.js — VS Code 文件、设置、Tab 与 F12 键生效",
+      "unit": "无专项行为单测映射；注册/绑定声明不作为行为证据",
+      "status": "PASS",
+      "limitation": "仅该测试已断言的Windows Chromium行为；非原生系统验收"
+    }
+  ]
+}

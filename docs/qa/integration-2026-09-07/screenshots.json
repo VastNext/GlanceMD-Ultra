@@ -1,0 +1,62 @@
+[
+  {
+    "file": "D:/WorkDev/MyShare/GlanceMD-Ultra/docs/qa/integration-2026-09-07/quick-open-light.png",
+    "theme": "light",
+    "key": "Control+e"
+  },
+  {
+    "file": "D:/WorkDev/MyShare/GlanceMD-Ultra/docs/qa/integration-2026-09-07/command-palette-light.png",
+    "theme": "light",
+    "key": "Control+3"
+  },
+  {
+    "file": "D:/WorkDev/MyShare/GlanceMD-Ultra/docs/qa/integration-2026-09-07/key-assist-light.png",
+    "theme": "light",
+    "key": "Control+Shift+l"
+  },
+  {
+    "file": "D:/WorkDev/MyShare/GlanceMD-Ultra/docs/qa/integration-2026-09-07/search-light.png",
+    "theme": "light",
+    "key": "Control+h"
+  },
+  {
+    "file": "D:/WorkDev/MyShare/GlanceMD-Ultra/docs/qa/integration-2026-09-07/vim-light.png",
+    "theme": "light",
+    "key": "Alt+Shift+E V"
+  },
+  {
+    "file": "D:/WorkDev/MyShare/GlanceMD-Ultra/docs/qa/integration-2026-09-07/find-light.png",
+    "theme": "light",
+    "key": "Ctrl+F"
+  },
+  {
+    "file": "D:/WorkDev/MyShare/GlanceMD-Ultra/docs/qa/integration-2026-09-07/quick-open-dark.png",
+    "theme": "dark",
+    "key": "Control+e"
+  },
+  {
+    "file": "D:/WorkDev/MyShare/GlanceMD-Ultra/docs/qa/integration-2026-09-07/command-palette-dark.png",
+    "theme": "dark",
+    "key": "Control+3"
+  },
+  {
+    "file": "D:/WorkDev/MyShare/GlanceMD-Ultra/docs/qa/integration-2026-09-07/key-assist-dark.png",
+    "theme": "dark",
+    "key": "Control+Shift+l"
+  },
+  {
+    "file": "D:/WorkDev/MyShare/GlanceMD-Ultra/docs/qa/integration-2026-09-07/search-dark.png",
+    "theme": "dark",
+    "key": "Control+h"
+  },
+  {
+    "file": "D:/WorkDev/MyShare/GlanceMD-Ultra/docs/qa/integration-2026-09-07/vim-dark.png",
+    "theme": "dark",
+    "key": "Alt+Shift+E V"
+  },
+  {
+    "file": "D:/WorkDev/MyShare/GlanceMD-Ultra/docs/qa/integration-2026-09-07/find-dark.png",
+    "theme": "dark",
+    "key": "Ctrl+F"
+  }
+]

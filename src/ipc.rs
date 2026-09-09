@@ -89,34 +89,19 @@ pub fn handle_ipc_message(
             window.set_minimized(false);
             window.set_focus();
         }
-        "save_file" => {
-            if let Some(ref content) = parsed.content {
-                if let Some(ref path) = parsed.path {
-                    match file_ops::write_file(path, content) {
-                        Ok(_) => {
-                            send_to_js(
-                                webview,
-                                "file_saved",
-                                &serde_json::json!({
-                                    "path": path
-                                }),
-                            );
-                        }
-                        Err(e) => send_to_js(
-                            webview,
-                            "error",
-                            &serde_json::json!({
-                                "message": format!("Failed to save: {e}")
-                            }),
-                        ),
-                    }
-                } else {
-                    handle_save_as(webview, parsed.content);
-                }
-            }
-        }
-        "save_as" => {
-            handle_save_as(webview, parsed.content);
+        "save_file" | "save_as" => {
+            let path = if parsed.command == "save_as" {
+                None
+            } else {
+                parsed.path.as_deref()
+            };
+            let (event, data) = save_reply(
+                parsed.content.as_deref(),
+                path,
+                &parsed.extra,
+                file_ops::pick_save_file,
+            );
+            send_to_js(webview, event, &data);
         }
         "set_title" => {
             if let Some(title) = parsed.title {
@@ -234,27 +219,31 @@ pub fn handle_ipc_message(
     }
 }
 
-fn handle_save_as(webview: &WebView, content: Option<String>) {
-    if let Some(content) = content {
-        if let Some(path) = file_ops::pick_save_file() {
-            match file_ops::write_file(&path, &content) {
-                Ok(_) => {
-                    send_to_js(
-                        webview,
-                        "file_saved",
-                        &serde_json::json!({
-                            "path": path
-                        }),
-                    );
-                }
-                Err(e) => send_to_js(
-                    webview,
-                    "error",
-                    &serde_json::json!({
-                        "message": format!("Failed to save: {e}")
-                    }),
-                ),
-            }
+fn save_reply(
+    content: Option<&str>,
+    path: Option<&str>,
+    extra: &serde_json::Value,
+    pick: impl FnOnce() -> Option<String>,
+) -> (&'static str, serde_json::Value) {
+    let mut data = serde_json::json!({});
+    for key in ["requestId", "tabId"] {
+        if let Some(value) = extra.get(key) {
+            data[key] = value.clone();
+        }
+    }
+    let Some(content) = content else {
+        data["message"] = serde_json::json!("Failed to save: missing content");
+        return ("error", data);
+    };
+    let Some(path) = path.map(String::from).or_else(pick) else {
+        return ("save_cancelled", data);
+    };
+    data["path"] = serde_json::json!(path);
+    match file_ops::write_file(&path, content) {
+        Ok(()) => ("file_saved", data),
+        Err(error) => {
+            data["message"] = serde_json::json!(format!("Failed to save: {error}"));
+            ("error", data)
         }
     }
 }

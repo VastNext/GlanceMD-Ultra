@@ -1,0 +1,2560 @@
+TAP version 13
+# Subtest: palette namespace and scoring
+ok 1 - palette namespace and scoring
+  ---
+  duration_ms: 12.7027
+  type: 'test'
+  ...
+# Subtest: palette open creates hidden panel and focuses input
+ok 2 - palette open creates hidden panel and focuses input
+  ---
+  duration_ms: 53.8879
+  type: 'test'
+  ...
+# Subtest: palette closes on outside pointerdown and focusin
+ok 3 - palette closes on outside pointerdown and focusin
+  ---
+  duration_ms: 52.8876
+  type: 'test'
+  ...
+# Subtest: palette navigation adjusts selected and invokes scrollIntoView
+ok 4 - palette navigation adjusts selected and invokes scrollIntoView
+  ---
+  duration_ms: 11.5406
+  type: 'test'
+  ...
+# Subtest: 装载后暴露 window.Commands 并注册阶段 0 内置命令
+ok 5 - 装载后暴露 window.Commands 并注册阶段 0 内置命令
+  ---
+  duration_ms: 14.0547
+  type: 'test'
+  ...
+# Subtest: run(file.open) 发送与原按钮等效的 open_file 上行消息
+ok 6 - run(file.open) 发送与原按钮等效的 open_file 上行消息
+  ---
+  duration_ms: 4.5344
+  type: 'test'
+  ...
+# Subtest: 导航命令注册并可在模块延迟加载后执行
+ok 7 - 导航命令注册并可在模块延迟加载后执行
+  ---
+  duration_ms: 16.6175
+  type: 'test'
+  ...
+# Subtest: register 保存 category, description, visibleInPalette 与 isEnabled 元数据
+ok 8 - register 保存 category, description, visibleInPalette 与 isEnabled 元数据
+  ---
+  duration_ms: 12.8047
+  type: 'test'
+  ...
+# Subtest: run(workspace.open) 有路径时直接打开，无路径时请求原生目录选择器
+ok 9 - run(workspace.open) 有路径时直接打开，无路径时请求原生目录选择器
+  ---
+  duration_ms: 2.6206
+  type: 'test'
+  ...
+# Subtest: 未知命令与重复注册都报错
+ok 10 - 未知命令与重复注册都报错
+  ---
+  duration_ms: 14.927
+  type: 'test'
+  ...
+# Subtest: register 后可 run，unregister 后不可再 run
+ok 11 - register 后可 run，unregister 后不可再 run
+  ---
+  duration_ms: 2.2725
+  type: 'test'
+  ...
+# Subtest: 上方文件夹按钮经命令表请求打开项目目录
+ok 12 - 上方文件夹按钮经命令表请求打开项目目录
+  ---
+  duration_ms: 78.5983
+  type: 'test'
+  ...
+# Subtest: 接管打开按钮：克隆替换原节点，旧 app.js 绑定不再触发
+ok 13 - 接管打开按钮：克隆替换原节点，旧 app.js 绑定不再触发
+  ---
+  duration_ms: 2.6804
+  type: 'test'
+  ...
+# Subtest: 独立打开文件按钮经 file.open 命令工作
+ok 14 - 独立打开文件按钮经 file.open 命令工作
+  ---
+  duration_ms: 3.0333
+  type: 'test'
+  ...
+# Subtest: settings.toggle 可执行并由按钮触发 SettingsUI.toggle
+ok 15 - settings.toggle 可执行并由按钮触发 SettingsUI.toggle
+  ---
+  duration_ms: 6.2564
+  type: 'test'
+  ...
+# Subtest: 按钮不存在时优雅跳过且命令表仍可用
+ok 16 - 按钮不存在时优雅跳过且命令表仍可用
+  ---
+  duration_ms: 12.7417
+  type: 'test'
+  ...
+# Subtest: editor commands register complete Eclipse edit command set
+ok 17 - editor commands register complete Eclipse edit command set
+  ---
+  duration_ms: 5.3543
+  type: 'test'
+  ...
+# Subtest: delete line and undo redo roundtrip
+ok 18 - delete line and undo redo roundtrip
+  ---
+  duration_ms: 3.9811
+  type: 'test'
+  ...
+# Subtest: move and copy selected lines
+ok 19 - move and copy selected lines
+  ---
+  duration_ms: 5.8135
+  type: 'test'
+  ...
+# Subtest: uppercase lowercase and comments preserve selections
+ok 20 - uppercase lowercase and comments preserve selections
+  ---
+  duration_ms: 3.3422
+  type: 'test'
+  ...
+# Subtest: scroll line keeps selection unchanged
+ok 21 - scroll line keeps selection unchanged
+  ---
+  duration_ms: 2.3475
+  type: 'test'
+  ...
+# Subtest: delete to line end, insert above/below and outdent
+ok 22 - delete to line end, insert above/below and outdent
+  ---
+  duration_ms: 2.4696
+  type: 'test'
+  ...
+# Subtest: go to line and toggle wrap
+ok 23 - go to line and toggle wrap
+  ---
+  duration_ms: 2.0671
+  type: 'test'
+  ...
+# Subtest: ordinary beforeinput/input changes enter application undo history
+ok 24 - ordinary beforeinput/input changes enter application undo history
+  ---
+  duration_ms: 11.8765
+  type: 'test'
+  ...
+# Subtest: heading descriptors skip initial YAML frontmatter and retain source lines
+ok 25 - heading descriptors skip initial YAML frontmatter and retain source lines
+  ---
+  duration_ms: 14.5265
+  type: 'test'
+  ...
+# Subtest: fences close only with same marker and sufficient length
+ok 26 - fences close only with same marker and sufficient length
+  ---
+  duration_ms: 29.0462
+  type: 'test'
+  ...
+# Subtest: resolveHeading matches expected level and normalized text, then safely falls back to index
+ok 27 - resolveHeading matches expected level and normalized text, then safely falls back to index
+  ---
+  duration_ms: 10.2587
+  type: 'test'
+  ...
+# Subtest: resolveHeading preserves the indexed occurrence when headings have duplicate text
+ok 28 - resolveHeading preserves the indexed occurrence when headings have duplicate text
+  ---
+  duration_ms: 1.3634
+  type: 'test'
+  ...
+# Subtest: 默认语言 zh-CN：t 取词与 {n} 占位
+ok 29 - 默认语言 zh-CN：t 取词与 {n} 占位
+  ---
+  duration_ms: 14.3564
+  type: 'test'
+  ...
+# Subtest: 缺键回退 zh-CN，再缺返回 key 本身
+ok 30 - 缺键回退 zh-CN，再缺返回 key 本身
+  ---
+  duration_ms: 33.0588
+  type: 'test'
+  ...
+# Subtest: setLanguage(en) 切换、持久化、派发事件、更新 html lang
+ok 31 - setLanguage(en) 切换、持久化、派发事件、更新 html lang
+  ---
+  duration_ms: 2.4403
+  type: 'test'
+  ...
+# Subtest: init 读取持久化语言（装载时 storage 已含 en）
+ok 32 - init 读取持久化语言（装载时 storage 已含 en）
+  ---
+  duration_ms: 17.5483
+  type: 'test'
+  ...
+# Subtest: applyDom 按 data-i18n* 属性替换静态 chrome
+ok 33 - applyDom 按 data-i18n* 属性替换静态 chrome
+  ---
+  duration_ms: 10.6774
+  type: 'test'
+  ...
+# Subtest: applyDom 在 en 下使用英文词条
+ok 34 - applyDom 在 en 下使用英文词条
+  ---
+  duration_ms: 2.192
+  type: 'test'
+  ...
+# Subtest: KeyAssist opens, sets ARIA attributes and focus restoration
+ok 35 - KeyAssist opens, sets ARIA attributes and focus restoration
+  ---
+  duration_ms: 33.1956
+  type: 'test'
+  ...
+# Subtest: KeyAssist navigates with Arrow keys and updates selection
+ok 36 - KeyAssist navigates with Arrow keys and updates selection
+  ---
+  duration_ms: 19.9735
+  type: 'test'
+  ...
+# Subtest: KeyAssist search filtering matches command title and id
+ok 37 - KeyAssist search filtering matches command title and id
+  ---
+  duration_ms: 15.3343
+  type: 'test'
+  ...
+# Subtest: KeyAssist F2 triggers edit binding event/callback and Delete triggers unbind
+ok 38 - KeyAssist F2 triggers edit binding event/callback and Delete triggers unbind
+  ---
+  duration_ms: 35.9963
+  type: 'test'
+  ...
+# Subtest: KeyAssist toggle opens when closed, closes when open
+ok 39 - KeyAssist toggle opens when closed, closes when open
+  ---
+  duration_ms: 12.2166
+  type: 'test'
+  ...
+# Subtest: KeyAssist respects disabled commands and does not run them
+ok 40 - KeyAssist respects disabled commands and does not run them
+  ---
+  duration_ms: 5.5145
+  type: 'test'
+  ...
+# Subtest: KeyAssist handles English locale and fallback gracefully
+ok 41 - KeyAssist handles English locale and fallback gracefully
+  ---
+  duration_ms: 12.0634
+  type: 'test'
+  ...
+# Subtest: KeyAssist closes on backdrop / outside pointerdown
+ok 42 - KeyAssist closes on backdrop / outside pointerdown
+  ---
+  duration_ms: 3.1519
+  type: 'test'
+  ...
+# Subtest: pairwise scheme-context runner resolves every active default binding
+ok 43 - pairwise scheme-context runner resolves every active default binding
+  ---
+  duration_ms: 616.0116
+  type: 'test'
+  ...
+# Subtest: pairwise case ultra.eclipse / editorTextFocus
+ok 44 - pairwise case ultra.eclipse / editorTextFocus
+  ---
+  duration_ms: 183.4732
+  type: 'test'
+  ...
+# Subtest: pairwise case ultra.eclipse / projectTreeFocus
+ok 45 - pairwise case ultra.eclipse / projectTreeFocus
+  ---
+  duration_ms: 46.2629
+  type: 'test'
+  ...
+# Subtest: pairwise case ultra.eclipse / outlineFocus
+ok 46 - pairwise case ultra.eclipse / outlineFocus
+  ---
+  duration_ms: 57.2771
+  type: 'test'
+  ...
+# Subtest: pairwise case ultra.eclipse / settingsFocus
+ok 47 - pairwise case ultra.eclipse / settingsFocus
+  ---
+  duration_ms: 68.9046
+  type: 'test'
+  ...
+# Subtest: pairwise case ultra.eclipse / dialogOpen
+ok 48 - pairwise case ultra.eclipse / dialogOpen
+  ---
+  duration_ms: 94.8471
+  type: 'test'
+  ...
+# Subtest: pairwise case ultra.eclipse / vim.normal
+ok 49 - pairwise case ultra.eclipse / vim.normal
+  ---
+  duration_ms: 66.616
+  type: 'test'
+  ...
+# Subtest: pairwise case ultra.eclipse / vim.insert
+ok 50 - pairwise case ultra.eclipse / vim.insert
+  ---
+  duration_ms: 64.7928
+  type: 'test'
+  ...
+# Subtest: pairwise case ultra.vscode / editorTextFocus
+ok 51 - pairwise case ultra.vscode / editorTextFocus
+  ---
+  duration_ms: 16.9053
+  type: 'test'
+  ...
+# Subtest: pairwise case ultra.vscode / projectTreeFocus
+ok 52 - pairwise case ultra.vscode / projectTreeFocus
+  ---
+  duration_ms: 47.3756
+  type: 'test'
+  ...
+# Subtest: pairwise case ultra.vscode / outlineFocus
+ok 53 - pairwise case ultra.vscode / outlineFocus
+  ---
+  duration_ms: 62.8871
+  type: 'test'
+  ...
+# Subtest: pairwise case ultra.vscode / settingsFocus
+ok 54 - pairwise case ultra.vscode / settingsFocus
+  ---
+  duration_ms: 11.667
+  type: 'test'
+  ...
+# Subtest: pairwise case ultra.vscode / dialogOpen
+ok 55 - pairwise case ultra.vscode / dialogOpen
+  ---
+  duration_ms: 12.4228
+  type: 'test'
+  ...
+# Subtest: pairwise case ultra.vscode / vim.normal
+ok 56 - pairwise case ultra.vscode / vim.normal
+  ---
+  duration_ms: 25.9043
+  type: 'test'
+  ...
+# Subtest: pairwise case ultra.vscode / vim.insert
+ok 57 - pairwise case ultra.vscode / vim.insert
+  ---
+  duration_ms: 9.2064
+  type: 'test'
+  ...
+# Subtest: pairwise platform case Windows
+ok 58 - pairwise platform case Windows
+  ---
+  duration_ms: 11.5735
+  type: 'test'
+  ...
+# Subtest: pairwise platform case macOS
+ok 59 - pairwise platform case macOS
+  ---
+  duration_ms: 3.9176
+  type: 'test'
+  ...
+# Subtest: pairwise platform case Linux
+ok 60 - pairwise platform case Linux
+  ---
+  duration_ms: 3.4131
+  type: 'test'
+  ...
+# Subtest: pairwise platform case *
+ok 61 - pairwise platform case *
+  ---
+  duration_ms: 8.3719
+  type: 'test'
+  ...
+# Subtest: pairwise runner verifies context-gated bindings are isolated
+ok 62 - pairwise runner verifies context-gated bindings are isolated
+  ---
+  duration_ms: 383.1555
+  type: 'test'
+  ...
+# Subtest: generated strokes are canonical and stroke is idempotent
+ok 63 - generated strokes are canonical and stroke is idempotent
+  ---
+  duration_ms: 134.9077
+  type: 'test'
+  ...
+# Subtest: parse preserves generated chord boundaries and round-trips canonical strokes
+ok 64 - parse preserves generated chord boundaries and round-trips canonical strokes
+  ---
+  duration_ms: 16.771
+  type: 'test'
+  ...
+# Subtest: format is a canonical sequence formatter on Windows and macOS
+ok 65 - format is a canonical sequence formatter on Windows and macOS
+  ---
+  duration_ms: 21.2949
+  type: 'test'
+  ...
+# Subtest: matches agrees with generated event and equivalent modifier spellings
+ok 66 - matches agrees with generated event and equivalent modifier spellings
+  ---
+  duration_ms: 94.9068
+  type: 'test'
+  ...
+# Subtest: modifier aliases normalize case, order, and duplicates
+ok 67 - modifier aliases normalize case, order, and duplicates
+  ---
+  duration_ms: 14.7616
+  type: 'test'
+  ...
+# Subtest: malformed and unusual inputs remain deterministic without throwing
+ok 68 - malformed and unusual inputs remain deterministic without throwing
+  ---
+  duration_ms: 13.6496
+  type: 'test'
+  ...
+# Subtest: KeybindingsSettings mounts and renders scheme selector and toolbar
+ok 69 - KeybindingsSettings mounts and renders scheme selector and toolbar
+  ---
+  duration_ms: 28.6892
+  type: 'test'
+  ...
+# Subtest: KeybindingsSettings switches scheme and dispatches event
+ok 70 - KeybindingsSettings switches scheme and dispatches event
+  ---
+  duration_ms: 5.3522
+  type: 'test'
+  ...
+# Subtest: KeybindingsSettings search filters by title, id, category, key
+ok 71 - KeybindingsSettings search filters by title, id, category, key
+  ---
+  duration_ms: 27.3637
+  type: 'test'
+  ...
+# Subtest: KeybindingsSettings chord recorder records 2-stroke chord sequences
+ok 72 - KeybindingsSettings chord recorder records 2-stroke chord sequences
+  ---
+  duration_ms: 22.2056
+  type: 'test'
+  ...
+# Subtest: KeybindingsSettings handles unbind, reset and restore defaults
+ok 73 - KeybindingsSettings handles unbind, reset and restore defaults
+  ---
+  duration_ms: 17.4072
+  type: 'test'
+  ...
+# Subtest: KeybindingsSettings conflict warning in recorder when key is occupied
+ok 74 - KeybindingsSettings conflict warning in recorder when key is occupied
+  ---
+  duration_ms: 43.7656
+  type: 'test'
+  ...
+# Subtest: KeybindingsSettings normalizes modifiers and keys correctly
+ok 75 - KeybindingsSettings normalizes modifiers and keys correctly
+  ---
+  duration_ms: 2.8371
+  type: 'test'
+  ...
+# Subtest: KeybindingsSettings supports English locale fallback
+ok 76 - KeybindingsSettings supports English locale fallback
+  ---
+  duration_ms: 9.7437
+  type: 'test'
+  ...
+# Subtest: KeybindingsSettings recorder restores focus and closes on backdrop click
+ok 77 - KeybindingsSettings recorder restores focus and closes on backdrop click
+  ---
+  duration_ms: 6.5065
+  type: 'test'
+  ...
+# Subtest: keybindings default map and persistence key
+ok 78 - keybindings default map and persistence key
+  ---
+  duration_ms: 40.2626
+  type: 'test'
+  ...
+# Subtest: overrides 只读快照：随 save/clear 反映当前覆盖表
+ok 79 - overrides 只读快照：随 save/clear 反映当前覆盖表
+  ---
+  duration_ms: 13.2553
+  type: 'test'
+  ...
+# Subtest: keybindings save/load roundtrip
+ok 80 - keybindings save/load roundtrip
+  ---
+  duration_ms: 15.5601
+  type: 'test'
+  ...
+# Subtest: key normalization
+ok 81 - key normalization
+  ---
+  duration_ms: 11.5021
+  type: 'test'
+  ...
+# Subtest: 树面板折叠往返：collapsed 类、手柄同步隐藏与展开恢复
+ok 82 - 树面板折叠往返：collapsed 类、手柄同步隐藏与展开恢复
+  ---
+  duration_ms: 14.5115
+  type: 'test'
+  ...
+# Subtest: 持久化键名：glancemd-ultra-layout-tree-{width,collapsed}、glancemd-ultra-layout-outline-width 与 glancemd-ultra-outline-open
+ok 83 - 持久化键名：glancemd-ultra-layout-tree-{width,collapsed}、glancemd-ultra-layout-outline-width 与 glancemd-ultra-outline-open
+  ---
+  duration_ms: 5.3865
+  type: 'test'
+  ...
+# Subtest: 树拖宽：pointermove 自由拖动并受编辑器最小宽度保护钳制，pointerup 持久化
+ok 84 - 树拖宽：pointermove 自由拖动并受编辑器最小宽度保护钳制，pointerup 持久化
+  ---
+  duration_ms: 5.4992
+  type: 'test'
+  ...
+# Subtest: Outline 拖宽（默认右侧）：向左拖动增大宽度，受保护钳制，pointerup 持久化
+ok 85 - Outline 拖宽（默认右侧）：向左拖动增大宽度，受保护钳制，pointerup 持久化
+  ---
+  duration_ms: 2.1613
+  type: 'test'
+  ...
+# Subtest: Outline 拖宽（left 模式）：outlineSide=left 时位于树右侧，向右拖增宽，pointerup 持久化
+ok 86 - Outline 拖宽（left 模式）：outlineSide=left 时位于树右侧，向右拖增宽，pointerup 持久化
+  ---
+  duration_ms: 2.6464
+  type: 'test'
+  ...
+# Subtest: 拖宽结束才持久化：移动中途不写 localStorage
+ok 87 - 拖宽结束才持久化：移动中途不写 localStorage
+  ---
+  duration_ms: 2.9684
+  type: 'test'
+  ...
+# Subtest: restore：启动恢复持久化的树宽度/折叠状态、大纲宽度与开启状态，越界与脏值回退
+ok 88 - restore：启动恢复持久化的树宽度/折叠状态、大纲宽度与开启状态，越界与脏值回退
+  ---
+  duration_ms: 11.3016
+  type: 'test'
+  ...
+# Subtest: reset：清除持久化并恢复树与大纲默认宽度、展开及大纲关闭态
+ok 89 - reset：清除持久化并恢复树与大纲默认宽度、展开及大纲关闭态
+  ---
+  duration_ms: 2.3779
+  type: 'test'
+  ...
+# Subtest: Outline 开关：toggle / collapse / expand 控制 .open 类、手柄显隐、isCollapsed 语义与 \#btn-toc 激活态
+ok 90 - Outline 开关：toggle / collapse / expand 控制 .open 类、手柄显隐、isCollapsed 语义与 \#btn-toc 激活态
+  ---
+  duration_ms: 3.2698
+  type: 'test'
+  ...
+# Subtest: setOutlineSide：设置 content 与 documentElement 的 data-outline-side 属性且幂等
+ok 91 - setOutlineSide：设置 content 与 documentElement 的 data-outline-side 属性且幂等
+  ---
+  duration_ms: 3.5986
+  type: 'test'
+  ...
+# Subtest: 双击 resizer 恢复对应面板默认宽度
+ok 92 - 双击 resizer 恢复对应面板默认宽度
+  ---
+  duration_ms: 3.1143
+  type: 'test'
+  ...
+# Subtest: 命令注册：向 window.Commands 注册 layout.tree.{toggle,collapse,expand,resetWidth}
+ok 93 - 命令注册：向 window.Commands 注册 layout.tree.{toggle,collapse,expand,resetWidth}
+  ---
+  duration_ms: 4.4864
+  type: 'test'
+  ...
+# Subtest: 挂载：接管 \#outline-root，创建 \#outline-list 并摘掉自带空态
+ok 94 - 挂载：接管 \#outline-root，创建 \#outline-list 并摘掉自带空态
+  ---
+  duration_ms: 12.4438
+  type: 'test'
+  ...
+# Subtest: 层级提取：按文档顺序提取 h1–h6 的级别与文本
+ok 95 - 层级提取：按文档顺序提取 h1–h6 的级别与文本
+  ---
+  duration_ms: 4.8783
+  type: 'test'
+  ...
+# Subtest: 缩进层级：条目携带 outline-h1…outline-h6 类名（缩进由 CSS 承担）
+ok 96 - 缩进层级：条目携带 outline-h1…outline-h6 类名（缩进由 CSS 承担）
+  ---
+  duration_ms: 6.796
+  type: 'test'
+  ...
+# Subtest: 每项含级别标记与标题文本
+ok 97 - 每项含级别标记与标题文本
+  ---
+  duration_ms: 2.1092
+  type: 'test'
+  ...
+# Subtest: 空文档/无标题：显示"暂无大纲"空态
+ok 98 - 空文档/无标题：显示"暂无大纲"空态
+  ---
+  duration_ms: 1.9751
+  type: 'test'
+  ...
+# Subtest: 空白文本归一：连续空白折叠、无文本标题占位
+ok 99 - 空白文本归一：连续空白折叠、无文本标题占位
+  ---
+  duration_ms: 1.6367
+  type: 'test'
+  ...
+# Subtest: 点击条目滚动预览到对应标题并即时高亮
+ok 100 - 点击条目滚动预览到对应标题并即时高亮
+  ---
+  duration_ms: 3.6067
+  type: 'test'
+  ...
+# Subtest: Outline.scrollTo：越界下标不滚动也不抛错
+ok 101 - Outline.scrollTo：越界下标不滚动也不抛错
+  ---
+  duration_ms: 2.1089
+  type: 'test'
+  ...
+# Subtest: 激活高亮互斥：切换后仅当前项带 active
+ok 102 - 激活高亮互斥：切换后仅当前项带 active
+  ---
+  duration_ms: 7.8391
+  type: 'test'
+  ...
+# Subtest: setActive 越界下标被忽略
+ok 103 - setActive 越界下标被忽略
+  ---
+  duration_ms: 2.3737
+  type: 'test'
+  ...
+# Subtest: MutationObserver 接线：监听 \#preview 的 childList/subtree/characterData
+ok 104 - MutationObserver 接线：监听 \#preview 的 childList/subtree/characterData
+  ---
+  duration_ms: 1.8062
+  type: 'test'
+  ...
+# Subtest: 防抖重建：变化后不立即重建，200ms 后重建为新内容
+ok 105 - 防抖重建：变化后不立即重建，200ms 后重建为新内容
+  ---
+  duration_ms: 2.5924
+  type: 'test'
+  ...
+# Subtest: 防抖合并：窗口内多次变化只重建一次
+ok 106 - 防抖合并：窗口内多次变化只重建一次
+  ---
+  duration_ms: 2.167
+  type: 'test'
+  ...
+# Subtest: Outline.refresh：手动立即重建（观察器不可用时的兜底）
+ok 107 - Outline.refresh：手动立即重建（观察器不可用时的兜底）
+  ---
+  duration_ms: 9.3889
+  type: 'test'
+  ...
+# Subtest: 重建后旧激活下标越界即清除
+ok 108 - 重建后旧激活下标越界即清除
+  ---
+  duration_ms: 3.795
+  type: 'test'
+  ...
+# Subtest: 预览缺失时安全降级：空态 + refresh 不抛错
+ok 109 - 预览缺失时安全降级：空态 + refresh 不抛错
+  ---
+  duration_ms: 1.371
+  type: 'test'
+  ...
+# Subtest: \#outline-root 缺失时模块不挂载也不抛错
+ok 110 - \#outline-root 缺失时模块不挂载也不抛错
+  ---
+  duration_ms: 1.3715
+  type: 'test'
+  ...
+# Subtest: IntersectionObserver 可用：观察全部标题并按可视项高亮
+ok 111 - IntersectionObserver 可用：观察全部标题并按可视项高亮
+  ---
+  duration_ms: 8.2569
+  type: 'test'
+  ...
+# Subtest: IntersectionObserver：非可视项与未知目标不改变高亮
+ok 112 - IntersectionObserver：非可视项与未知目标不改变高亮
+  ---
+  duration_ms: 2.8804
+  type: 'test'
+  ...
+# Subtest: IntersectionObserver 缺失时静默跳过（其余功能不受影响）
+ok 113 - IntersectionObserver 缺失时静默跳过（其余功能不受影响）
+  ---
+  duration_ms: 1.9202
+  type: 'test'
+  ...
+# Subtest: 重建时断开旧观察器并重新观察新标题
+ok 114 - 重建时断开旧观察器并重新观察新标题
+  ---
+  duration_ms: 2.0602
+  type: 'test'
+  ...
+# Subtest: Commands 注册：向 window.Commands 注册 outline.* 系列 11 项命令
+ok 115 - Commands 注册：向 window.Commands 注册 outline.* 系列 11 项命令
+  ---
+  duration_ms: 11.0495
+  type: 'test'
+  ...
+# Subtest: 统一 Outline 显隐：outline.toggle/show/hide/resetWidth/setSide 与 LayoutUI 同步
+ok 116 - 统一 Outline 显隐：outline.toggle/show/hide/resetWidth/setSide 与 LayoutUI 同步
+  ---
+  duration_ms: 2.6853
+  type: 'test'
+  ...
+# Subtest: 标题项点击委托 Commands.run("outline.goTo", { index })
+ok 117 - 标题项点击委托 Commands.run("outline.goTo", { index })
+  ---
+  duration_ms: 2.0763
+  type: 'test'
+  ...
+# Subtest: 键盘导航：ArrowDown 与 ArrowUp 移动选中项并具备边界钳制
+ok 118 - 键盘导航：ArrowDown 与 ArrowUp 移动选中项并具备边界钳制
+  ---
+  duration_ms: 8.0714
+  type: 'test'
+  ...
+# Subtest: 键盘导航：Enter 滚动对应标题并返回编辑器焦点
+ok 119 - 键盘导航：Enter 滚动对应标题并返回编辑器焦点
+  ---
+  duration_ms: 2.4833
+  type: 'test'
+  ...
+# Subtest: 键盘导航：Ctrl+Enter 滚动对应标题但保留 Outline 焦点
+ok 120 - 键盘导航：Ctrl+Enter 滚动对应标题但保留 Outline 焦点
+  ---
+  duration_ms: 3.5982
+  type: 'test'
+  ...
+# Subtest: 键盘导航：F5 立即触发大纲刷新
+ok 121 - 键盘导航：F5 立即触发大纲刷新
+  ---
+  duration_ms: 1.9126
+  type: 'test'
+  ...
+# Subtest: 命令测试：outline.selectNext / selectPrevious / openSelection / focus
+ok 122 - 命令测试：outline.selectNext / selectPrevious / openSelection / focus
+  ---
+  duration_ms: 18.2016
+  type: 'test'
+  ...
+# Subtest: OverlayHelper records activeElement on open and restores on close
+ok 123 - OverlayHelper records activeElement on open and restores on close
+  ---
+  duration_ms: 10.6355
+  type: 'test'
+  ...
+# Subtest: OverlayHelper closes previous overlay on opening new one (mutual exclusion)
+ok 124 - OverlayHelper closes previous overlay on opening new one (mutual exclusion)
+  ---
+  duration_ms: 2.2187
+  type: 'test'
+  ...
+# Subtest: OverlayHelper detects outside pointerdown and calls close
+ok 125 - OverlayHelper detects outside pointerdown and calls close
+  ---
+  duration_ms: 20.5231
+  type: 'test'
+  ...
+# Subtest: OverlayHelper detects outside focusin and calls close
+ok 126 - OverlayHelper detects outside focusin and calls close
+  ---
+  duration_ms: 4.5204
+  type: 'test'
+  ...
+# Subtest: OverlayHelper scrollIntoView safely invokes element scrollIntoView
+ok 127 - OverlayHelper scrollIntoView safely invokes element scrollIntoView
+  ---
+  duration_ms: 2.7091
+  type: 'test'
+  ...
+# Subtest: 点击相对 Markdown 链接时请求 Rust 打开目标文件
+ok 128 - 点击相对 Markdown 链接时请求 Rust 打开目标文件
+  ---
+  duration_ms: 10.2742
+  type: 'test'
+  ...
+# Subtest: 被拦截导航显示回退提示且保留当前预览
+ok 129 - 被拦截导航显示回退提示且保留当前预览
+  ---
+  duration_ms: 19.0654
+  type: 'test'
+  ...
+# Subtest: 重试被拦截的应用内路径时打开当前文档旁的文件
+ok 130 - 重试被拦截的应用内路径时打开当前文档旁的文件
+  ---
+  duration_ms: 3.3663
+  type: 'test'
+  ...
+# Subtest: 重试使用触发失败时的源标签路径
+ok 131 - 重试使用触发失败时的源标签路径
+  ---
+  duration_ms: 3.0767
+  type: 'test'
+  ...
+# Subtest: macOS/Linux 的 glancemd 协议被拦截后仍显示回退并可重试
+ok 132 - macOS/Linux 的 glancemd 协议被拦截后仍显示回退并可重试
+  ---
+  duration_ms: 1.8264
+  type: 'test'
+  ...
+# Subtest: 网络链接与页内锚点保持浏览器默认行为
+ok 133 - 网络链接与页内锚点保持浏览器默认行为
+  ---
+  duration_ms: 13.3123
+  type: 'test'
+  ...
+# Subtest: 点击 Windows 绝对路径时直接打开该文件
+ok 134 - 点击 Windows 绝对路径时直接打开该文件
+  ---
+  duration_ms: 4.4951
+  type: 'test'
+  ...
+# Subtest: 解析路径前先移除查询和锚点
+ok 135 - 解析路径前先移除查询和锚点
+  ---
+  duration_ms: 35.1395
+  type: 'test'
+  ...
+# Subtest: 非法 URL 编码不会触发 WebView 导航或抛出异常
+ok 136 - 非法 URL 编码不会触发 WebView 导航或抛出异常
+  ---
+  duration_ms: 10.024
+  type: 'test'
+  ...
+# Subtest: 挂载接管面板主体：清空占位并创建可聚焦树容器
+ok 137 - 挂载接管面板主体：清空占位并创建可聚焦树容器
+  ---
+  duration_ms: 66.5778
+  type: 'test'
+  ...
+# Subtest: workspace:opened 渲染根节点并请求根目录列表
+ok 138 - workspace:opened 渲染根节点并请求根目录列表
+  ---
+  duration_ms: 200.1003
+  type: 'test'
+  ...
+# Subtest: tree-listed 渲染条目：图标语义、chev 状态、顺序保持，兼容 relPath/SymLinkFile 拼写
+ok 139 - tree-listed 渲染条目：图标语义、chev 状态、顺序保持，兼容 relPath/SymLinkFile 拼写
+  ---
+  duration_ms: 9.9777
+  type: 'test'
+  ...
+# Subtest: 目录行点击展开：未加载时懒加载请求 tree.list
+ok 140 - 目录行点击展开：未加载时懒加载请求 tree.list
+  ---
+  duration_ms: 4.7612
+  type: 'test'
+  ...
+# Subtest: 懒加载去重：在途与已加载目录不重复请求
+ok 141 - 懒加载去重：在途与已加载目录不重复请求
+  ---
+  duration_ms: 4.2131
+  type: 'test'
+  ...
+# Subtest: 收起移除子行、再展开恢复
+ok 142 - 收起移除子行、再展开恢复
+  ---
+  duration_ms: 11.8038
+  type: 'test'
+  ...
+# Subtest: 单击文件行：选中激活并经命令表发 open_file 绝对路径（Windows 反斜杠根归一）
+ok 143 - 单击文件行：选中激活并经命令表发 open_file 绝对路径（Windows 反斜杠根归一）
+  ---
+  duration_ms: 5.7724
+  type: 'test'
+  ...
+# Subtest: Ctrl+点击切换多选：st-selected 且多选时不渲染激活态
+ok 144 - Ctrl+点击切换多选：st-selected 且多选时不渲染激活态
+  ---
+  duration_ms: 11.8678
+  type: 'test'
+  ...
+# Subtest: Shift+点击范围多选
+ok 145 - Shift+点击范围多选
+  ---
+  duration_ms: 4.9062
+  type: 'test'
+  ...
+# Subtest: 键盘 ↑↓ 在可见行间移动高亮
+ok 146 - 键盘 ↑↓ 在可见行间移动高亮
+  ---
+  duration_ms: 6.0827
+  type: 'test'
+  ...
+# Subtest: 键盘 → 展开未加载目录、← 收起并回落父行
+ok 147 - 键盘 → 展开未加载目录、← 收起并回落父行
+  ---
+  duration_ms: 6.6269
+  type: 'test'
+  ...
+# Subtest: Enter：目录切换展开，文件发打开命令
+ok 148 - Enter：目录切换展开，文件发打开命令
+  ---
+  duration_ms: 4.03
+  type: 'test'
+  ...
+# Subtest: F2 内联重命名：Enter 提交发 workspace.fs.rename，Esc/失焦取消
+ok 149 - F2 内联重命名：Enter 提交发 workspace.fs.rename，Esc/失焦取消
+  ---
+  duration_ms: 4.6429
+  type: 'test'
+  ...
+# Subtest: F2 在多选与根行上禁用
+ok 150 - F2 在多选与根行上禁用
+  ---
+  duration_ms: 3.1701
+  type: 'test'
+  ...
+# Subtest: Delete 发回收站删除；Shift+Delete 二次确认后永久删除
+ok 151 - Delete 发回收站删除；Shift+Delete 二次确认后永久删除
+  ---
+  duration_ms: 9.7682
+  type: 'test'
+  ...
+# Subtest: 右键打开上下文菜单：未选中行先选中，Esc/外点击关闭
+ok 152 - 右键打开上下文菜单：未选中行先选中，Esc/外点击关闭
+  ---
+  duration_ms: 22.0793
+  type: 'test'
+  ...
+# Subtest: 上下文菜单无障碍语义与键盘导航：aria-disabled、方向键、Enter、Escape
+ok 153 - 上下文菜单无障碍语义与键盘导航：aria-disabled、方向键、Enter、Escape
+  ---
+  duration_ms: 10.9388
+  type: 'test'
+  ...
+# Subtest: 上下文菜单边界定位：右下角翻转并夹紧到 viewport
+ok 154 - 上下文菜单边界定位：右下角翻转并夹紧到 viewport
+  ---
+  duration_ms: 3.4062
+  type: 'test'
+  ...
+# Subtest: 菜单样式包含明暗主题 token、raised overlay、hover/危险态与 focus-visible
+ok 155 - 菜单样式包含明暗主题 token、raised overlay、hover/危险态与 focus-visible
+  ---
+  duration_ms: 1.2209
+  type: 'test'
+  ...
+# Subtest: 菜单项→命令映射：新建文件按目标目录、终端、reveal、删除
+ok 156 - 菜单项→命令映射：新建文件按目标目录、终端、reveal、删除
+  ---
+  duration_ms: 15.5103
+  type: 'test'
+  ...
+# Subtest: 多选时菜单的 reveal 与重命名项禁用
+ok 157 - 多选时菜单的 reveal 与重命名项禁用
+  ---
+  duration_ms: 24.8649
+  type: 'test'
+  ...
+# Subtest: 复制路径：系统剪贴板优先，缺失时降级 execCommand
+ok 158 - 复制路径：系统剪贴板优先，缺失时降级 execCommand
+  ---
+  duration_ms: 15.8896
+  type: 'test'
+  ...
+# Subtest: 剪切/复制/粘贴：内部剪贴板状态与 move/copy 命令
+ok 159 - 剪切/复制/粘贴：内部剪贴板状态与 move/copy 命令
+  ---
+  duration_ms: 6.0855
+  type: 'test'
+  ...
+# Subtest: 根目录强制重列不重复根级条目并清理 rowByRel
+ok 160 - 根目录强制重列不重复根级条目并清理 rowByRel
+  ---
+  duration_ms: 28.0742
+  type: 'test'
+  ...
+# Subtest: settings-effective 相同过滤 payload 只触发一次根列表刷新
+ok 161 - settings-effective 相同过滤 payload 只触发一次根列表刷新
+  ---
+  duration_ms: 2.9628
+  type: 'test'
+  ...
+# Subtest: workspace:file-changed 强制刷新父目录；项目外路径忽略
+ok 162 - workspace:file-changed 强制刷新父目录；项目外路径忽略
+  ---
+  duration_ms: 4.0705
+  type: 'test'
+  ...
+# Subtest: fs-op-done rename：刷新新旧父目录、活动文件重映射并发 projecttree:file-moved
+ok 163 - fs-op-done rename：刷新新旧父目录、活动文件重映射并发 projecttree:file-moved
+  ---
+  duration_ms: 3.88
+  type: 'test'
+  ...
+# Subtest: fs-op-done move 目录：展开状态随路径重映射并持久化
+ok 164 - fs-op-done move 目录：展开状态随路径重映射并持久化
+  ---
+  duration_ms: 8.0638
+  type: 'test'
+  ...
+# Subtest: 展开状态持久化：写入 localStorage，重开项目后级联恢复
+ok 165 - 展开状态持久化：写入 localStorage，重开项目后级联恢复
+  ---
+  duration_ms: 16.1284
+  type: 'test'
+  ...
+# Subtest: 定位当前文件：tab 同步高亮不滚动，命令展开祖先选中并滚动
+ok 166 - 定位当前文件：tab 同步高亮不滚动，命令展开祖先选中并滚动
+  ---
+  duration_ms: 3.4048
+  type: 'test'
+  ...
+# Subtest: 命令注册：向 window.Commands 注册 projectTree.* 系列 UI 命令
+ok 167 - 命令注册：向 window.Commands 注册 projectTree.* 系列 UI 命令
+  ---
+  duration_ms: 2.4371
+  type: 'test'
+  ...
+# Subtest: 命令注册：project.* 进入 window.Commands 且 open-file 拼接绝对路径
+ok 168 - 命令注册：project.* 进入 window.Commands 且 open-file 拼接绝对路径
+  ---
+  duration_ms: 47.2543
+  type: 'test'
+  ...
+# Subtest: undo 命令与空白点击清空选择
+ok 169 - undo 命令与空白点击清空选择
+  ---
+  duration_ms: 3.5813
+  type: 'test'
+  ...
+# Subtest: workspace:error 释放在途请求，允许重试展开
+ok 170 - workspace:error 释放在途请求，允许重试展开
+  ---
+  duration_ms: 9.4588
+  type: 'test'
+  ...
+# Subtest: fs-op-done copy/trash-delete：按 paths 刷新受影响目录
+ok 171 - fs-op-done copy/trash-delete：按 paths 刷新受影响目录
+  ---
+  duration_ms: 19.4311
+  type: 'test'
+  ...
+# Subtest: quick open score favors matching filename
+ok 172 - quick open score favors matching filename
+  ---
+  duration_ms: 18.4159
+  type: 'test'
+  ...
+# Subtest: quick open toggle creates floating panel and closes on close
+ok 173 - quick open toggle creates floating panel and closes on close
+  ---
+  duration_ms: 13.5978
+  type: 'test'
+  ...
+# Subtest: quick open setFiles deduplicates and updates state
+ok 174 - quick open setFiles deduplicates and updates state
+  ---
+  duration_ms: 4.6693
+  type: 'test'
+  ...
+# Subtest: quick open deduplicates tree-listed recursive results
+ok 175 - quick open deduplicates tree-listed recursive results
+  ---
+  duration_ms: 2.5668
+  type: 'test'
+  ...
+# Subtest: quick open tab switcher mode is isolated from workspace files
+ok 176 - quick open tab switcher mode is isolated from workspace files
+  ---
+  duration_ms: 11.199
+  type: 'test'
+  ...
+# Subtest: quick open closes on outside pointerdown and restores focus
+ok 177 - quick open closes on outside pointerdown and restores focus
+  ---
+  duration_ms: 204.216
+  type: 'test'
+  ...
+# Subtest: 装载后挂载 window.RecoveryUI 并注册 recovery.* 命令
+ok 178 - 装载后挂载 window.RecoveryUI 并注册 recovery.* 命令
+  ---
+  duration_ms: 13.8947
+  type: 'test'
+  ...
+# Subtest: Modified × dirty：出现琥珀横幅，插在 \#content 之前并注入下推量
+ok 179 - Modified × dirty：出现琥珀横幅，插在 \#content 之前并注入下推量
+  ---
+  duration_ms: 86.5964
+  type: 'test'
+  ...
+# Subtest: Modified × clean：不弹横幅
+ok 180 - Modified × clean：不弹横幅
+  ---
+  duration_ms: 2.9369
+  type: 'test'
+  ...
+# Subtest: Removed：红色变体（另存为/关闭，无重新加载）
+ok 181 - Removed：红色变体（另存为/关闭，无重新加载）
+  ---
+  duration_ms: 63.3183
+  type: 'test'
+  ...
+# Subtest: 同一文件已有横幅不重复（仅更新时间戳）
+ok 182 - 同一文件已有横幅不重复（仅更新时间戳）
+  ---
+  duration_ms: 3.7557
+  type: 'test'
+  ...
+# Subtest: 多文件横幅堆叠上限：3 条 + "…还有 N 个"
+ok 183 - 多文件横幅堆叠上限：3 条 + "…还有 N 个"
+  ---
+  duration_ms: 12.1745
+  type: 'test'
+  ...
+# Subtest: × 关闭为暂时关闭（dismiss-banner 移除横幅，事件再变时重现）
+ok 184 - × 关闭为暂时关闭（dismiss-banner 移除横幅，事件再变时重现）
+  ---
+  duration_ms: 6.1636
+  type: 'test'
+  ...
+# Subtest: 重新加载：经 open_file+path 派发并撤下横幅
+ok 185 - 重新加载：经 open_file+path 派发并撤下横幅
+  ---
+  duration_ms: 15.5604
+  type: 'test'
+  ...
+# Subtest: 重新加载：相对路径经 workspace:opened 的根拼接为绝对路径
+ok 186 - 重新加载：相对路径经 workspace:opened 的根拼接为绝对路径
+  ---
+  duration_ms: 5.2789
+  type: 'test'
+  ...
+# Subtest: 另存为：先激活对应 tab 再以 \#editor 当前内容派发 save_as
+ok 187 - 另存为：先激活对应 tab 再以 \#editor 当前内容派发 save_as
+  ---
+  duration_ms: 3.7399
+  type: 'test'
+  ...
+# Subtest: 关闭按钮（Removed 变体）：经 TabManager.closeTab 关闭并撤下横幅
+ok 188 - 关闭按钮（Removed 变体）：经 TabManager.closeTab 关闭并撤下横幅
+  ---
+  duration_ms: 50.2036
+  type: 'test'
+  ...
+# Subtest: 保留编辑版本：needsConfirm 置位、常驻警示条出现、按钮收敛
+ok 189 - 保留编辑版本：needsConfirm 置位、常驻警示条出现、按钮收敛
+  ---
+  duration_ms: 14.9239
+  type: 'test'
+  ...
+# Subtest: 保留后再次外部变更（仍 dirty）→ 横幅重现且不重复
+ok 190 - 保留后再次外部变更（仍 dirty）→ 横幅重现且不重复
+  ---
+  duration_ms: 5.9869
+  type: 'test'
+  ...
+# Subtest: recovery.confirm-overwrite：解除 needsConfirm 并移除横幅
+ok 191 - recovery.confirm-overwrite：解除 needsConfirm 并移除横幅
+  ---
+  duration_ms: 3.7122
+  type: 'test'
+  ...
+# Subtest: 保留标记随 tab 转为 clean 自动解除（tab 栏 MutationObserver 驱动）
+ok 192 - 保留标记随 tab 转为 clean 自动解除（tab 栏 MutationObserver 驱动）
+  ---
+  duration_ms: 11.1055
+  type: 'test'
+  ...
+# Subtest: 保留标记随 tab 关闭自动解除
+ok 193 - 保留标记随 tab 关闭自动解除
+  ---
+  duration_ms: 2.7091
+  type: 'test'
+  ...
+# Subtest: clean × Modified 清除遗留横幅与保留标记
+ok 194 - clean × Modified 清除遗留横幅与保留标记
+  ---
+  duration_ms: 9.9607
+  type: 'test'
+  ...
+# Subtest: watcher rename 事件：横幅路径静默迁移到新路径
+ok 195 - watcher rename 事件：横幅路径静默迁移到新路径
+  ---
+  duration_ms: 3.5856
+  type: 'test'
+  ...
+# Subtest: fs-op-done rename/move：保留标记与横幅路径同步迁移
+ok 196 - fs-op-done rename/move：保留标记与横幅路径同步迁移
+  ---
+  duration_ms: 3.968
+  type: 'test'
+  ...
+# Subtest: 周期快照：dirty 活动 tab 发送 snapshot（tab_id/path/content/saved_at_ms）
+ok 197 - 周期快照：dirty 活动 tab 发送 snapshot（tab_id/path/content/saved_at_ms）
+  ---
+  duration_ms: 50.574
+  type: 'test'
+  ...
+# Subtest: 周期快照：内容与上次相同则跳过，变化后重发
+ok 198 - 周期快照：内容与上次相同则跳过，变化后重发
+  ---
+  duration_ms: 10.6919
+  type: 'test'
+  ...
+# Subtest: 周期快照：clean 活动 tab 与空内容均跳过
+ok 199 - 周期快照：clean 活动 tab 与空内容均跳过
+  ---
+  duration_ms: 2.3906
+  type: 'test'
+  ...
+# Subtest: 周期快照：TabManager 不可用时 path 记 null 仍可快照
+ok 200 - 周期快照：TabManager 不可用时 path 记 null 仍可快照
+  ---
+  duration_ms: 3.9479
+  type: 'test'
+  ...
+# Subtest: 周期快照：负载走 data 字段 JSON（信封契约 §1.1 扩展）
+ok 201 - 周期快照：负载走 data 字段 JSON（信封契约 §1.1 扩展）
+  ---
+  duration_ms: 6.7683
+  type: 'test'
+  ...
+# Subtest: recovery-available：有条目时显示恢复面板（路径 + 时间 + 逐条恢复/丢弃 + 全部丢弃）
+ok 202 - recovery-available：有条目时显示恢复面板（路径 + 时间 + 逐条恢复/丢弃 + 全部丢弃）
+  ---
+  duration_ms: 6.3986
+  type: 'test'
+  ...
+# Subtest: recovery-available：无条目不显示面板
+ok 203 - recovery-available：无条目不显示面板
+  ---
+  duration_ms: 2.1679
+  type: 'test'
+  ...
+# Subtest: 恢复条目：按 tab_id 派发 workspace.recovery.restore（data JSON）
+ok 204 - 恢复条目：按 tab_id 派发 workspace.recovery.restore（data JSON）
+  ---
+  duration_ms: 6.9183
+  type: 'test'
+  ...
+# Subtest: 恢复条目：restored 事件后移除对应行并展示只读恢复内容
+ok 205 - 恢复条目：restored 事件后移除对应行并展示只读恢复内容
+  ---
+  duration_ms: 4.0093
+  type: 'test'
+  ...
+# Subtest: 最后一条恢复后面板自动收起
+ok 206 - 最后一条恢复后面板自动收起
+  ---
+  duration_ms: 2.637
+  type: 'test'
+  ...
+# Subtest: 丢弃条目：立即派发 discard 并移除该行
+ok 207 - 丢弃条目：立即派发 discard 并移除该行
+  ---
+  duration_ms: 17.8271
+  type: 'test'
+  ...
+# Subtest: 全部丢弃：逐条 discard、清空列表并收起面板
+ok 208 - 全部丢弃：逐条 discard、清空列表并收起面板
+  ---
+  duration_ms: 9.7391
+  type: 'test'
+  ...
+# Subtest: 复制全部：经剪贴板 API 写入恢复内容并反馈
+ok 209 - 复制全部：经剪贴板 API 写入恢复内容并反馈
+  ---
+  duration_ms: 8.0586
+  type: 'test'
+  ...
+# Subtest: recovery.copy-restored 命令：无恢复内容时返回 false
+ok 210 - recovery.copy-restored 命令：无恢复内容时返回 false
+  ---
+  duration_ms: 4.9725
+  type: 'test'
+  ...
+# Subtest: search panel namespace and toggle
+ok 211 - search panel namespace and toggle
+  ---
+  duration_ms: 5.7416
+  type: 'test'
+  ...
+# Subtest: search panel start emits structured options
+ok 212 - search panel start emits structured options
+  ---
+  duration_ms: 2.7966
+  type: 'test'
+  ...
+# Subtest: search panel state exposes hits
+ok 213 - search panel state exposes hits
+  ---
+  duration_ms: 5.9813
+  type: 'test'
+  ...
+# Subtest: get() 未收到事件时返回内置默认值（与 Rust schema v1 Default 一致）
+ok 214 - get() 未收到事件时返回内置默认值（与 Rust schema v1 Default 一致）
+  ---
+  duration_ms: 12.9348
+  type: 'test'
+  ...
+# Subtest: get() 合并默认值且返回拷贝（外部改写不污染缓存）
+ok 215 - get() 合并默认值且返回拷贝（外部改写不污染缓存）
+  ---
+  duration_ms: 12.5004
+  type: 'test'
+  ...
+# Subtest: 装载即发一次 get-effective 并订阅 settings-effective，事件驱动 apply
+ok 216 - 装载即发一次 get-effective 并订阅 settings-effective，事件驱动 apply
+  ---
+  duration_ms: 2.3348
+  type: 'test'
+  ...
+# Subtest: apply 写入编辑器字号 / Tab 宽度 / 侧栏派生变量，非法值回退默认
+ok 217 - apply 写入编辑器字号 / Tab 宽度 / 侧栏派生变量，非法值回退默认
+  ---
+  duration_ms: 2.6823
+  type: 'test'
+  ...
+# Subtest: 主题 effective：light/dark 直接应用，system 解析系统并监听变化
+ok 218 - 主题 effective：light/dark 直接应用，system 解析系统并监听变化
+  ---
+  duration_ms: 6.616
+  type: 'test'
+  ...
+# Subtest: settings-changed 与 workspace-opened 重新请求 effective
+ok 219 - settings-changed 与 workspace-opened 重新请求 effective
+  ---
+  duration_ms: 2.3534
+  type: 'test'
+  ...
+# Subtest: apply wordWrap 切换 textarea wrap 属性且 value 不丢，wrap-off 类随动
+ok 220 - apply wordWrap 切换 textarea wrap 属性且 value 不丢，wrap-off 类随动
+  ---
+  duration_ms: 6.362
+  type: 'test'
+  ...
+# Subtest: apply lineNumbers 切换行号槽显隐（gutter-on 类 + display）
+ok 221 - apply lineNumbers 切换行号槽显隐（gutter-on 类 + display）
+  ---
+  duration_ms: 9.9344
+  type: 'test'
+  ...
+# Subtest: 行号槽：按逻辑行数渲染，不足视口容量时补足空行号，scrollTop 随编辑器
+ok 222 - 行号槽：按逻辑行数渲染，不足视口容量时补足空行号，scrollTop 随编辑器
+  ---
+  duration_ms: 2.7244
+  type: 'test'
+  ...
+# Subtest: 行号槽关闭（lineNumbers=false）时 syncGutter 不渲染
+ok 223 - 行号槽关闭（lineNumbers=false）时 syncGutter 不渲染
+  ---
+  duration_ms: 3.3384
+  type: 'test'
+  ...
+# Subtest: editor.js Tab 插入空格数读 SettingsApply：缺省 4、设置 2 生效
+ok 224 - editor.js Tab 插入空格数读 SettingsApply：缺省 4、设置 2 生效
+  ---
+  duration_ms: 9.7305
+  type: 'test'
+  ...
+# Subtest: SettingsUI 暴露 open/close/toggle/receive/getState
+ok 225 - SettingsUI 暴露 open/close/toggle/receive/getState
+  ---
+  duration_ms: 34.9276
+  type: 'test'
+  ...
+# Subtest: open 创建面板并发送三条读命令，骨架含导航/主体/footer
+ok 226 - open 创建面板并发送三条读命令，骨架含导航/主体/footer
+  ---
+  duration_ms: 36.9738
+  type: 'test'
+  ...
+# Subtest: receive 保存 effective 设置
+ok 227 - receive 保存 effective 设置
+  ---
+  duration_ms: 24.1802
+  type: 'test'
+  ...
+# Subtest: 分类导航中文化：七个中文分类、每类一句描述、点击切换
+ok 228 - 分类导航中文化：七个中文分类、每类一句描述、点击切换
+  ---
+  duration_ms: 72.7132
+  type: 'test'
+  ...
+# Subtest: 控件按值类型渲染：theme→select、bool→switch、number→number、array→逗号文本
+ok 229 - 控件按值类型渲染：theme→select、bool→switch、number→number、array→逗号文本
+  ---
+  duration_ms: 207.5299
+  type: 'test'
+  ...
+# Subtest: 设置行结构：左标签+说明、右控件，项目覆盖键带徽标
+ok 230 - 设置行结构：左标签+说明、右控件，项目覆盖键带徽标
+  ---
+  duration_ms: 16.2557
+  type: 'test'
+  ...
+# Subtest: \#settings-filter 过滤：命中英文 key 与中文标签
+ok 231 - \#settings-filter 过滤：命中英文 key 与中文标签
+  ---
+  duration_ms: 40.1295
+  type: 'test'
+  ...
+# Subtest: 搜索改全局：跨分类聚合、分组可点击跳转且保留过滤
+ok 232 - 搜索改全局：跨分类聚合、分组可点击跳转且保留过滤
+  ---
+  duration_ms: 16.3501
+  type: 'test'
+  ...
+# Subtest: settings.css 显式声明 [hidden] 关闭（防止 display:flex 覆盖）
+ok 233 - settings.css 显式声明 [hidden] 关闭（防止 display:flex 覆盖）
+  ---
+  duration_ms: 10.5781
+  type: 'test'
+  ...
+# Subtest: 设置控件遵循明暗 token：原生 select 与输入件不写死白色/暗色表面
+ok 234 - 设置控件遵循明暗 token：原生 select 与输入件不写死白色/暗色表面
+  ---
+  duration_ms: 1.7898
+  type: 'test'
+  ...
+# Subtest: 设置 modal 的动态宽度与窄视口下限由 CSS 契约声明
+ok 235 - 设置 modal 的动态宽度与窄视口下限由 CSS 契约声明
+  ---
+  duration_ms: 0.9577
+  type: 'test'
+  ...
+# Subtest: onchange 发送 set-global：data 为合并后的完整 global JSON 字符串
+ok 236 - onchange 发送 set-global：data 为合并后的完整 global JSON 字符串
+  ---
+  duration_ms: 7.3057
+  type: 'test'
+  ...
+# Subtest: onchange 值转换：number 发数字、bool 发布尔、array 按逗号拆分
+ok 237 - onchange 值转换：number 发数字、bool 发布尔、array 按逗号拆分
+  ---
+  duration_ms: 27.3421
+  type: 'test'
+  ...
+# Subtest: theme 变更即时预览解析后的主题且不再写 localStorage
+ok 238 - theme 变更即时预览解析后的主题且不再写 localStorage
+  ---
+  duration_ms: 36.1753
+  type: 'test'
+  ...
+# Subtest: 新增设置项渲染：watching.enableWatcher→switch、appearance.sidebarFontSize→number
+ok 239 - 新增设置项渲染：watching.enableWatcher→switch、appearance.sidebarFontSize→number
+  ---
+  duration_ms: 19.3027
+  type: 'test'
+  ...
+# Subtest: workspace:settings-changed 订阅生效：面板打开时重发读命令刷新
+ok 240 - workspace:settings-changed 订阅生效：面板打开时重发读命令刷新
+  ---
+  duration_ms: 16.9527
+  type: 'test'
+  ...
+# Subtest: close 隐藏面板，Escape 键同样可关闭
+ok 241 - close 隐藏面板，Escape 键同样可关闭
+  ---
+  duration_ms: 9.952
+  type: 'test'
+  ...
+# Subtest: 快捷键列表：挂载 KeybindingsSettings 组件并渲染方案选择与表格
+ok 242 - 快捷键列表：挂载 KeybindingsSettings 组件并渲染方案选择与表格
+  ---
+  duration_ms: 147.1173
+  type: 'test'
+  ...
+# Subtest: 修改录制：新组合键写入覆盖表并同步到 BindingService
+ok 243 - 修改录制：新组合键写入覆盖表并同步到 BindingService
+  ---
+  duration_ms: 233.672
+  type: 'test'
+  ...
+# Subtest: 快捷键重置：单项 reset 与恢复方案默认
+ok 244 - 快捷键重置：单项 reset 与恢复方案默认
+  ---
+  duration_ms: 189.8516
+  type: 'test'
+  ...
+# Subtest: 终端特例控件：扫描中显示扫描态，扫描完成后渲染自动+自定义选项，打开面板触发 scan 命令
+ok 245 - 终端特例控件：扫描中显示扫描态，扫描完成后渲染自动+自定义选项，打开面板触发 scan 命令
+  ---
+  duration_ms: 31.5568
+  type: 'test'
+  ...
+# Subtest: 终端特例控件：workspace:terminal-list 回执原地刷新列表并保留当前值
+ok 246 - 终端特例控件：workspace:terminal-list 回执原地刷新列表并保留当前值
+  ---
+  duration_ms: 18.007
+  type: 'test'
+  ...
+# Subtest: 终端特例控件：选自定义出现输入框并正确提交 terminalPath 与 terminalArgs
+ok 247 - 终端特例控件：选自定义出现输入框并正确提交 terminalPath 与 terminalArgs
+  ---
+  duration_ms: 16.3468
+  type: 'test'
+  ...
+# Subtest: 终端特例控件：当前值不在扫描列表中时自动追加“当前值”兜底
+ok 248 - 终端特例控件：当前值不在扫描列表中时自动追加“当前值”兜底
+  ---
+  duration_ms: 45.9362
+  type: 'test'
+  ...
+# Subtest: IIFE is Node-vm loadable without dependencies
+ok 249 - IIFE is Node-vm loadable without dependencies
+  ---
+  duration_ms: 25.706
+  type: 'test'
+  ...
+# Subtest: motion h
+ok 250 - motion h
+  ---
+  duration_ms: 6.3898
+  type: 'test'
+  ...
+# Subtest: motion l
+ok 251 - motion l
+  ---
+  duration_ms: 4.2826
+  type: 'test'
+  ...
+# Subtest: motion 0
+ok 252 - motion 0
+  ---
+  duration_ms: 2.0784
+  type: 'test'
+  ...
+# Subtest: motion $
+ok 253 - motion $
+  ---
+  duration_ms: 0.6474
+  type: 'test'
+  ...
+# Subtest: motion j
+ok 254 - motion j
+  ---
+  duration_ms: 0.291
+  type: 'test'
+  ...
+# Subtest: motion k
+ok 255 - motion k
+  ---
+  duration_ms: 0.418
+  type: 'test'
+  ...
+# Subtest: word/structural motion w
+ok 256 - word/structural motion w
+  ---
+  duration_ms: 7.0574
+  type: 'test'
+  ...
+# Subtest: word/structural motion W
+ok 257 - word/structural motion W
+  ---
+  duration_ms: 13.2352
+  type: 'test'
+  ...
+# Subtest: word/structural motion b
+ok 258 - word/structural motion b
+  ---
+  duration_ms: 1.045
+  type: 'test'
+  ...
+# Subtest: word/structural motion B
+ok 259 - word/structural motion B
+  ---
+  duration_ms: 0.6212
+  type: 'test'
+  ...
+# Subtest: word/structural motion e
+ok 260 - word/structural motion e
+  ---
+  duration_ms: 0.2679
+  type: 'test'
+  ...
+# Subtest: word/structural motion E
+ok 261 - word/structural motion E
+  ---
+  duration_ms: 0.1653
+  type: 'test'
+  ...
+# Subtest: word/structural motion ^
+ok 262 - word/structural motion ^
+  ---
+  duration_ms: 0.2131
+  type: 'test'
+  ...
+# Subtest: word/structural motion {
+ok 263 - word/structural motion {
+  ---
+  duration_ms: 0.1529
+  type: 'test'
+  ...
+# Subtest: word/structural motion }
+ok 264 - word/structural motion }
+  ---
+  duration_ms: 0.1503
+  type: 'test'
+  ...
+# Subtest: word/structural motion %
+ok 265 - word/structural motion %
+  ---
+  duration_ms: 2.7416
+  type: 'test'
+  ...
+# Subtest: extended motion g
+ok 266 - extended motion g
+  ---
+  duration_ms: 0.582
+  type: 'test'
+  ...
+# Subtest: extended motion G
+ok 267 - extended motion G
+  ---
+  duration_ms: 0.2029
+  type: 'test'
+  ...
+# Subtest: extended motion f
+ok 268 - extended motion f
+  ---
+  duration_ms: 0.7943
+  type: 'test'
+  ...
+# Subtest: extended motion F
+ok 269 - extended motion F
+  ---
+  duration_ms: 0.3691
+  type: 'test'
+  ...
+# Subtest: extended motion t
+ok 270 - extended motion t
+  ---
+  duration_ms: 0.2288
+  type: 'test'
+  ...
+# Subtest: extended motion T
+ok 271 - extended motion T
+  ---
+  duration_ms: 0.1975
+  type: 'test'
+  ...
+# Subtest: extended motion ;
+ok 272 - extended motion ;
+  ---
+  duration_ms: 0.3894
+  type: 'test'
+  ...
+# Subtest: extended motion ,
+ok 273 - extended motion ,
+  ---
+  duration_ms: 0.484
+  type: 'test'
+  ...
+# Subtest: operator dw
+ok 274 - operator dw
+  ---
+  duration_ms: 0.8102
+  type: 'test'
+  ...
+# Subtest: operator de
+ok 275 - operator de
+  ---
+  duration_ms: 0.2217
+  type: 'test'
+  ...
+# Subtest: operator d$
+ok 276 - operator d$
+  ---
+  duration_ms: 0.169
+  type: 'test'
+  ...
+# Subtest: operator d0
+ok 277 - operator d0
+  ---
+  duration_ms: 0.268
+  type: 'test'
+  ...
+# Subtest: operator dd
+ok 278 - operator dd
+  ---
+  duration_ms: 0.3321
+  type: 'test'
+  ...
+# Subtest: operator yy
+ok 279 - operator yy
+  ---
+  duration_ms: 0.1815
+  type: 'test'
+  ...
+# Subtest: operator cc
+ok 280 - operator cc
+  ---
+  duration_ms: 0.1613
+  type: 'test'
+  ...
+# Subtest: operator yw
+ok 281 - operator yw
+  ---
+  duration_ms: 0.1598
+  type: 'test'
+  ...
+# Subtest: operator y$
+ok 282 - operator y$
+  ---
+  duration_ms: 0.2446
+  type: 'test'
+  ...
+# Subtest: operator cw
+ok 283 - operator cw
+  ---
+  duration_ms: 0.1698
+  type: 'test'
+  ...
+# Subtest: operator ciw
+ok 284 - operator ciw
+  ---
+  duration_ms: 0.2242
+  type: 'test'
+  ...
+# Subtest: operator caw
+ok 285 - operator caw
+  ---
+  duration_ms: 0.4261
+  type: 'test'
+  ...
+# Subtest: count 3j
+ok 286 - count 3j
+  ---
+  duration_ms: 0.2353
+  type: 'test'
+  ...
+# Subtest: count 2dd
+ok 287 - count 2dd
+  ---
+  duration_ms: 0.1819
+  type: 'test'
+  ...
+# Subtest: count 3dw
+ok 288 - count 3dw
+  ---
+  duration_ms: 0.2097
+  type: 'test'
+  ...
+# Subtest: count 2yap
+ok 289 - count 2yap
+  ---
+  duration_ms: 0.1926
+  type: 'test'
+  ...
+# Subtest: visual v
+ok 290 - visual v
+  ---
+  duration_ms: 0.4785
+  type: 'test'
+  ...
+# Subtest: visual V
+ok 291 - visual V
+  ---
+  duration_ms: 0.1887
+  type: 'test'
+  ...
+# Subtest: text object iw
+ok 292 - text object iw
+  ---
+  duration_ms: 0.2369
+  type: 'test'
+  ...
+# Subtest: text object aw
+ok 293 - text object aw
+  ---
+  duration_ms: 0.1746
+  type: 'test'
+  ...
+# Subtest: text object ip
+ok 294 - text object ip
+  ---
+  duration_ms: 0.1587
+  type: 'test'
+  ...
+# Subtest: text object ap
+ok 295 - text object ap
+  ---
+  duration_ms: 0.1744
+  type: 'test'
+  ...
+# Subtest: text object i"
+ok 296 - text object i"
+  ---
+  duration_ms: 0.1484
+  type: 'test'
+  ...
+# Subtest: text object i'
+ok 297 - text object i'
+  ---
+  duration_ms: 0.1612
+  type: 'test'
+  ...
+# Subtest: text object i`
+ok 298 - text object i`
+  ---
+  duration_ms: 0.1434
+  type: 'test'
+  ...
+# Subtest: text object i(
+ok 299 - text object i(
+  ---
+  duration_ms: 0.1389
+  type: 'test'
+  ...
+# Subtest: text object i{
+ok 300 - text object i{
+  ---
+  duration_ms: 0.1515
+  type: 'test'
+  ...
+# Subtest: text object i[
+ok 301 - text object i[
+  ---
+  duration_ms: 0.1484
+  type: 'test'
+  ...
+# Subtest: registers include unnamed numbered named and clipboard
+ok 302 - registers include unnamed numbered named and clipboard
+  ---
+  duration_ms: 0.2329
+  type: 'test'
+  ...
+# Subtest: undo restores edit
+ok 303 - undo restores edit
+  ---
+  duration_ms: 0.3114
+  type: 'test'
+  ...
+# Subtest: redo ctrl-r, repeat, join and case toggle
+ok 304 - redo ctrl-r, repeat, join and case toggle
+  ---
+  duration_ms: 0.2632
+  type: 'test'
+  ...
+# Subtest: search /
+ok 305 - search /
+  ---
+  duration_ms: 0.2292
+  type: 'test'
+  ...
+# Subtest: search ?
+ok 306 - search ?
+  ---
+  duration_ms: 0.1478
+  type: 'test'
+  ...
+# Subtest: search n
+ok 307 - search n
+  ---
+  duration_ms: 0.2599
+  type: 'test'
+  ...
+# Subtest: search N
+ok 308 - search N
+  ---
+  duration_ms: 0.1595
+  type: 'test'
+  ...
+# Subtest: search *
+ok 309 - search *
+  ---
+  duration_ms: 0.232
+  type: 'test'
+  ...
+# Subtest: search \#
+ok 310 - search \#
+  ---
+  duration_ms: 26.8887
+  type: 'test'
+  ...
+# Subtest: marks and jumps
+ok 311 - marks and jumps
+  ---
+  duration_ms: 0.6469
+  type: 'test'
+  ...
+# Subtest: Ex :w
+ok 312 - Ex :w
+  ---
+  duration_ms: 0.6435
+  type: 'test'
+  ...
+# Subtest: Ex :wa
+ok 313 - Ex :wa
+  ---
+  duration_ms: 0.2867
+  type: 'test'
+  ...
+# Subtest: Ex :q
+ok 314 - Ex :q
+  ---
+  duration_ms: 0.2066
+  type: 'test'
+  ...
+# Subtest: Ex :q!
+ok 315 - Ex :q!
+  ---
+  duration_ms: 0.183
+  type: 'test'
+  ...
+# Subtest: Ex :wq
+ok 316 - Ex :wq
+  ---
+  duration_ms: 0.179
+  type: 'test'
+  ...
+# Subtest: Ex :x
+ok 317 - Ex :x
+  ---
+  duration_ms: 0.1737
+  type: 'test'
+  ...
+# Subtest: Ex :e file
+ok 318 - Ex :e file
+  ---
+  duration_ms: 0.1884
+  type: 'test'
+  ...
+# Subtest: Ex :bn
+ok 319 - Ex :bn
+  ---
+  duration_ms: 0.1677
+  type: 'test'
+  ...
+# Subtest: Ex :bp
+ok 320 - Ex :bp
+  ---
+  duration_ms: 0.9643
+  type: 'test'
+  ...
+# Subtest: Ex :ls
+ok 321 - Ex :ls
+  ---
+  duration_ms: 0.3403
+  type: 'test'
+  ...
+# Subtest: Ex :set wrap
+ok 322 - Ex :set wrap
+  ---
+  duration_ms: 0.5097
+  type: 'test'
+  ...
+# Subtest: Ex :set nowrap
+ok 323 - Ex :set nowrap
+  ---
+  duration_ms: 0.5875
+  type: 'test'
+  ...
+# Subtest: Ex :noh
+ok 324 - Ex :noh
+  ---
+  duration_ms: 6.0293
+  type: 'test'
+  ...
+# Subtest: IME composition protects state
+ok 325 - IME composition protects state
+  ---
+  duration_ms: 0.4719
+  type: 'test'
+  ...
+# Subtest: data scenario 1
+ok 326 - data scenario 1
+  ---
+  duration_ms: 0.4371
+  type: 'test'
+  ...
+# Subtest: data scenario 2
+ok 327 - data scenario 2
+  ---
+  duration_ms: 0.1643
+  type: 'test'
+  ...
+# Subtest: data scenario 3
+ok 328 - data scenario 3
+  ---
+  duration_ms: 0.1704
+  type: 'test'
+  ...
+# Subtest: data scenario 4
+ok 329 - data scenario 4
+  ---
+  duration_ms: 0.1481
+  type: 'test'
+  ...
+# Subtest: data scenario 5
+ok 330 - data scenario 5
+  ---
+  duration_ms: 0.1457
+  type: 'test'
+  ...
+# Subtest: data scenario 6
+ok 331 - data scenario 6
+  ---
+  duration_ms: 0.1284
+  type: 'test'
+  ...
+# Subtest: data scenario 7
+ok 332 - data scenario 7
+  ---
+  duration_ms: 0.1247
+  type: 'test'
+  ...
+# Subtest: data scenario 8
+ok 333 - data scenario 8
+  ---
+  duration_ms: 0.203
+  type: 'test'
+  ...
+# Subtest: data scenario 9
+ok 334 - data scenario 9
+  ---
+  duration_ms: 0.3884
+  type: 'test'
+  ...
+# Subtest: data scenario 10
+ok 335 - data scenario 10
+  ---
+  duration_ms: 0.1467
+  type: 'test'
+  ...
+# Subtest: data scenario 11
+ok 336 - data scenario 11
+  ---
+  duration_ms: 0.1315
+  type: 'test'
+  ...
+# Subtest: data scenario 12
+ok 337 - data scenario 12
+  ---
+  duration_ms: 0.1272
+  type: 'test'
+  ...
+# Subtest: data scenario 13
+ok 338 - data scenario 13
+  ---
+  duration_ms: 0.1278
+  type: 'test'
+  ...
+# Subtest: data scenario 14
+ok 339 - data scenario 14
+  ---
+  duration_ms: 0.1307
+  type: 'test'
+  ...
+# Subtest: data scenario 15
+ok 340 - data scenario 15
+  ---
+  duration_ms: 0.1233
+  type: 'test'
+  ...
+# Subtest: data scenario 16
+ok 341 - data scenario 16
+  ---
+  duration_ms: 0.1218
+  type: 'test'
+  ...
+# Subtest: data scenario 17
+ok 342 - data scenario 17
+  ---
+  duration_ms: 0.1279
+  type: 'test'
+  ...
+# Subtest: data scenario 18
+ok 343 - data scenario 18
+  ---
+  duration_ms: 0.1275
+  type: 'test'
+  ...
+# Subtest: data scenario 19
+ok 344 - data scenario 19
+  ---
+  duration_ms: 0.1308
+  type: 'test'
+  ...
+# Subtest: data scenario 20
+ok 345 - data scenario 20
+  ---
+  duration_ms: 0.1252
+  type: 'test'
+  ...
+# Subtest: data scenario 21
+ok 346 - data scenario 21
+  ---
+  duration_ms: 0.1246
+  type: 'test'
+  ...
+# Subtest: data scenario 22
+ok 347 - data scenario 22
+  ---
+  duration_ms: 0.1301
+  type: 'test'
+  ...
+# Subtest: data scenario 23
+ok 348 - data scenario 23
+  ---
+  duration_ms: 0.1429
+  type: 'test'
+  ...
+# Subtest: data scenario 24
+ok 349 - data scenario 24
+  ---
+  duration_ms: 0.1271
+  type: 'test'
+  ...
+# Subtest: data scenario 25
+ok 350 - data scenario 25
+  ---
+  duration_ms: 0.1171
+  type: 'test'
+  ...
+# Subtest: data scenario 26
+ok 351 - data scenario 26
+  ---
+  duration_ms: 0.1156
+  type: 'test'
+  ...
+# Subtest: data scenario 27
+ok 352 - data scenario 27
+  ---
+  duration_ms: 0.1288
+  type: 'test'
+  ...
+# Subtest: data scenario 28
+ok 353 - data scenario 28
+  ---
+  duration_ms: 0.2039
+  type: 'test'
+  ...
+# Subtest: data scenario 29
+ok 354 - data scenario 29
+  ---
+  duration_ms: 0.1255
+  type: 'test'
+  ...
+# Subtest: data scenario 30
+ok 355 - data scenario 30
+  ---
+  duration_ms: 0.1138
+  type: 'test'
+  ...
+# Subtest: data scenario 31
+ok 356 - data scenario 31
+  ---
+  duration_ms: 0.1107
+  type: 'test'
+  ...
+# Subtest: data scenario 32
+ok 357 - data scenario 32
+  ---
+  duration_ms: 0.1287
+  type: 'test'
+  ...
+# Subtest: data scenario 33
+ok 358 - data scenario 33
+  ---
+  duration_ms: 0.1361
+  type: 'test'
+  ...
+# Subtest: data scenario 34
+ok 359 - data scenario 34
+  ---
+  duration_ms: 0.138
+  type: 'test'
+  ...
+# Subtest: data scenario 35
+ok 360 - data scenario 35
+  ---
+  duration_ms: 0.1386
+  type: 'test'
+  ...
+# Subtest: data scenario 36
+ok 361 - data scenario 36
+  ---
+  duration_ms: 0.1323
+  type: 'test'
+  ...
+# Subtest: data scenario 37
+ok 362 - data scenario 37
+  ---
+  duration_ms: 0.1334
+  type: 'test'
+  ...
+# Subtest: data scenario 38
+ok 363 - data scenario 38
+  ---
+  duration_ms: 0.1375
+  type: 'test'
+  ...
+# Subtest: data scenario 39
+ok 364 - data scenario 39
+  ---
+  duration_ms: 0.1316
+  type: 'test'
+  ...
+# Subtest: data scenario 40
+ok 365 - data scenario 40
+  ---
+  duration_ms: 0.1301
+  type: 'test'
+  ...
+# Subtest: data scenario 41
+ok 366 - data scenario 41
+  ---
+  duration_ms: 0.1283
+  type: 'test'
+  ...
+# Subtest: data scenario 42
+ok 367 - data scenario 42
+  ---
+  duration_ms: 0.1269
+  type: 'test'
+  ...
+# Subtest: data scenario 43
+ok 368 - data scenario 43
+  ---
+  duration_ms: 0.1868
+  type: 'test'
+  ...
+# Subtest: data scenario 44
+ok 369 - data scenario 44
+  ---
+  duration_ms: 0.1301
+  type: 'test'
+  ...
+# Subtest: data scenario 45
+ok 370 - data scenario 45
+  ---
+  duration_ms: 0.1285
+  type: 'test'
+  ...
+# Subtest: VimUI: mount 初始化挂载、DOM结构与 ARIA 属性验证
+ok 371 - VimUI: mount 初始化挂载、DOM结构与 ARIA 属性验证
+  ---
+  duration_ms: 13.8571
+  type: 'test'
+  ...
+# Subtest: VimUI: 模式切换与展示适配 (NORMAL / INSERT / VISUAL / VISUAL LINE / VISUAL BLOCK / REPLACE / COMMAND)
+ok 372 - VimUI: 模式切换与展示适配 (NORMAL / INSERT / VISUAL / VISUAL LINE / VISUAL BLOCK / REPLACE / COMMAND)
+  ---
+  duration_ms: 8.1411
+  type: 'test'
+  ...
+# Subtest: VimUI: Pending Count / Operator / KeyBuffer 徽章展示与清除
+ok 373 - VimUI: Pending Count / Operator / KeyBuffer 徽章展示与清除
+  ---
+  duration_ms: 3.9245
+  type: 'test'
+  ...
+# Subtest: VimUI: Macro 宏录制状态指示与脉冲动画标记
+ok 374 - VimUI: Macro 宏录制状态指示与脉冲动画标记
+  ---
+  duration_ms: 2.6341
+  type: 'test'
+  ...
+# Subtest: VimUI: 状态与错误/提示消息展示
+ok 375 - VimUI: 状态与错误/提示消息展示
+  ---
+  duration_ms: 3.3577
+  type: 'test'
+  ...
+# Subtest: VimUI: showCommandLine 命令行浮层唤起、提交与取消交互
+ok 376 - VimUI: showCommandLine 命令行浮层唤起、提交与取消交互
+  ---
+  duration_ms: 11.3338
+  type: 'test'
+  ...
+# Subtest: VimUI: 命令行历史记录上下导航 (ArrowUp / ArrowDown)
+ok 377 - VimUI: 命令行历史记录上下导航 (ArrowUp / ArrowDown)
+  ---
+  duration_ms: 2.4373
+  type: 'test'
+  ...
+# Subtest: VimUI: 多语言与 Fallback 支持 (zh-CN & en 及 i18n-changed 事件)
+ok 378 - VimUI: 多语言与 Fallback 支持 (zh-CN & en 及 i18n-changed 事件)
+  ---
+  duration_ms: 2.4195
+  type: 'test'
+  ...
+# Subtest: VimUI: unmount 卸载清理 DOM 与样式类
+ok 379 - VimUI: unmount 卸载清理 DOM 与样式类
+  ---
+  duration_ms: 11.3126
+  type: 'test'
+  ...
+# Subtest: VimUI: 默认容器解析优先匹配 \#statusbar 并挂载方块光标
+ok 380 - VimUI: 默认容器解析优先匹配 \#statusbar 并挂载方块光标
+  ---
+  duration_ms: 20.0365
+  type: 'test'
+  ...
+# Subtest: VimUI: CommandLine 模式统一归一化与实时命令行同步
+ok 381 - VimUI: CommandLine 模式统一归一化与实时命令行同步
+  ---
+  duration_ms: 10.2862
+  type: 'test'
+  ...
+# Subtest: VimUI: 方块光标在 Normal 模式显示、Insert 模式隐藏
+ok 382 - VimUI: 方块光标在 Normal 模式显示、Insert 模式隐藏
+  ---
+  duration_ms: 2.3445
+  type: 'test'
+  ...
+# Subtest: ContextKeyService parent, child, values and snapshots
+ok 383 - ContextKeyService parent, child, values and snapshots
+  ---
+  duration_ms: 98.4006
+  type: 'test'
+  ...
+# Subtest: ContextKeyService subscriptions and unsubscribe
+ok 384 - ContextKeyService subscriptions and unsubscribe
+  ---
+  duration_ms: 6.2794
+  type: 'test'
+  ...
+# Subtest: when parser precedence, operators, parentheses and truthy keys
+ok 385 - when parser precedence, operators, parentheses and truthy keys
+  ---
+  duration_ms: 6.2223
+  type: 'test'
+  ...
+# Subtest: key parser strokes, chords, event keys and formatting
+ok 386 - key parser strokes, chords, event keys and formatting
+  ---
+  duration_ms: 15.0841
+  type: 'test'
+  ...
+# Subtest: default schemes expose confirmed core bindings
+ok 387 - default schemes expose confirmed core bindings
+  ---
+  duration_ms: 18.7726
+  type: 'test'
+  ...
+# Subtest: BindingService contexts, platforms and exact versus partial matching
+ok 388 - BindingService contexts, platforms and exact versus partial matching
+  ---
+  duration_ms: 8.9349
+  type: 'test'
+  ...
+# Subtest: BindingService ignores modifier-only keydown while chord is pending
+ok 389 - BindingService ignores modifier-only keydown while chord is pending
+  ---
+  duration_ms: 22.921
+  type: 'test'
+  ...
+# Subtest: BindingService executes a short command and keeps an overlapping chord pending
+ok 390 - BindingService executes a short command and keeps an overlapping chord pending
+  ---
+  duration_ms: 7.0872
+  type: 'test'
+  ...
+# Subtest: BindingService chord pending, timeout and Escape
+ok 391 - BindingService chord pending, timeout and Escape
+  ---
+  duration_ms: 40.6106
+  type: 'test'
+  ...
+# Subtest: BindingService overrides, explicit unbinds, multiple bindings and schemes
+ok 392 - BindingService overrides, explicit unbinds, multiple bindings and schemes
+  ---
+  duration_ms: 39.9016
+  type: 'test'
+  ...
+# Subtest: BindingService passthrough binding executes without preventDefault
+ok 393 - BindingService passthrough binding executes without preventDefault
+  ---
+  duration_ms: 6.2119
+  type: 'test'
+  ...
+# Subtest: BindingService conflict scan and dispatch
+ok 394 - BindingService conflict scan and dispatch
+  ---
+  duration_ms: 5.2609
+  type: 'test'
+  ...
+# Subtest: when-clause generated expressions are deterministic and total
+ok 395 - when-clause generated expressions are deterministic and total
+  ---
+  duration_ms: 23.8088
+  type: 'test'
+  ...
+# Subtest: when-clause malformed fuzz inputs fail cleanly without partial evaluation
+ok 396 - when-clause malformed fuzz inputs fail cleanly without partial evaluation
+  ---
+  duration_ms: 5.6366
+  type: 'test'
+  ...
+# Subtest: keybinding parser fuzz preserves stroke sequence boundaries
+ok 397 - keybinding parser fuzz preserves stroke sequence boundaries
+  ---
+  duration_ms: 20.6452
+  type: 'test'
+  ...
+# Subtest: __fromRust 存在时被包装：非 workspace 事件透传既有 handler
+ok 398 - __fromRust 存在时被包装：非 workspace 事件透传既有 handler
+  ---
+  duration_ms: 16.828
+  type: 'test'
+  ...
+# Subtest: __fromRust 不存在时兜底自建且不抛异常
+ok 399 - __fromRust 不存在时兜底自建且不抛异常
+  ---
+  duration_ms: 51.7818
+  type: 'test'
+  ...
+# Subtest: workspace:opened 在状态栏显示项目与文件数
+ok 400 - workspace:opened 在状态栏显示项目与文件数
+  ---
+  duration_ms: 10.2337
+  type: 'test'
+  ...
+# Subtest: workspace:scan-progress 更新计数
+ok 401 - workspace:scan-progress 更新计数
+  ---
+  duration_ms: 2.2368
+  type: 'test'
+  ...
+# Subtest: workspace:error 显示错误消息
+ok 402 - workspace:error 显示错误消息
+  ---
+  duration_ms: 2.0399
+  type: 'test'
+  ...
+# Subtest: 订阅者经 on() 收到事件，off() 后退订
+ok 403 - 订阅者经 on() 收到事件，off() 后退订
+  ---
+  duration_ms: 29.5624
+  type: 'test'
+  ...
+# Subtest: 未知 workspace:* 事件仍分发给订阅者（前向兼容）
+ok 404 - 未知 workspace:* 事件仍分发给订阅者（前向兼容）
+  ---
+  duration_ms: 2.8049
+  type: 'test'
+  ...
+# Subtest: 状态栏缺失时不抛异常，状态仍可查询
+ok 405 - 状态栏缺失时不抛异常，状态仍可查询
+  ---
+  duration_ms: 2.584
+  type: 'test'
+  ...
+# Subtest: 组装页包含全部 19 个产品脚本且顺序与 build_html 一致
+ok 406 - 组装页包含全部 19 个产品脚本且顺序与 build_html 一致
+  ---
+  duration_ms: 35.906
+  type: 'test'
+  ...
+# Subtest: 组装页 CSS 注入完整、平台标记正确且无残留占位符
+ok 407 - 组装页 CSS 注入完整、平台标记正确且无残留占位符
+  ---
+  duration_ms: 2.0582
+  type: 'test'
+  ...
+# Subtest: mock 引导脚本先于全部产品脚本注入
+ok 408 - mock 引导脚本先于全部产品脚本注入
+  ---
+  duration_ms: 7.5207
+  type: 'test'
+  ...
+# Subtest: Commands.run(file.open) 统一触发 open_file IPC
+ok 409 - Commands.run(file.open) 统一触发 open_file IPC
+  ---
+  duration_ms: 16.5648
+  type: 'test'
+  ...
+# Subtest: Commands.run(file.save) 触发保存行为
+ok 410 - Commands.run(file.save) 触发保存行为
+  ---
+  duration_ms: 15.8041
+  type: 'test'
+  ...
+# Subtest: 初始化：进入欢迎态、0 个 tab、向 Rust 发送 ready 与 set_title
+ok 411 - 初始化：进入欢迎态、0 个 tab、向 Rust 发送 ready 与 set_title
+  ---
+  duration_ms: 9.5631
+  type: 'test'
+  ...
+# Subtest: 创建路径 tab：路径归一、进入预览模式
+ok 412 - 创建路径 tab：路径归一、进入预览模式
+  ---
+  duration_ms: 10.1014
+  type: 'test'
+  ...
+# Subtest: tab 激活切换：编辑内容随 tab 保存与恢复
+ok 413 - tab 激活切换：编辑内容随 tab 保存与恢复
+  ---
+  duration_ms: 4.6031
+  type: 'test'
+  ...
+# Subtest: dirty 标记：驱动 set_dirty_state、标题星号与 tab 圆点
+ok 414 - dirty 标记：驱动 set_dirty_state、标题星号与 tab 圆点
+  ---
+  duration_ms: 16.6661
+  type: 'test'
+  ...
+# Subtest: 同一路径重复打开复用既有 tab（分隔符与大小写归一）
+ok 415 - 同一路径重复打开复用既有 tab（分隔符与大小写归一）
+  ---
+  duration_ms: 7.501
+  type: 'test'
+  ...
+# Subtest: 关闭当前 tab 自动切换相邻 tab；关闭未保存 tab 需确认；全部关完进入欢迎态
+ok 416 - 关闭当前 tab 自动切换相邻 tab；关闭未保存 tab 需确认；全部关完进入欢迎态
+  ---
+  duration_ms: 4.9669
+  type: 'test'
+  ...
+# Subtest: 关闭预览模式中的最后一个文件 tab：恢复干净欢迎态并清空预览
+ok 417 - 关闭预览模式中的最后一个文件 tab：恢复干净欢迎态并清空预览
+  ---
+  duration_ms: 8.1392
+  type: 'test'
+  ...
+# Subtest: tab 右键弹出菜单：四项齐全、menuitem 语义、首尾 tab 对应侧禁用
+ok 418 - tab 右键弹出菜单：四项齐全、menuitem 语义、首尾 tab 对应侧禁用
+  ---
+  duration_ms: 6.2824
+  type: 'test'
+  ...
+# Subtest: 右键菜单关闭左侧/右侧：只关对应集合、活动 tab 沿用相邻规则
+ok 419 - 右键菜单关闭左侧/右侧：只关对应集合、活动 tab 沿用相邻规则
+  ---
+  duration_ms: 12.9397
+  type: 'test'
+  ...
+# Subtest: 右键菜单关闭所有：dirty 单次 confirm 且文案含数量，关完进入欢迎态
+ok 420 - 右键菜单关闭所有：dirty 单次 confirm 且文案含数量，关完进入欢迎态
+  ---
+  duration_ms: 5.8893
+  type: 'test'
+  ...
+# Subtest: 右键菜单取消确认整批保留；"关闭"项保留单 tab dirty 确认语义
+ok 421 - 右键菜单取消确认整批保留；"关闭"项保留单 tab dirty 确认语义
+  ---
+  duration_ms: 10.9124
+  type: 'test'
+  ...
+# Subtest: 菜单开着时：菜单外点击 / Esc / 其他右键均关闭菜单
+ok 422 - 菜单开着时：菜单外点击 / Esc / 其他右键均关闭菜单
+  ---
+  duration_ms: 9.5987
+  type: 'test'
+  ...
+# Subtest: 主题切换：light/dark 往返并请求持久化到统一 settings
+ok 423 - 主题切换：light/dark 往返并请求持久化到统一 settings
+  ---
+  duration_ms: 7.806
+  type: 'test'
+  ...
+# Subtest: 初始化忽略旧 localStorage 主题，等待 effective settings 成为事实源
+ok 424 - 初始化忽略旧 localStorage 主题，等待 effective settings 成为事实源
+  ---
+  duration_ms: 4.161
+  type: 'test'
+  ...
+# Subtest: IPC 事件桥：file_opened 建 tab 并记录最近文件，error 显示状态栏
+ok 425 - IPC 事件桥：file_opened 建 tab 并记录最近文件，error 显示状态栏
+  ---
+  duration_ms: 9.2652
+  type: 'test'
+  ...
+1..425
+# tests 425
+# suites 0
+# pass 425
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 11002.1079

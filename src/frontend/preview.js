@@ -319,8 +319,8 @@ function hideNavigationFallback() {
   document.getElementById('navigation-fallback').hidden = true;
   if (fallbackPreviousFocus && typeof fallbackPreviousFocus.focus === 'function') {
     fallbackPreviousFocus.focus();
-  } else {
-    document.getElementById('preview-container').focus();
+  } else if (window.PreviewNavigation && typeof window.PreviewNavigation.focus === 'function') {
+    window.PreviewNavigation.focus();
   }
 }
 

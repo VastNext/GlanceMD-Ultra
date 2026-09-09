@@ -575,30 +575,108 @@ fn fs_rename(c: &CommandContext, p: &CommandPayload) {
         done(c, operations::FileOps::new(ensure_op).rename(&r, x, &n));
     }
 }
+/// 解析 move/copy 载荷：(相对路径列表, 目标目录)。wire 契约（前端
+/// project-tree.js）：`{ paths: string[], dest_dir: string }`，`dest_dir`
+/// 允许空串表示项目根。批量载荷无效类型整批拒绝（[`batch_paths`]）；`dest_dir`
+/// 缺失或非字符串同样拒绝。每项独立执行、独立回执（`workspace:fs-op-done`
+/// 逐条下发，前端按事件逐条刷新/重映射），单项失败不影响其余项——沿用核心
+/// "无批量事务"语义，不引入额外事务架构。
+fn move_copy_targets(p: &CommandPayload) -> Option<(Vec<String>, String)> {
+    let paths = batch_paths(p)?;
+    if paths.is_empty() {
+        return None;
+    }
+    let dest = string(p, &["dest_dir", "destDir"])?;
+    Some((paths, dest))
+}
+
+/// 执行单条移动：边界校验、目标目录存在性检查与重名拒绝由核心 `move_entry`
+/// 完成（`resolve` 分量检查 + `ensure_op` + `require_dest_dir` + 重名拒绝）。
+fn run_move(root: &Path, rel: &str, dest: &str) -> Result<operations::OpResult, OpError> {
+    operations::FileOps::new(ensure_op).move_entry(root, rel, dest)
+}
+
+/// 执行单条复制：边界与重名语义同 [`run_move`]（核心 `copy_entry`，无撤销条目）。
+fn run_copy(root: &Path, rel: &str, dest: &str) -> Result<operations::OpResult, OpError> {
+    operations::FileOps::new(ensure_op).copy_entry(root, rel, dest)
+}
+
 fn fs_move(c: &CommandContext, p: &CommandPayload) {
-    if let (Some(r), Some(x), Some(d)) = (
-        require_root(),
-        p.path.as_deref(),
-        string(p, &["dest_dir", "destDir"]),
-    ) {
-        done(c, operations::FileOps::new(ensure_op).move_entry(&r, x, &d));
+    let Some(r) = require_root() else { return };
+    let Some((paths, dest)) = move_copy_targets(p) else {
+        return;
+    };
+    for rel in paths {
+        done(c, run_move(&r, &rel, &dest));
     }
 }
 fn fs_copy(c: &CommandContext, p: &CommandPayload) {
-    if let (Some(r), Some(x), Some(d)) = (
-        require_root(),
-        p.path.as_deref(),
-        string(p, &["dest_dir", "destDir"]),
-    ) {
-        done(c, operations::FileOps::new(ensure_op).copy_entry(&r, x, &d));
+    let Some(r) = require_root() else { return };
+    let Some((paths, dest)) = move_copy_targets(p) else {
+        return;
+    };
+    for rel in paths {
+        done(c, run_copy(&r, &rel, &dest));
     }
 }
+/// 解析批量相对路径载荷（delete/move/copy 共用）：`paths` 数组每项必须是
+/// 字符串——字段存在但非数组、或任一项非字符串时返回 `None` **整批拒绝**，
+/// 绝不静默丢弃无效项后部分执行；字段缺失时回退早期单数 `path` 形态。
+fn batch_paths(p: &CommandPayload) -> Option<Vec<String>> {
+    match p.extra.get("paths") {
+        Some(Value::Array(items)) => {
+            let mut paths = Vec::with_capacity(items.len());
+            for item in items {
+                // 任一项非字符串 → 整批拒绝
+                paths.push(item.as_str()?.to_owned());
+            }
+            Some(paths)
+        }
+        // paths 字段存在但不是数组：无效批量载荷
+        Some(_) => None,
+        // 字段缺失：兼容早期单数形态
+        None => p.path.clone().map(|single| vec![single]),
+    }
+}
+
+/// 解析 `workspace.fs.delete` 载荷：(相对路径列表, 是否永久删除)。
+/// wire 契约（前端 project-tree.js）：`{ paths: string[], permanent: bool }`。
+/// 批量载荷无效类型整批拒绝：`paths` 语义见 [`batch_paths`]；`permanent`
+/// 字段存在但非 bool 同样拒绝（避免静默降级/升级删除语义），缺失按回收站
+/// 删除处理。`permanent=true` 由前端 `window.confirm` 二次确认后才发出，
+/// 后端不重复弹窗，只负责执行与越界拒绝。
+fn delete_targets(p: &CommandPayload) -> Option<(Vec<String>, bool)> {
+    let paths = batch_paths(p)?;
+    // 显式空批量不回退单数：批量形态内不混用旧形态，直接不操作
+    if paths.is_empty() {
+        return None;
+    }
+    let permanent = match p.extra.get("permanent") {
+        Some(Value::Bool(b)) => *b,
+        Some(_) => return None,
+        None => false,
+    };
+    Some((paths, permanent))
+}
+
+/// 执行单条删除：`permanent` → 永久删除（不可撤销），否则移入回收站。
+/// 两条路径都经 [`ensure_op`]（`workspace::ensure_within_root`）拒绝项目根外的目标。
+fn run_delete(root: &Path, rel: &str, permanent: bool) -> Result<operations::OpResult, OpError> {
+    let ops = operations::FileOps::new(ensure_op);
+    if permanent {
+        ops.delete_permanently(root, rel)
+    } else {
+        ops.to_trash(root, rel, &PlatformTrash)
+    }
+}
+
 fn fs_delete(c: &CommandContext, p: &CommandPayload) {
-    if let (Some(r), Some(x)) = (require_root(), p.path.as_deref()) {
-        done(
-            c,
-            operations::FileOps::new(ensure_op).to_trash(&r, x, &PlatformTrash),
-        );
+    let Some(r) = require_root() else { return };
+    let Some((paths, permanent)) = delete_targets(p) else {
+        return;
+    };
+    for rel in paths {
+        done(c, run_delete(&r, &rel, permanent));
     }
 }
 fn fs_undo(c: &CommandContext, p: &CommandPayload) {
@@ -610,17 +688,35 @@ fn fs_undo(c: &CommandContext, p: &CommandPayload) {
         Err(e) => ipc::send_to_js(c.webview, "error", &json!({"message":e.to_string()})),
     }
 }
+/// reveal/terminal 等展示型命令的目标解析：相对路径先 `root.join` 再经
+/// `ensure_within_root` 校验并规范化。`PathBuf::join` 遇到绝对路径参数会整体
+/// 替换、`..` 穿越也不检查，直接 `root.join(p.path)` 会把资源管理器/终端打开
+/// 到项目根外的任意位置，必须走与文件操作相同的边界校验。
+fn resolve_in_root(root: &Path, rel: &str) -> Result<PathBuf, String> {
+    workspace::ensure_within_root(root, &root.join(rel)).map_err(|e| e.to_string())
+}
+
 fn fs_reveal(c: &CommandContext, p: &CommandPayload) {
     if let Some(r) = require_root() {
-        let x = r.join(p.path.as_deref().unwrap_or(""));
-        if let Err(e) = platform::revealer().reveal(&x) {
-            ipc::send_to_js(c.webview, "error", &json!({"message":e.to_string()}));
+        match resolve_in_root(&r, p.path.as_deref().unwrap_or("")) {
+            Ok(x) => {
+                if let Err(e) = platform::revealer().reveal(&x) {
+                    ipc::send_to_js(c.webview, "error", &json!({"message": e.to_string()}));
+                }
+            }
+            Err(e) => ipc::send_to_js(c.webview, "error", &json!({"message": e})),
         }
     }
 }
 fn fs_terminal(c: &CommandContext, p: &CommandPayload) {
     if let Some(r) = require_root() {
-        let x = r.join(p.path.as_deref().unwrap_or(""));
+        let x = match resolve_in_root(&r, p.path.as_deref().unwrap_or("")) {
+            Ok(x) => x,
+            Err(e) => {
+                ipc::send_to_js(c.webview, "error", &json!({"message": e}));
+                return;
+            }
+        };
         let d = if x.is_dir() {
             x
         } else {
@@ -1559,8 +1655,13 @@ fn apply_settings_at(base: &Path, raw: Value) -> Result<(), String> {
         }
         other => other,
     };
-    let settings: workspace::settings::Settings =
-        serde_json::from_value(v).map_err(|e| format!("设置格式错误：{e}"))?;
+    // 经迁移框架解析：`version` 高于当前 schema 的文档直接拒绝（不落盘），
+    // 防止把未来版本设置降级覆写损坏（此后 load_global_checked 永久迁移失败
+    // 回退默认）；旧版本沿迁移链推进（含 v1→v2 keybindings），未知键告警丢弃
+    // 不阻断保存。
+    let migrated =
+        workspace::settings::migrate_checked(&v).map_err(|e| format!("设置格式错误：{e}"))?;
+    let settings = migrated.settings;
     let settings_before = workspace::settings::load_global(base);
     let watcher_before = settings_before.watching.enable_watcher;
     workspace::settings::save(base, &settings).map_err(|e| format!("保存设置失败：{e}"))?;
@@ -2134,5 +2235,410 @@ mod tests {
         );
 
         std::fs::remove_dir_all(&base).unwrap();
+    }
+
+    // ══════════ 发布阻断核实回归（Reviewer 三项） ══════════
+
+    static RELEASE_SEQ: AtomicU64 = AtomicU64::new(0);
+
+    fn release_temp_dir(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "glancemd-ultra-release-{}-{}-{}",
+            std::process::id(),
+            tag,
+            RELEASE_SEQ.fetch_add(1, Ordering::SeqCst)
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// 按前端 project-tree.js 实际 `post` 的 wire JSON 构造载荷（ipc.rs 经
+    /// serde flatten 把命令对象透传进 `extra`，此处与真实 IPC 路径同构）。
+    fn wire_payload(extra_json: &str) -> CommandPayload {
+        CommandPayload {
+            extra: serde_json::from_str(extra_json).unwrap(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn delete_targets_解析前端wire载荷paths与permanent() {
+        // 实际契约形态：{ paths: [...], permanent: bool }（批量 + 永久标记）
+        let p = wire_payload(r#"{"paths":["a.md","sub/b.md"],"permanent":true}"#);
+        assert_eq!(
+            delete_targets(&p),
+            Some((vec!["a.md".into(), "sub/b.md".into()], true))
+        );
+
+        // 回收站删除：permanent 缺省 false
+        let p = wire_payload(r#"{"paths":["a.md"]}"#);
+        assert_eq!(delete_targets(&p), Some((vec!["a.md".into()], false)));
+
+        // 兼容早期单数 path 形态
+        let p = CommandPayload {
+            path: Some("x.md".into()),
+            extra: json!({}),
+            ..Default::default()
+        };
+        assert_eq!(delete_targets(&p), Some((vec!["x.md".into()], false)));
+
+        // 无 paths 且无 path：不执行任何删除
+        assert_eq!(delete_targets(&CommandPayload::default()), None);
+
+        // 批量载荷无效类型整批拒绝：非字符串项不静默丢弃、不部分执行
+        let p = wire_payload(r#"{"paths":["a.md",123],"permanent":true}"#);
+        assert_eq!(delete_targets(&p), None);
+        let p = wire_payload(r#"{"paths":["a.md",null,"b.md"]}"#);
+        assert_eq!(delete_targets(&p), None);
+        // paths 存在但非数组
+        assert_eq!(delete_targets(&wire_payload(r#"{"paths":"a.md"}"#)), None);
+        // permanent 非 bool：拒绝整批（避免静默降级/升级删除语义）
+        assert_eq!(
+            delete_targets(&wire_payload(r#"{"paths":["a.md"],"permanent":"true"}"#)),
+            None
+        );
+        assert_eq!(
+            delete_targets(&wire_payload(r#"{"paths":["a.md"],"permanent":1}"#)),
+            None
+        );
+        // 显式空批量不回退单数
+        let p = CommandPayload {
+            path: Some("x.md".into()),
+            extra: json!({ "paths": [] }),
+            ..Default::default()
+        };
+        assert_eq!(delete_targets(&p), None);
+    }
+
+    #[test]
+    fn run_delete_永久删除根内文件并报permanent_delete() {
+        let dir = release_temp_dir("perm-del");
+        std::fs::write(dir.join("a.md"), "x").unwrap();
+        let result = run_delete(&dir, "a.md", true).unwrap();
+        assert_eq!(result.applied.kind, operations::OpKind::PermanentDelete);
+        // 永久删除不可撤销
+        assert!(result.undo.is_none());
+        assert!(!dir.join("a.md").exists());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn run_delete_拒绝绝对路径与穿越逃逸的目标() {
+        let dir = release_temp_dir("perm-boundary");
+        let outside_dir = release_temp_dir("perm-outside");
+        let outside = outside_dir.join("secret.md");
+        std::fs::write(&outside, "secret").unwrap();
+
+        // 绝对路径 rel：Path::join 会整体替换为根外路径，必须被 ensure 拒绝
+        let rel = outside.to_string_lossy().into_owned();
+        assert!(matches!(
+            run_delete(&dir, &rel, true),
+            Err(OpError::OutsideRoot { .. })
+        ));
+        // `..` 穿越
+        assert!(matches!(
+            run_delete(&dir, "../escaped.md", true),
+            Err(OpError::OutsideRoot { .. })
+        ));
+        // 越界拒绝后目标原样保留，回收站分支同样先过边界（不触碰系统回收站）
+        assert!(outside.exists());
+        assert!(matches!(
+            run_delete(&dir, &rel, false),
+            Err(OpError::OutsideRoot { .. })
+        ));
+
+        std::fs::remove_dir_all(&dir).unwrap();
+        std::fs::remove_dir_all(&outside_dir).unwrap();
+    }
+
+    #[test]
+    fn resolve_in_root_拒绝绝对路径与穿越且根内路径规范化() {
+        let dir = release_temp_dir("reveal-boundary");
+        let outside_dir = release_temp_dir("reveal-outside");
+        let outside = outside_dir.join("anywhere");
+        std::fs::create_dir_all(&outside).unwrap();
+
+        // 绝对路径参数（历史上 root.join 直接放行，reveal/terminal 被打开到根外）
+        let rel = outside.to_string_lossy().into_owned();
+        assert!(resolve_in_root(&dir, &rel).is_err());
+        // `..` 穿越
+        assert!(resolve_in_root(&dir, "../escape").is_err());
+
+        // 根内路径放行并规范化到 canonical 坐标系
+        std::fs::create_dir_all(dir.join("sub")).unwrap();
+        assert_eq!(
+            resolve_in_root(&dir, "sub").unwrap(),
+            dir.canonicalize().unwrap().join("sub")
+        );
+        // 空路径 → 根自身（历史行为：reveal 空路径显示项目根）
+        assert_eq!(
+            resolve_in_root(&dir, "").unwrap(),
+            dir.canonicalize().unwrap()
+        );
+
+        std::fs::remove_dir_all(&dir).unwrap();
+        std::fs::remove_dir_all(&outside_dir).unwrap();
+    }
+
+    #[test]
+    fn apply_settings_拒绝未来版本且磁盘内容不被覆写() {
+        let base = release_temp_dir("settings-future");
+
+        // 先落一份合法设置作为基线
+        apply_settings_at(
+            &base,
+            json!({ "version": 2, "appearance": { "theme": "dark" } }),
+        )
+        .unwrap();
+        let path = workspace::settings::global_settings_path(&base);
+        let before = std::fs::read(&path).unwrap();
+
+        // 未来版本：报错、不落盘——否则此后 load_global_checked 永久迁移失败
+        let err = apply_settings_at(
+            &base,
+            json!({ "version": 99, "appearance": { "theme": "light" } }),
+        )
+        .unwrap_err();
+        assert!(err.contains("高于当前支持的版本"), "实际错误：{err}");
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+        assert_eq!(
+            workspace::settings::load_global(&base).appearance.theme,
+            workspace::settings::Theme::Dark
+        );
+
+        // 旧版本（v0/v1 缺字段形态）自动迁移后正常保存
+        apply_settings_at(
+            &base,
+            json!({ "version": 1, "appearance": { "theme": "light" } }),
+        )
+        .unwrap();
+        let saved = workspace::settings::load_global(&base);
+        assert_eq!(saved.version, workspace::settings::SCHEMA_VERSION);
+        assert_eq!(saved.appearance.theme, workspace::settings::Theme::Light);
+
+        std::fs::remove_dir_all(&base).unwrap();
+    }
+
+    #[test]
+    fn move_copy_targets_解析前端wire载荷paths与dest_dir() {
+        // 实际契约形态：{ paths: [...], dest_dir }（project-tree.test.js 权威断言）
+        let p = wire_payload(r#"{"paths":["a.md","docs/b.md"],"dest_dir":"archived"}"#);
+        assert_eq!(
+            move_copy_targets(&p),
+            Some((vec!["a.md".into(), "docs/b.md".into()], "archived".into()))
+        );
+
+        // dest_dir 为空串表示项目根（前端剪切/粘贴到根的形态）
+        let p = wire_payload(r#"{"paths":["a.md"],"dest_dir":""}"#);
+        assert_eq!(
+            move_copy_targets(&p),
+            Some((vec!["a.md".into()], String::new()))
+        );
+
+        // 兼容早期单数 path 形态
+        let p = CommandPayload {
+            path: Some("x.md".into()),
+            extra: json!({ "dest_dir": "docs" }),
+            ..Default::default()
+        };
+        assert_eq!(
+            move_copy_targets(&p),
+            Some((vec!["x.md".into()], "docs".into()))
+        );
+
+        // paths 缺失或 dest_dir 缺失：不执行（与原三元组短路语义一致）
+        assert_eq!(
+            move_copy_targets(&wire_payload(r#"{"paths":["a.md"]}"#)),
+            None
+        );
+        assert_eq!(
+            move_copy_targets(&wire_payload(r#"{"dest_dir":"docs"}"#)),
+            None
+        );
+
+        // 批量载荷无效类型整批拒绝：非字符串项 / 非数组
+        assert_eq!(
+            move_copy_targets(&wire_payload(
+                r#"{"paths":["a.md",false],"dest_dir":"docs"}"#
+            )),
+            None
+        );
+        assert_eq!(
+            move_copy_targets(&wire_payload(r#"{"paths":7,"dest_dir":"docs"}"#)),
+            None
+        );
+    }
+
+    #[test]
+    fn run_move_多项移动到目标目录且内容保留() {
+        let dir = release_temp_dir("move-multi");
+        std::fs::write(dir.join("a.md"), "AAA").unwrap();
+        std::fs::write(dir.join("b.md"), "BBB").unwrap();
+        std::fs::create_dir_all(dir.join("docs")).unwrap();
+
+        let result = run_move(&dir, "a.md", "docs").unwrap();
+        assert_eq!(result.applied.kind, operations::OpKind::Move);
+        assert!(result.undo.is_some(), "移动应产生撤销条目");
+        assert!(!dir.join("a.md").exists());
+        assert_eq!(
+            std::fs::read_to_string(dir.join("docs/a.md")).unwrap(),
+            "AAA"
+        );
+
+        // 第二项独立执行：多项剪切逐项落位
+        run_move(&dir, "b.md", "docs").unwrap();
+        assert_eq!(
+            std::fs::read_to_string(dir.join("docs/b.md")).unwrap(),
+            "BBB"
+        );
+
+        // dest_dir 为空串 → 移动到项目根
+        std::fs::create_dir_all(dir.join("docs/sub")).unwrap();
+        std::fs::write(dir.join("docs/sub/c.md"), "C").unwrap();
+        run_move(&dir, "docs/sub/c.md", "").unwrap();
+        assert_eq!(std::fs::read_to_string(dir.join("c.md")).unwrap(), "C");
+
+        // 复制到目标目录：源保留、不产生撤销条目
+        std::fs::write(dir.join("d.md"), "DDD").unwrap();
+        let result = run_copy(&dir, "d.md", "docs").unwrap();
+        assert_eq!(result.applied.kind, operations::OpKind::Copy);
+        assert!(result.undo.is_none());
+        assert!(dir.join("d.md").exists());
+        assert_eq!(
+            std::fs::read_to_string(dir.join("docs/d.md")).unwrap(),
+            "DDD"
+        );
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn run_move_重名拒绝且两侧文件原样保留() {
+        let dir = release_temp_dir("move-collide");
+        std::fs::write(dir.join("a.md"), "SRC").unwrap();
+        std::fs::create_dir_all(dir.join("docs")).unwrap();
+        std::fs::write(dir.join("docs/a.md"), "DST").unwrap();
+
+        assert!(matches!(
+            run_move(&dir, "a.md", "docs"),
+            Err(OpError::AlreadyExists(_))
+        ));
+        assert_eq!(std::fs::read_to_string(dir.join("a.md")).unwrap(), "SRC");
+        assert_eq!(
+            std::fs::read_to_string(dir.join("docs/a.md")).unwrap(),
+            "DST"
+        );
+
+        // 复制同样重名拒绝（不覆盖、不自动改名）
+        assert!(matches!(
+            run_copy(&dir, "a.md", "docs"),
+            Err(OpError::AlreadyExists(_))
+        ));
+        assert_eq!(
+            std::fs::read_to_string(dir.join("docs/a.md")).unwrap(),
+            "DST"
+        );
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn run_move_拒绝越界源与越界目标及非法目标目录() {
+        let dir = release_temp_dir("move-boundary");
+        let outside = release_temp_dir("move-outside");
+        std::fs::write(outside.join("evil.md"), "x").unwrap();
+        std::fs::create_dir_all(dir.join("docs")).unwrap();
+
+        // 绝对路径源（历史断裂点）与 `..` 穿越：核心分量检查拒绝
+        let evil = outside.join("evil.md").to_string_lossy().into_owned();
+        assert!(matches!(
+            run_move(&dir, &evil, "docs"),
+            Err(OpError::OutsideRoot { .. })
+        ));
+        assert!(matches!(
+            run_move(&dir, "../escaped.md", "docs"),
+            Err(OpError::OutsideRoot { .. })
+        ));
+        // 越界目标目录（源/目标均不落盘）
+        let outside_str = outside.to_string_lossy().into_owned();
+        assert!(matches!(
+            run_move(&dir, "docs", &outside_str),
+            Err(OpError::OutsideRoot { .. })
+        ));
+        assert!(matches!(
+            run_copy(&dir, "docs", &format!("{outside_str}/sub")),
+            Err(OpError::OutsideRoot { .. })
+        ));
+        assert!(outside.join("evil.md").exists());
+
+        // 目标目录不存在 / 目标是文件
+        assert!(matches!(
+            run_move(&dir, "docs", "missing-dir"),
+            Err(OpError::NotFound(_))
+        ));
+        std::fs::write(dir.join("afile.md"), "f").unwrap();
+        assert!(matches!(
+            run_move(&dir, "docs", "afile.md"),
+            Err(OpError::IllegalTarget(_))
+        ));
+
+        // 目录移入其自身内部（dest == source，落点重合）拒绝
+        assert!(matches!(
+            run_move(&dir, "docs", "docs"),
+            Err(OpError::IllegalTarget(_))
+        ));
+
+        std::fs::remove_dir_all(&dir).unwrap();
+        std::fs::remove_dir_all(&outside).unwrap();
+    }
+
+    /// 符号链接逃逸（需要创建 symlink 的平台）：根内符号链接指向根外目标时，
+    /// 删除/移动/展示型命令都不得触达链接后的真实根外文件。Windows 创建
+    /// symlink 需要特权，按仓库惯例仅 Unix 门控。
+    #[cfg(unix)]
+    #[test]
+    fn symlink逃逸删除移动与展示型命令均拒绝() {
+        use std::os::unix::fs::symlink;
+
+        let dir = release_temp_dir("symlink-escape");
+        let outside = release_temp_dir("symlink-outside");
+        std::fs::write(outside.join("secret.md"), "secret").unwrap();
+        std::fs::create_dir_all(dir.join("docs")).unwrap();
+        // 文件符号链接与目录符号链接各一，均指向根外
+        symlink(outside.join("secret.md"), dir.join("file-link.md")).unwrap();
+        symlink(&outside, dir.join("dir-link")).unwrap();
+
+        // 永久删除：经链接路径触达根外文件被拒，文件原样保留
+        assert!(matches!(
+            run_delete(&dir, "file-link.md", true),
+            Err(OpError::OutsideRoot { .. })
+        ));
+        assert!(matches!(
+            run_delete(&dir, "dir-link/secret.md", true),
+            Err(OpError::OutsideRoot { .. })
+        ));
+        // 移动：源为链接、目标目录为逃逸链接均拒绝
+        assert!(matches!(
+            run_move(&dir, "dir-link/secret.md", "docs"),
+            Err(OpError::OutsideRoot { .. })
+        ));
+        assert!(matches!(
+            run_move(&dir, "docs", "dir-link"),
+            Err(OpError::OutsideRoot { .. })
+        ));
+        // 展示型命令（reveal/terminal 共用解析）同样拒绝
+        assert!(resolve_in_root(&dir, "dir-link/secret.md").is_err());
+        assert!(resolve_in_root(&dir, "dir-link").is_err());
+
+        // 根外文件未被触碰，链接自身未被删除
+        assert_eq!(
+            std::fs::read_to_string(outside.join("secret.md")).unwrap(),
+            "secret"
+        );
+        assert!(dir.join("file-link.md").symlink_metadata().is_ok());
+        assert!(dir.join("dir-link").symlink_metadata().is_ok());
+
+        std::fs::remove_dir_all(&dir).unwrap();
+        std::fs::remove_dir_all(&outside).unwrap();
     }
 }

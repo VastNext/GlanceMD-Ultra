@@ -1,6 +1,6 @@
 [package]
 name = "glancemd-ultra"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 
 # 产物名与仓库名保持一致：GlanceMD-Ultra.exe

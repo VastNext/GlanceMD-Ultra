@@ -6,6 +6,9 @@ function sendToRust(command, data) {
 }
 
 // Rust calls this to send events to JS
+var pendingSaveRequests = [];
+var saveRequestSeq = 0;
+
 window.__fromRust = function(event, data) {
   switch (event) {
     case 'file_opened':
@@ -13,17 +16,42 @@ window.__fromRust = function(event, data) {
       TabManager.createTab(data.path, data.content, null, null, data.is_image);
       break;
     case 'file_saved':
-      TabManager.markClean();
-      if (data.path) {
-        TabManager.updateTabPath(null, data.path);
+      var savedPath = data && data.path ? String(data.path).replace(/\\/g, '/') : '';
+      var saveRequest = null;
+      for (var saveIndex = 0; saveIndex < pendingSaveRequests.length; saveIndex++) {
+        var candidate = pendingSaveRequests[saveIndex];
+        if (data.requestId === candidate.id && data.tabId === candidate.tabId) {
+          saveRequest = pendingSaveRequests.splice(saveIndex, 1)[0];
+          break;
+        }
+      }
+      if (saveRequest) {
+        var savedTab = TabManager.getTabs().find(function(tab) { return tab.id === saveRequest.tabId; });
+        var currentContent = savedTab && (savedTab.id === TabManager.getState().activeTabId
+          ? document.getElementById('editor').value : savedTab.content);
+        var unchanged = !!savedTab && currentContent === saveRequest.content;
+        if (unchanged) TabManager.markClean(saveRequest.tabId);
+        if (savedTab && savedPath) TabManager.updateTabPath(saveRequest.tabId, savedPath);
+        saveRequest.resolve(unchanged);
+      } else if (savedPath && data.requestId == null) {
+        var activeSaved = TabManager.findTabByPath(savedPath);
+        if (activeSaved && !pendingSaveRequests.some(function(request) { return request.tabId === activeSaved.id; })) TabManager.markClean(activeSaved.id);
       }
       onFileSaved();
       break;
     case 'stdin_opened':
       TabManager.createTab(null, data.content, 'preview', data.title || 'stdin');
       break;
+    case 'save_cancelled':
     case 'error':
-      showError(data.message);
+      if (event === 'error') showError(data.message);
+      for (var errorIndex = pendingSaveRequests.length - 1; errorIndex >= 0; errorIndex--) {
+        var pending = pendingSaveRequests[errorIndex];
+        if (data.requestId === pending.id && data.tabId === pending.tabId) {
+          pendingSaveRequests.splice(errorIndex, 1);
+          pending.resolve(false);
+        }
+      }
       break;
     case 'navigation_blocked':
       if (typeof window.showNavigationFallback === 'function') {
@@ -43,6 +71,7 @@ document.addEventListener('DOMContentLoaded', function() {
     $.editor = document.getElementById('editor');
     $.preview = document.getElementById('preview');
     $.previewContainer = document.getElementById('preview-container');
+    $.previewWrapper = document.getElementById('preview-wrapper');
     $.editorContainer = document.getElementById('editor-container');
     $.statusInfo = document.getElementById('status-info');
     $.statusFile = document.getElementById('status-file');
@@ -51,6 +80,9 @@ document.addEventListener('DOMContentLoaded', function() {
     $.findBar = document.getElementById('find-bar');
     $.findInput = document.getElementById('find-input');
     $.findCount = document.getElementById('find-count');
+    $.gotoBar = document.getElementById('goto-bar');
+    $.gotoInput = document.getElementById('goto-input');
+    $.gotoHint = document.getElementById('goto-hint');
     $.zoomToast = document.getElementById('zoom-toast');
     var editorColumn = document.getElementById('editor-column');
     if (editorColumn) editorColumn.style.position = 'relative';
@@ -139,7 +171,9 @@ function selectInPreview(text, ratio) {
   var sel = window.getSelection();
   sel.removeAllRanges();
   sel.addRange(range);
-  if (startNode.parentElement) startNode.parentElement.scrollIntoView({ block: 'center' });
+  if (startNode.parentElement && window.PreviewNavigation && typeof window.PreviewNavigation.scrollToElement === 'function') {
+    window.PreviewNavigation.scrollToElement(startNode.parentElement, { block: 'center' });
+  }
   return true;
 }
 
@@ -281,18 +315,25 @@ function toggleMode() {
     iconPreview.style.display = 'none';
     iconEdit.style.display = '';
     currentMode = 'preview';
-    var pc = $.previewContainer || document.getElementById('preview-container');
     setTimeout(function() {
       if (!selectedText || !selectInPreview(selectedText, scrollRatio)) {
-        pc.scrollTop = scrollRatio * (pc.scrollHeight - pc.clientHeight);
+        if (window.PreviewNavigation && typeof window.PreviewNavigation.scrollToRatio === 'function') {
+          window.PreviewNavigation.scrollToRatio(scrollRatio);
+        }
+      }
+      if (findState.open || gotoState.open) {
+        syncFindContainer();
+        var fi = $.findInput || document.getElementById('find-input');
+        if (findState.open && fi && fi.value) doFind(fi.value);
       }
     }, 0);
-    if (findState.open) doFind(($.findInput || document.getElementById('find-input')).value);
   } else {
     var sel = window.getSelection();
     var selectedText = sel.toString();
     var pc = $.previewContainer || document.getElementById('preview-container');
-    var scrollRatio = pc.scrollHeight > pc.clientHeight ? pc.scrollTop / (pc.scrollHeight - pc.clientHeight) : 0;
+    var scrollRatio = window.PreviewNavigation && typeof window.PreviewNavigation.getScrollRatio === 'function'
+      ? window.PreviewNavigation.getScrollRatio()
+      : 0;
     pc.classList.remove('active');
     ($.editorContainer || document.getElementById('editor-container')).classList.add('active');
     document.getElementById('btn-toggle').classList.remove('active');
@@ -307,7 +348,10 @@ function toggleMode() {
       editor.selectionStart = editor.selectionEnd = pos;
       editor.scrollTop = scrollRatio * (editor.scrollHeight - editor.clientHeight);
     }
-    if (findState.open) doFind(($.findInput || document.getElementById('find-input')).value);
+    if (findState.open || gotoState.open) {
+      syncFindContainer();
+      if (findState.open) doFind(($.findInput || document.getElementById('find-input')).value);
+    }
   }
 }
 
@@ -594,11 +638,36 @@ function showRecentPanel() {
 
 function doSave() {
   var tab = TabManager.getActiveTab();
-  if (!tab) return;
-  if (tab.isImage) return;
-  var data = { content: document.getElementById('editor').value };
-  if (tab.path) data.path = tab.path;
+  if (!tab || tab.isImage) return false;
+  window.saveActiveTabAndWait();
+  return true;
+}
+
+// Vim integration contract: resolve only when the exact tab/request is saved.
+// A tab switch or an unrelated file_saved event cannot complete this promise.
+window.saveActiveTabAndWait = function() {
+  var tab = typeof TabManager !== 'undefined' ? TabManager.getActiveTab() : null;
+  if (!tab || tab.isImage) return Promise.resolve(false);
+  var editor = document.getElementById('editor');
+  var request = {
+    id: ++saveRequestSeq,
+    tabId: tab.id,
+    path: tab.path ? String(tab.path).replace(/\\/g, '/') : '',
+    content: editor ? editor.value : '',
+    resolve: null
+  };
+  var promise = new Promise(function(resolve) { request.resolve = resolve; });
+  pendingSaveRequests.push(request);
+  var data = { content: request.content, requestId: request.id, tabId: request.tabId };
+  if (request.path) data.path = request.path;
   sendToRust('save_file', data);
+  return promise;
+};
+
+function cancelPendingSavesForTab(tabId) {
+  for (var i = pendingSaveRequests.length - 1; i >= 0; i--) {
+    if (pendingSaveRequests[i].tabId === tabId) pendingSaveRequests.splice(i, 1)[0].resolve(false);
+  }
 }
 
 // Zoom
@@ -694,32 +763,248 @@ document.addEventListener('wheel', function(e) {
 })();
 
 // Find
-var findState = { open: false, matches: [], current: -1, marks: [] };
+var findState = { open: false, matches: [], current: -1, marks: [], lastQuery: '', incremental: false, lastMatch: null };
+var gotoState = { open: false };
 
-function openFind() {
-  if (currentMode === 'image') return;
-  document.getElementById('find-bar').classList.add('open');
-  findState.open = true;
-  var input = document.getElementById('find-input');
-  input.focus();
-  input.select();
-  if (input.value) doFind(input.value);
+function syncFindContainer() {
+  var findBar = document.getElementById('find-bar');
+  var gotoBar = document.getElementById('goto-bar');
+  var editorContainer = document.getElementById('editor-container');
+  var previewContainer = document.getElementById('preview-container');
+  var target = currentMode === 'edit' ? editorContainer : previewContainer;
+  if (editorContainer) { editorContainer.classList.remove('find-open', 'goto-open'); }
+  if (previewContainer) { previewContainer.classList.remove('find-open', 'goto-open'); }
+  if (findState.open && target) {
+    if (findBar.parentNode !== target) target.insertBefore(findBar, target.firstChild);
+    target.classList.add('find-open');
+  }
+  if (gotoState.open && target) {
+    if (gotoBar.parentNode !== target) target.insertBefore(gotoBar, target.firstChild);
+    target.classList.add('goto-open');
+  }
 }
+
+function getPreviewSelectionOffset() {
+  var sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
+  var range = sel.getRangeAt(0);
+  var preview = document.getElementById('preview');
+  if (!preview || !preview.contains(range.startContainer)) return null;
+
+  try {
+    var preStartRange = document.createRange();
+    preStartRange.selectNodeContents(preview);
+    preStartRange.setEnd(range.startContainer, range.startOffset);
+    var start = preStartRange.toString().length;
+
+    var preEndRange = document.createRange();
+    preEndRange.selectNodeContents(preview);
+    preEndRange.setEnd(range.endContainer, range.endOffset);
+    var end = preEndRange.toString().length;
+
+    return {
+      start: Math.min(start, end),
+      end: Math.max(start, end)
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+function resolveCurrentMatchIndex(matches, anchorStart, anchorEnd) {
+  if (!matches || matches.length === 0) return 0;
+  if (anchorStart == null) return 0;
+  // 1. 完全吻合
+  for (var i = 0; i < matches.length; i++) {
+    var m = matches[i];
+    if (m && typeof m === 'object' && m.start === anchorStart && m.end === anchorEnd) return i;
+  }
+  // 2. 锚点落在匹配项区间内
+  for (var j = 0; j < matches.length; j++) {
+    var mj = matches[j];
+    if (mj && typeof mj === 'object' && anchorStart >= mj.start && anchorStart <= mj.end) return j;
+  }
+  // 3. 寻找锚点之后的第一个匹配项
+  for (var k = 0; k < matches.length; k++) {
+    var mk = matches[k];
+    if (mk && typeof mk === 'object' && mk.start >= anchorStart) return k;
+  }
+  return 0;
+}
+
+function openFind(options) {
+  if (currentMode === 'image') return;
+  options = options || {};
+  var bar = document.getElementById('find-bar');
+  var input = document.getElementById('find-input');
+  var editor = document.getElementById('editor');
+  var anchorStart = null;
+  var anchorEnd = null;
+  findState.incremental = false;
+  bar.classList.add('open');
+  findState.open = true;
+  syncFindContainer();
+  if (options.query != null) {
+    input.value = String(options.query);
+  } else if (currentMode === 'edit') {
+    if (editor && editor.selectionStart !== editor.selectionEnd) {
+      input.value = editor.value.slice(editor.selectionStart, editor.selectionEnd);
+      anchorStart = editor.selectionStart;
+      anchorEnd = editor.selectionEnd;
+    } else {
+      input.value = findState.lastQuery || input.value || '';
+      if (editor) {
+        anchorStart = editor.selectionStart;
+        anchorEnd = editor.selectionEnd;
+      }
+    }
+  } else {
+    // preview 模式：从 window.getSelection() 提取选中文字及全局字符锚点
+    var winSel = typeof window.getSelection === 'function' ? window.getSelection().toString() : '';
+    if (winSel) {
+      input.value = winSel;
+      var previewSel = getPreviewSelectionOffset();
+      if (previewSel) {
+        anchorStart = previewSel.start;
+        anchorEnd = previewSel.end;
+      }
+    } else {
+      input.value = findState.lastQuery || input.value || '';
+    }
+  }
+  if (currentMode === 'edit' && editor && editor.selectionStart !== editor.selectionEnd && input.value === editor.value.slice(editor.selectionStart, editor.selectionEnd)) {
+    findState.lastMatch = { start: editor.selectionStart, end: editor.selectionEnd };
+  }
+  input.placeholder = 'Find...';
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+  findState.lastQuery = input.value;
+  if (input.value) {
+    doFind(input.value, { preserveFocus: true, anchorStart: anchorStart, anchorEnd: anchorEnd });
+    if (findState.matches.length > 0 && findState.current >= 0) {
+      showMatchBadge(findState.current, findState.matches.length);
+    }
+  }
+}
+
+function clearEditorFindMarkers() {
+  var markersEl = document.getElementById('editor-find-markers');
+  if (markersEl) {
+    markersEl.innerHTML = '';
+  }
+}
+
+function updateEditorFindMarkers(recalc) {
+  var container = document.getElementById('editor-container');
+  var editor = document.getElementById('editor');
+  if (!container || !editor) return;
+
+  var markersEl = document.getElementById('editor-find-markers');
+  if (!markersEl) {
+    markersEl = document.createElement('div');
+    markersEl.id = 'editor-find-markers';
+    markersEl.setAttribute('aria-hidden', 'true');
+    container.appendChild(markersEl);
+  }
+
+  if (!findState.open || currentMode !== 'edit' || !findState.matches || findState.matches.length === 0) {
+    markersEl.innerHTML = '';
+    return;
+  }
+
+  var nav = window.EditorNavigation;
+  if (!nav || typeof nav.measureOffsetCoordinates !== 'function') {
+    markersEl.innerHTML = '';
+    return;
+  }
+
+  var edTop = editor.offsetTop || 0;
+  var edLeft = editor.offsetLeft || 0;
+  var sTop = editor.scrollTop || 0;
+  var sLeft = editor.scrollLeft || 0;
+  var clientHeight = editor.clientHeight || 400;
+  var fullText = editor.value || '';
+
+  var fragment = document.createDocumentFragment();
+
+  for (var i = 0; i < findState.matches.length; i++) {
+    var match = findState.matches[i];
+    if (!match || typeof match.start !== 'number' || typeof match.end !== 'number') continue;
+
+    if (recalc || !match._coords) {
+      var startCoords = nav.measureOffsetCoordinates(match.start);
+      if (!startCoords) continue;
+      var endCoords = match.end > match.start ? nav.measureOffsetCoordinates(match.end) : startCoords;
+      var isSameLine = endCoords && Math.abs(endCoords.markerTop - startCoords.markerTop) < 5;
+      var w = isSameLine
+        ? Math.max(startCoords.width || 8, endCoords.markerLeft - startCoords.markerLeft)
+        : Math.max(startCoords.width || 8, (match.end - match.start) * (startCoords.width || 8.5));
+      match._coords = {
+        markerLeft: startCoords.markerLeft,
+        markerTop: startCoords.markerTop,
+        width: w,
+        height: startCoords.height || startCoords.lineHeight || 25,
+        text: fullText.slice(match.start, match.end)
+      };
+    }
+
+    var c = match._coords;
+    var top = c.markerTop + edTop - sTop;
+    var left = c.markerLeft + edLeft - sLeft;
+
+    if (top + c.height < -50 || top > clientHeight + 50) continue;
+
+    var marker = document.createElement('div');
+    marker.className = 'find-match-marker';
+    marker.style.left = left + 'px';
+    marker.style.top = top + 'px';
+    marker.style.width = c.width + 'px';
+    marker.style.height = c.height + 'px';
+
+    if (i === findState.current) {
+      marker.classList.add('active-match');
+    }
+
+    fragment.appendChild(marker);
+  }
+
+  markersEl.innerHTML = '';
+  markersEl.appendChild(fragment);
+}
+window.updateEditorFindMarkers = updateEditorFindMarkers;
 
 function closeFind() {
+  var input = document.getElementById('find-input');
+  if (input.value) findState.lastQuery = input.value;
   document.getElementById('find-bar').classList.remove('open');
   findState.open = false;
+  findState.incremental = false;
+  syncFindContainer();
   findState.matches = [];
   findState.current = -1;
   clearPreviewHighlights();
+  clearEditorFindMarkers();
   document.getElementById('find-count').textContent = '';
-  if (currentMode === 'edit') document.getElementById('editor').focus();
+  if (currentMode === 'edit') {
+    var editor = document.getElementById('editor');
+    if (findState.lastMatch) {
+      editor.focus();
+      editor.setSelectionRange(findState.lastMatch.start, findState.lastMatch.end);
+    } else editor.focus();
+  } else {
+    if (window.PreviewNavigation && typeof window.PreviewNavigation.focus === 'function') {
+      window.PreviewNavigation.focus();
+    }
+  }
 }
 
-function doFind(term) {
+function doFind(term, options) {
+  options = options || {};
+  if (String(term || '')) findState.lastQuery = String(term);
   findState.matches = [];
   findState.current = -1;
   clearPreviewHighlights();
+  clearEditorFindMarkers();
   if (!term) {
     ($.findCount || document.getElementById('find-count')).textContent = '';
     return;
@@ -735,7 +1020,8 @@ function doFind(term) {
   } else {
     var preview = $.preview || document.getElementById('preview');
     var walker = document.createTreeWalker(preview, NodeFilter.SHOW_TEXT);
-    var node, ranges = [], termLower = term.toLowerCase();
+    var node, matchInfos = [], termLower = term.toLowerCase();
+    var fullCharOffset = 0;
     while (node = walker.nextNode()) {
       var nodeText = node.textContent.toLowerCase();
       var idx = 0;
@@ -743,21 +1029,41 @@ function doFind(term) {
         var range = document.createRange();
         range.setStart(node, idx);
         range.setEnd(node, idx + term.length);
-        ranges.push(range);
+        matchInfos.push({
+          range: range,
+          start: fullCharOffset + idx,
+          end: fullCharOffset + idx + term.length
+        });
         idx += term.length;
       }
+      fullCharOffset += node.textContent.length;
     }
-    for (var i = ranges.length - 1; i >= 0; i--) {
+    for (var i = matchInfos.length - 1; i >= 0; i--) {
       var mark = document.createElement('mark');
       mark.className = 'find-match';
-      ranges[i].surroundContents(mark);
+      matchInfos[i].range.surroundContents(mark);
       findState.marks.unshift(mark);
+      matchInfos[i].mark = mark;
     }
-    findState.matches = findState.marks.map(function(_, i) { return i; });
+    findState.matches = matchInfos;
   }
   if (findState.matches.length > 0) {
-    findState.current = 0;
-    goToMatch(0);
+    var initial = 0;
+    if (options.anchorStart != null) {
+      initial = resolveCurrentMatchIndex(findState.matches, options.anchorStart, options.anchorEnd);
+    } else if (options.preserveCurrent && findState.lastMatch) {
+      var matchIdx = findState.matches.findIndex(function(match) {
+        return match && match.start === findState.lastMatch.start && match.end === findState.lastMatch.end;
+      });
+      if (matchIdx >= 0) initial = matchIdx;
+    }
+    if (!options.silent) {
+      goToMatch(initial, { keepFocus: Boolean(options.preserveFocus) });
+    } else {
+      updateEditorFindMarkers();
+    }
+  } else {
+    updateEditorFindMarkers();
   }
   updateFindCount();
 }
@@ -773,31 +1079,279 @@ function clearPreviewHighlights() {
   findState.marks = [];
 }
 
-function goToMatch(idx) {
+var matchBadgeTimer = null;
+function showMatchBadge(current, total) {
+  if (total <= 0 || current < 0) return;
+  var badge = document.getElementById('find-match-badge');
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.id = 'find-match-badge';
+    badge.className = 'find-match-badge';
+    document.body.appendChild(badge);
+  }
+  badge.textContent = (current + 1) + ' / ' + total;
+  badge.classList.add('visible');
+  clearTimeout(matchBadgeTimer);
+  matchBadgeTimer = setTimeout(function() {
+    badge.classList.remove('visible');
+  }, 1500);
+}
+window.showMatchBadge = showMatchBadge;
+
+function triggerWordFlash(start, end) {
+  var container = document.getElementById('editor-container');
+  var editor = document.getElementById('editor');
+  if (!container || !editor) return;
+  var nav = window.EditorNavigation;
+  if (!nav || typeof nav.measureOffsetCoordinates !== 'function') return;
+  var coords = nav.measureOffsetCoordinates(start);
+  if (!coords) return;
+  var endCoords = typeof end === 'number' ? nav.measureOffsetCoordinates(end) : null;
+
+  var old = container.querySelector('.find-word-flash');
+  if (old && old.parentNode) old.parentNode.removeChild(old);
+
+  var flash = document.createElement('div');
+  flash.className = 'find-word-flash';
+  flash.style.left = coords.left + 'px';
+  flash.style.top = coords.top + 'px';
+  var width = endCoords ? Math.max(12, endCoords.left - coords.left) : (coords.width || 12);
+  flash.style.width = width + 'px';
+  flash.style.height = (coords.height || coords.lineHeight || 20) + 'px';
+  container.appendChild(flash);
+
+  flash.addEventListener('animationend', function() {
+    if (flash.parentNode) flash.parentNode.removeChild(flash);
+  });
+  setTimeout(function() {
+    if (flash.parentNode) flash.parentNode.removeChild(flash);
+  }, 1500);
+}
+
+function goToMatch(idx, options) {
+  options = options || {};
+  if (idx == null || idx < 0 || idx >= findState.matches.length || findState.matches[idx] === undefined) return false;
   findState.current = idx;
   if (currentMode === 'edit') {
     var match = findState.matches[idx];
+    findState.lastMatch = { start: match.start, end: match.end };
     var editor = document.getElementById('editor');
-    editor.focus();
-    editor.selectionStart = match.start;
-    editor.selectionEnd = match.end;
+    var input = document.getElementById('find-input');
+    if (editor) {
+      editor.focus();
+      editor.setSelectionRange(match.start, match.end);
+      var navigation = window.EditorNavigation;
+      if (navigation && typeof navigation.scrollToOffset === 'function') {
+        navigation.scrollToOffset(match.start, match.end);
+      }
+    }
+    updateEditorFindMarkers();
+    if (options.keepFocus && input) {
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    }
   } else {
+    var previewMatch = findState.matches[idx];
+    if (previewMatch && typeof previewMatch === 'object') {
+      findState.lastMatch = { start: previewMatch.start, end: previewMatch.end };
+    }
     findState.marks.forEach(function(m) { m.classList.remove('find-active'); });
     var mark = findState.marks[idx];
-    mark.classList.add('find-active');
-    mark.scrollIntoView({ block: 'center' });
+    if (mark) {
+      mark.classList.add('find-active');
+      if (window.PreviewNavigation && typeof window.PreviewNavigation.scrollToElement === 'function') {
+        window.PreviewNavigation.scrollToElement(mark, { block: 'center' });
+      }
+      var sel = window.getSelection();
+      if (sel && typeof sel.removeAllRanges === 'function') {
+        try {
+          var r = document.createRange();
+          r.selectNodeContents(mark);
+          sel.removeAllRanges();
+          sel.addRange(r);
+        } catch (e) {}
+      }
+    }
+    var previewInput = document.getElementById('find-input');
+    if (options.keepFocus && previewInput) {
+      previewInput.focus();
+      previewInput.setSelectionRange(previewInput.value.length, previewInput.value.length);
+    }
   }
   updateFindCount();
+  return true;
 }
 
 function findNext() {
   if (findState.matches.length === 0) return;
-  goToMatch((findState.current + 1) % findState.matches.length);
+  var isFindInput = (document.activeElement && document.activeElement.id === 'find-input') || (findState.open && document.getElementById('find-input'));
+  var nextIdx = (findState.current + 1) % findState.matches.length;
+  goToMatch(nextIdx, { keepFocus: Boolean(isFindInput) });
+  if (isFindInput) {
+    showMatchBadge(findState.current, findState.matches.length);
+  }
 }
 
 function findPrev() {
   if (findState.matches.length === 0) return;
-  goToMatch((findState.current - 1 + findState.matches.length) % findState.matches.length);
+  var isFindInput = (document.activeElement && document.activeElement.id === 'find-input') || (findState.open && document.getElementById('find-input'));
+  var prevIdx = (findState.current - 1 + findState.matches.length) % findState.matches.length;
+  goToMatch(prevIdx, { keepFocus: Boolean(isFindInput) });
+  if (isFindInput) {
+    showMatchBadge(findState.current, findState.matches.length);
+  }
+}
+
+function findFromEditor(direction) {
+  var editor = document.getElementById('editor');
+  var input = document.getElementById('find-input');
+  var query = '';
+  var anchorStart = null;
+  var anchorEnd = null;
+
+  if (currentMode === 'edit') {
+    if (editor && editor.selectionStart !== editor.selectionEnd) {
+      query = editor.value.slice(editor.selectionStart, editor.selectionEnd);
+      anchorStart = editor.selectionStart;
+      anchorEnd = editor.selectionEnd;
+    } else {
+      query = findState.lastQuery || (input && input.value ? input.value : '');
+    }
+  } else {
+    var winSel = typeof window.getSelection === 'function' ? window.getSelection().toString() : '';
+    if (winSel) {
+      query = winSel;
+      var previewSel = getPreviewSelectionOffset();
+      if (previewSel) {
+        anchorStart = previewSel.start;
+        anchorEnd = previewSel.end;
+      }
+    } else {
+      query = findState.lastQuery || (input && input.value ? input.value : '');
+    }
+  }
+  if (!query) return false;
+
+  var isSameQuery = Boolean(findState.lastQuery &&
+    findState.lastQuery.toLowerCase() === query.toLowerCase() &&
+    findState.matches && findState.matches.length > 0);
+  findState.lastQuery = query;
+  if (input) input.value = query;
+
+  // 1. 若查找栏未打开：静默查找（绝不主动弹出查找条），提取选区或上次 query 进行推进
+  if (!findState.open) {
+    if (!isSameQuery) {
+      doFind(query, { preserveFocus: false, silent: true, anchorStart: anchorStart, anchorEnd: anchorEnd });
+    }
+    if (findState.matches && findState.matches.length > 0) {
+      var curIdx = 0;
+      if (anchorStart != null) {
+        curIdx = resolveCurrentMatchIndex(findState.matches, anchorStart, anchorEnd);
+      } else if (currentMode === 'edit' && editor) {
+        curIdx = resolveCurrentMatchIndex(findState.matches, editor.selectionStart, editor.selectionEnd);
+      } else {
+        curIdx = findState.current >= 0 ? findState.current : 0;
+      }
+      var targetIdx = (curIdx + (direction > 0 ? 1 : -1) + findState.matches.length) % findState.matches.length;
+      goToMatch(targetIdx, { keepFocus: false });
+      showMatchBadge(targetIdx, findState.matches.length);
+    }
+    if (currentMode === 'edit') {
+      if (editor) editor.focus();
+    } else if (window.PreviewNavigation && typeof window.PreviewNavigation.focus === 'function') {
+      window.PreviewNavigation.focus();
+    }
+    return true;
+  }
+
+  // 2. 若查找栏已打开：在已开状态下推进
+  var queryChanged = input && input.value.toLowerCase() !== query.toLowerCase();
+  if (queryChanged) {
+    input.value = query;
+    doFind(query, { preserveFocus: true, anchorStart: anchorStart, anchorEnd: anchorEnd });
+  }
+
+  if (findState.matches.length > 0) {
+    var curIdxOpened = 0;
+    if (anchorStart != null) {
+      curIdxOpened = resolveCurrentMatchIndex(findState.matches, anchorStart, anchorEnd);
+    } else if (currentMode === 'edit' && editor) {
+      curIdxOpened = resolveCurrentMatchIndex(findState.matches, editor.selectionStart, editor.selectionEnd);
+    } else {
+      curIdxOpened = findState.current >= 0 ? findState.current : 0;
+    }
+    var nextIdx = (curIdxOpened + (direction > 0 ? 1 : -1) + findState.matches.length) % findState.matches.length;
+    goToMatch(nextIdx, { keepFocus: false });
+    showMatchBadge(nextIdx, findState.matches.length);
+  }
+  if (currentMode === 'edit') {
+    if (editor) editor.focus();
+  } else if (window.PreviewNavigation && typeof window.PreviewNavigation.focus === 'function') {
+    window.PreviewNavigation.focus();
+  }
+  return true;
+}
+
+function incrementalFind(direction) {
+  var input = document.getElementById('find-input');
+  if (!input) return false;
+  if (!findState.open || !findState.incremental) {
+    openFind({ query: '' });
+    findState.incremental = true;
+    input.placeholder = direction > 0 ? '增量查找（向前）' : '增量查找（向后）';
+    input.setAttribute('aria-label', input.placeholder);
+  }
+  input.focus();
+  return true;
+}
+
+function openGotoLine() {
+  var input = document.getElementById('goto-input');
+  var editor = document.getElementById('editor');
+  if (!input || !editor) return false;
+  var line = editor.value.slice(0, editor.selectionStart).split('\n').length;
+  var max = editor.value.split('\n').length;
+  gotoState.open = true;
+  document.getElementById('goto-bar').classList.add('open');
+  syncFindContainer();
+  input.value = String(line);
+  input.removeAttribute('aria-invalid');
+  var hint = document.getElementById('goto-hint');
+  hint.classList.remove('invalid');
+  hint.textContent = '共 ' + max + ' 行';
+  input.focus();
+  input.select();
+  return true;
+}
+
+function closeGotoLine() {
+  gotoState.open = false;
+  var bar = document.getElementById('goto-bar');
+  if (bar) bar.classList.remove('open');
+  syncFindContainer();
+  var editor = document.getElementById('editor');
+  if (editor) editor.focus();
+}
+
+function commitGotoLine() {
+  var input = document.getElementById('goto-input');
+  var editor = document.getElementById('editor');
+  if (!input || !editor) return false;
+  var raw = String(input.value || '').trim();
+  var line = Number(raw);
+  var max = editor.value.split('\n').length;
+  var hint = document.getElementById('goto-hint');
+  if (!/^\d+$/.test(raw) || line < 1 || line > max) {
+    input.setAttribute('aria-invalid', 'true');
+    hint.classList.add('invalid');
+    hint.textContent = '请输入 1–' + max + ' 的行号';
+    input.focus();
+    input.select();
+    return false;
+  }
+  input.removeAttribute('aria-invalid');
+  closeGotoLine();
+  return window.EditorNavigation ? window.EditorNavigation.scrollToLine(line - 1) : false;
 }
 
 function updateFindCount() {
@@ -810,110 +1364,300 @@ function updateFindCount() {
 }
 
 document.getElementById('find-input').addEventListener('input', function() {
-  doFind(this.value);
+  doFind(this.value, { preserveFocus: true });
 });
 document.getElementById('find-input').addEventListener('keydown', function(e) {
   if (e.key === 'Escape') { closeFind(); e.preventDefault(); }
   else if (e.key === 'Enter' && !e.shiftKey) { findNext(); e.preventDefault(); }
   else if (e.key === 'Enter' && e.shiftKey) { findPrev(); e.preventDefault(); }
+  else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'k') { e.stopPropagation(); findFromEditor(-1); e.preventDefault(); }
+  else if (e.ctrlKey && e.key.toLowerCase() === 'k') { e.stopPropagation(); findFromEditor(1); e.preventDefault(); }
+  else if (e.ctrlKey && e.key.toLowerCase() === 'l') { e.stopPropagation(); openGotoLine(); e.preventDefault(); }
+});
+document.getElementById('goto-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') { closeGotoLine(); e.preventDefault(); }
+  else if (e.key === 'Enter') { commitGotoLine(); e.preventDefault(); }
 });
 document.getElementById('find-close').addEventListener('click', closeFind);
+document.getElementById('goto-close').addEventListener('click', closeGotoLine);
+document.getElementById('goto-btn-go').addEventListener('click', commitGotoLine);
 document.getElementById('find-next').addEventListener('click', findNext);
 document.getElementById('find-prev').addEventListener('click', findPrev);
 
-// Keyboard Shortcuts
-document.addEventListener('keydown', function(e) {
-  var primaryModifier = hasPrimaryModifier(e);
-  if (primaryModifier && e.key.toLowerCase() === 'f') {
-    e.preventDefault();
-    openFind();
-  } else if (e.key === 'Escape' && findState.open) {
-    e.preventDefault();
-    closeFind();
-  } else if (primaryModifier && !e.shiftKey && e.key.toLowerCase() === 'o') {
-    // keybindings.js owns Ctrl+O when the command registry is available. It is
-    // loaded after app.js, so check at dispatch time and retain the legacy IPC
-    // fallback for test pages and older builds without the keybinding stack.
-    var keybindingsReady = window.Keybindings && window.Commands
-      && typeof window.Keybindings.dispatch === 'function'
-      && typeof window.Keybindings.effective === 'function'
-      && typeof window.Keybindings.normalize === 'function'
-      && typeof window.Commands.has === 'function';
-    var keybindingsOwnsOpen = keybindingsReady
-      && window.Keybindings.effective()['file.open'] === window.Keybindings.normalize(e)
-      && window.Commands.has('file.open');
-    if (!keybindingsOwnsOpen) {
-      e.preventDefault();
-      if (window.Commands && Commands.has && Commands.has('file.open')) Commands.run('file.open');
-      else sendToRust('open_file');
+var editorFindTarget = document.getElementById('editor');
+if (editorFindTarget) {
+  editorFindTarget.addEventListener('scroll', function() {
+    if (findState && findState.open && currentMode === 'edit' && findState.matches && findState.matches.length > 0) {
+      updateEditorFindMarkers();
     }
-  } else if (primaryModifier && !e.shiftKey && e.key.toLowerCase() === 's') {
-    e.preventDefault();
-    doSave();
-  } else if (primaryModifier && e.shiftKey && e.key.toLowerCase() === 's') {
-    e.preventDefault();
-    if (currentMode === 'image') return;
-    sendToRust('save_as', { content: document.getElementById('editor').value });
-  } else if (primaryModifier && e.key.toLowerCase() === 'e') {
-    e.preventDefault();
-    toggleMode();
-  } else if (primaryModifier && e.key.toLowerCase() === 'n') {
-    e.preventDefault();
-    TabManager.createTab(null, '');
-  } else if (primaryModifier && e.key.toLowerCase() === 'w') {
-    e.preventDefault();
-    var active = TabManager.getActiveTab();
-    if (active) TabManager.closeTab(active.id);
-  } else if (e.ctrlKey && !e.shiftKey && e.key === 'Tab') {
-    e.preventDefault();
-    TabManager.nextTab();
-  } else if (e.ctrlKey && e.shiftKey && e.key === 'Tab') {
-    e.preventDefault();
-    TabManager.prevTab();
-  } else if (primaryModifier && (e.key === '=' || e.key === '+')) {
-    e.preventDefault();
-    applyZoom(zoomLevel + ZOOM_STEP);
-  } else if (primaryModifier && e.key === '-') {
-    e.preventDefault();
-    applyZoom(zoomLevel - ZOOM_STEP);
-  } else if (primaryModifier && e.key === '0') {
-    e.preventDefault();
-    applyZoom(1);
-  } else if (primaryModifier && e.key === '\\') {
-    e.preventDefault();
-    toggleSplit();
-  } else if (primaryModifier && e.shiftKey && e.key.toLowerCase() === 'o') {
-    e.preventDefault();
-    if (window.LayoutUI && typeof window.LayoutUI.toggle === 'function') {
-      window.LayoutUI.toggle('outline');
+  });
+  editorFindTarget.addEventListener('input', function() {
+    if (findState && findState.open && currentMode === 'edit') {
+      var fi = document.getElementById('find-input');
+      if (fi && fi.value) {
+        doFind(fi.value, { preserveFocus: true, preserveCurrent: true });
+      }
     }
+  });
+}
+window.addEventListener('resize', function() {
+  if (findState && findState.open && currentMode === 'edit' && findState.matches && findState.matches.length > 0) {
+    updateEditorFindMarkers(true);
   }
 });
+
+// 全局 Esc 调度总线：无论当前焦点在输入框还是编辑器，按 Esc 均优先无条件关闭转到行条与查找条，并归还编辑器焦点
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    if (gotoState && gotoState.open) {
+      closeGotoLine();
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    if (findState && findState.open) {
+      closeFind();
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+  }
+  // 多面板智能 PageUp / PageDown 视口翻页，并严格杜绝顶层网页滚动穿透
+  if (e.key === 'PageUp' || e.key === 'PageDown') {
+    e.preventDefault();
+    var dir = e.key === 'PageDown' ? 1 : -1;
+    var activeEl = document.activeElement;
+
+    var isTreeFocus = (activeEl && (activeEl.id === 'project-tree-root' || (activeEl.closest && activeEl.closest('#project-tree-root')))) ||
+      (window.contextKeys && typeof window.contextKeys.get === 'function' && window.contextKeys.get('projectTreeFocus'));
+
+    var isOutlineFocus = (activeEl && (activeEl.id === 'outline-root' || (activeEl.closest && activeEl.closest('#outline-root')))) ||
+      (window.contextKeys && typeof window.contextKeys.get === 'function' && window.contextKeys.get('outlineFocus'));
+
+    var isPreviewFocus = (activeEl && (activeEl.id === 'preview-wrapper' || (activeEl.closest && activeEl.closest('#preview-container'))));
+
+    if (isTreeFocus) {
+      var tree = document.getElementById('project-tree-root');
+      if (tree) tree.scrollTop += dir * Math.max(40, (tree.clientHeight || 300) - 40);
+    } else if (isOutlineFocus) {
+      var outline = document.getElementById('outline-root');
+      if (outline) outline.scrollTop += dir * Math.max(40, (outline.clientHeight || 300) - 40);
+    } else if (currentMode === 'preview' || isPreviewFocus) {
+      if (window.PreviewNavigation && typeof window.PreviewNavigation.scrollByPage === 'function') {
+        window.PreviewNavigation.scrollByPage(dir);
+      }
+    } else {
+      var ed = document.getElementById('editor');
+      if (ed) ed.scrollTop = Math.max(0, ed.scrollTop + dir * Math.max(40, (ed.clientHeight || 400) - 40));
+    }
+  }
+}, true);
+
+// Keyboard Shortcuts: legacy document keydown block is removed in favor of
+// unified BindingService / Keybindings dispatcher. Only keep find-input local keys.
+function initAppCommands() {
+  if (!window.Commands || typeof window.Commands.register !== 'function') return;
+  var reg = window.Commands.register;
+  function safeReg(id, def) {
+    if (!window.Commands.has(id)) reg(id, def);
+  }
+
+  safeReg('file.new', {
+    label: '新建文件',
+    category: 'File',
+    run: function() { TabManager.createTab(null, ''); }
+  });
+  safeReg('file.save', {
+    label: '保存',
+    category: 'File',
+    run: function() { doSave(); }
+  });
+  safeReg('file.saveAs', {
+    label: '另存为…',
+    category: 'File',
+    run: function() {
+      if (currentMode === 'image') return;
+      sendToRust('save_as', { content: document.getElementById('editor').value });
+    }
+  });
+  safeReg('file.saveAll', {
+    label: '保存全部',
+    category: 'File',
+    run: function() {
+      if (typeof TabManager !== 'undefined' && TabManager.hasAnyDirty()) {
+        doSave();
+      }
+    }
+  });
+  safeReg('file.close', {
+    label: '关闭标签页',
+    category: 'File',
+    run: function() {
+      var active = typeof TabManager !== 'undefined' ? TabManager.getActiveTab() : null;
+      if (active) TabManager.closeTab(active.id);
+    }
+  });
+  safeReg('editor.togglePreview', {
+    label: '切换编辑/预览',
+    category: 'View',
+    run: function() { toggleMode(); }
+  });
+  safeReg('editor.toggleSplit', {
+    label: '切换分屏视图',
+    category: 'View',
+    run: function() { toggleSplit(); }
+  });
+  safeReg('actions.find', {
+    label: '在文档中查找',
+    category: 'Edit',
+    run: function() { openFind(); }
+  });
+  safeReg('actions.find.next', {
+    label: '查找下一个',
+    category: 'Edit',
+    run: function() {
+      return document.activeElement && document.activeElement.id === 'find-input' ? findNext() : findFromEditor(1);
+    }
+  });
+  safeReg('actions.find.previous', {
+    label: '查找上一个',
+    category: 'Edit',
+    run: function() {
+      return document.activeElement && document.activeElement.id === 'find-input' ? findPrev() : findFromEditor(-1);
+    }
+  });
+  safeReg('actions.find.incrementalNext', {
+    label: '增量查找（向前）',
+    category: 'Edit',
+    run: function() { return incrementalFind(1); }
+  });
+  safeReg('actions.find.incrementalPrevious', {
+    label: '增量查找（向后）',
+    category: 'Edit',
+    run: function() { return incrementalFind(-1); }
+  });
+  safeReg('editor.goToLine', {
+    label: '转到行',
+    category: 'Navigation',
+    run: function() { return openGotoLine(); }
+  });
+  safeReg('outline.quickOpen', {
+    label: '大纲',
+    category: 'Navigation',
+    run: function() {
+      if (window.QuickOutline && typeof window.QuickOutline.toggle === 'function') {
+        return window.QuickOutline.toggle();
+      }
+      return false;
+    }
+  });
+  safeReg('actions.find.close', {
+    label: '关闭查找',
+    category: 'Edit',
+    visibleInPalette: false,
+    run: function() { closeFind(); }
+  });
+  safeReg('actions.find.next', {
+    label: '查找下一个',
+    category: 'Edit',
+    run: function() {
+      return document.activeElement && document.activeElement.id === 'find-input' ? findNext() : findFromEditor(1);
+    }
+  });
+  safeReg('actions.find.previous', {
+    label: '查找上一个',
+    category: 'Edit',
+    run: function() {
+      return document.activeElement && document.activeElement.id === 'find-input' ? findPrev() : findFromEditor(-1);
+    }
+  });
+  safeReg('window.zoomIn', {
+    label: '放大',
+    category: 'View',
+    run: function() { applyZoom(zoomLevel + ZOOM_STEP); }
+  });
+  safeReg('window.zoomOut', {
+    label: '缩小',
+    category: 'View',
+    run: function() { applyZoom(zoomLevel - ZOOM_STEP); }
+  });
+  safeReg('window.zoomReset', {
+    label: '重置缩放',
+    category: 'View',
+    run: function() { applyZoom(1); }
+  });
+  safeReg('appearance.toggleTheme', {
+    label: '切换主题',
+    category: 'Appearance',
+    run: function() {
+      var current = document.documentElement.getAttribute('data-theme') || 'light';
+      var next = current === 'dark' ? 'light' : 'dark';
+      if (window.ipc && window.ipc.postMessage) {
+        window.ipc.postMessage(JSON.stringify({ command: 'workspace.settings.set-theme', theme: next }));
+      }
+      setTheme(next);
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', initAppCommands);
 
 // Window Controls
 document.getElementById('btn-minimize').addEventListener('click', function() { sendToRust('window_minimize'); });
 document.getElementById('btn-maximize').addEventListener('click', function() { sendToRust('window_maximize'); });
-document.getElementById('btn-close').addEventListener('click', function() {
+function requestCloseWindow() {
   var settings = window.SettingsApply && typeof window.SettingsApply.get === 'function'
     ? window.SettingsApply.get()
     : {};
   var shouldConfirm = !settings.recovery || settings.recovery.confirmCloseDirty !== false;
-  if (TabManager.hasAnyDirty() && shouldConfirm) {
-    if (!confirm(t('app.unsavedClose'))) return;
+  if (typeof TabManager !== 'undefined' && TabManager.hasAnyDirty && TabManager.hasAnyDirty() && shouldConfirm) {
+    if (window.ConfirmDialog && typeof window.ConfirmDialog.show === 'function') {
+      window.ConfirmDialog.show({
+        title: t('app.unsavedCloseTitle') || '未保存的修改',
+        message: t('app.unsavedClose') || '有未保存的修改，确定关闭窗口吗？',
+        confirmText: '放弃并关闭',
+        cancelText: '取消',
+        danger: true
+      }).then(function(confirmed) {
+        if (confirmed) sendToRust('window_close');
+      });
+      return;
+    } else if (typeof confirm === 'function' && !confirm(t('app.unsavedClose'))) {
+      return;
+    }
   }
   sendToRust('window_close');
-});
+}
+window.requestCloseWindow = requestCloseWindow;
+
+document.getElementById('btn-close').addEventListener('click', requestCloseWindow);
 
 // Toolbar Buttons
-document.getElementById('btn-new').addEventListener('click', function() { TabManager.createTab(null, ''); });
-document.getElementById('btn-open').addEventListener('click', function() { sendToRust('open_file'); });
-document.getElementById('btn-save').addEventListener('click', doSave);
-document.getElementById('btn-toggle').addEventListener('click', toggleMode);
-document.getElementById('btn-split').addEventListener('click', toggleSplit);
+document.getElementById('btn-new').addEventListener('click', function() {
+  if (window.Commands && Commands.has('file.new')) Commands.run('file.new');
+  else TabManager.createTab(null, '');
+});
+document.getElementById('btn-open').addEventListener('click', function() {
+  if (window.Commands && Commands.has('workspace.open')) Commands.run('workspace.open');
+  else sendToRust('workspace.open');
+});
+document.getElementById('btn-save').addEventListener('click', function() {
+  if (window.Commands && Commands.has('file.save')) Commands.run('file.save');
+  else doSave();
+});
+document.getElementById('btn-toggle').addEventListener('click', function() {
+  if (window.Commands && Commands.has('editor.togglePreview')) Commands.run('editor.togglePreview');
+  else toggleMode();
+});
+document.getElementById('btn-split').addEventListener('click', function() {
+  if (window.Commands && Commands.has('editor.toggleSplit')) Commands.run('editor.toggleSplit');
+  else toggleSplit();
+});
 var btnToc = document.getElementById('btn-toc');
 if (btnToc) {
   btnToc.addEventListener('click', function() {
-    if (window.LayoutUI && typeof window.LayoutUI.toggle === 'function') {
+    if (window.Commands && Commands.has('outline.toggle')) Commands.run('outline.toggle');
+    else if (window.LayoutUI && typeof window.LayoutUI.toggle === 'function') {
       window.LayoutUI.toggle('outline');
     }
   });
@@ -1072,6 +1816,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   updateWordCount();
   updateWelcome();
+  refreshShortcutTooltips();
   sendToRust('ready');
 });
 
@@ -1087,6 +1832,60 @@ document.addEventListener('click', function(e) {
   }
 });
 
+function refreshShortcutTooltips() {
+  if (typeof document === 'undefined') return;
+  var keyMap = {};
+  if (window.Keybindings && typeof window.Keybindings.effective === 'function') {
+    try { keyMap = window.Keybindings.effective() || {}; } catch (e) {}
+  }
+  var isMac = typeof isMacOS !== 'undefined' ? isMacOS : (document.body && document.body.dataset && document.body.dataset.platform === 'macos');
+
+  function formatKey(key) {
+    if (!key) return '';
+    if (isMac) {
+      return key
+        .replace(/Ctrl\+/g, '⌘')
+        .replace(/Control\+/g, '⌘')
+        .replace(/Alt\+/g, '⌥')
+        .replace(/Shift\+/g, '⇧');
+    }
+    return key;
+  }
+
+  var elements = document.querySelectorAll('[data-command-id]');
+  elements.forEach(function(el) {
+    var cmdId = el.getAttribute('data-command-id');
+    if (!cmdId) return;
+    var rawKey = keyMap[cmdId] || '';
+    var displayKey = formatKey(rawKey);
+
+    var i18nKey = el.getAttribute('data-i18n-title');
+    var baseTitle = '';
+    if (i18nKey && window.I18n && typeof window.I18n.t === 'function') {
+      baseTitle = window.I18n.t(i18nKey);
+    } else if (el.getAttribute('data-base-title')) {
+      baseTitle = el.getAttribute('data-base-title');
+    } else if (el.title) {
+      baseTitle = el.title.replace(/\s*\([^)]*\)$/, '').trim();
+      el.setAttribute('data-base-title', baseTitle);
+    }
+    if (baseTitle) {
+      el.title = displayKey ? baseTitle + ' (' + displayKey + ')' : baseTitle;
+    }
+
+    var shortcutSpan = el.querySelector('.welcome-btn-shortcut');
+    if (shortcutSpan) {
+      shortcutSpan.textContent = displayKey || '';
+      shortcutSpan.style.display = displayKey ? '' : 'none';
+    }
+  });
+}
+window.refreshShortcutTooltips = refreshShortcutTooltips;
+
+window.addEventListener('scheme-changed', refreshShortcutTooltips);
+window.addEventListener('keybindings-changed', refreshShortcutTooltips);
+window.addEventListener('language-changed', refreshShortcutTooltips);
 window.addEventListener('i18n-changed', function() {
   updateWelcome();
+  refreshShortcutTooltips();
 });

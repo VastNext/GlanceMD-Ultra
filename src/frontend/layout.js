@@ -13,6 +13,7 @@
   var KEY_OUTLINE_OPEN = 'glancemd-ultra-outline-open';
   var els = { tree: null, outline: null, treeResizer: null, outlineResizer: null, content: null };
   var widths = { tree: DEFAULTS.tree, outline: DEFAULTS.outline };
+  var preferredWidths = { tree: DEFAULTS.tree, outline: DEFAULTS.outline };
   var collapsed = { tree: false };
   var autoCollapsed = { tree: false };
   var outlineOpen = false;
@@ -133,18 +134,23 @@
 
   function constrainLayout() {
     var available = contentWidth();
-    if (!isFinite(available)) {
-      applyWidth('tree');
-      applyWidth('outline');
+    // 窗口最小化、不可见或异常 0 尺寸时，坚决跳过重排，防止污染侧栏展开状态与尺寸
+    if (!isFinite(available) || available <= 0) {
       return;
     }
-    // Preserve minimal editor width
-    var treeW = collapsed.tree ? 36 : widths.tree;
-    var outlineW = outlineOpen ? widths.outline : 0;
+    if (typeof document !== 'undefined' && (document.hidden || (document.visibilityState && document.visibilityState === 'hidden'))) {
+      return;
+    }
+
+    // Preserve minimal editor width using preferredWidths as upper target
+    var targetTreeW = clampWidth('tree', preferredWidths.tree || widths.tree);
+    var targetOutlineW = outlineOpen ? clampWidth('outline', preferredWidths.outline || widths.outline) : 0;
+    var treeW = collapsed.tree ? 36 : targetTreeW;
+    var outlineW = outlineOpen ? targetOutlineW : 0;
     if (available - (treeW + outlineW) < EDITOR_MIN) {
       if (!collapsed.tree && available - (36 + outlineW) >= EDITOR_MIN) {
-        // Can shrink tree
-        widths.tree = clampWidth('tree', widths.tree);
+        // Can shrink tree temporarily
+        widths.tree = clampWidth('tree', preferredWidths.tree || widths.tree);
         applyWidth('tree');
       } else if (!collapsed.tree) {
         autoCollapsed.tree = true;
@@ -152,16 +158,22 @@
         applyCollapsed('tree');
       }
       if (outlineOpen) {
-        widths.outline = clampWidth('outline', widths.outline);
+        widths.outline = clampWidth('outline', preferredWidths.outline || widths.outline);
         applyWidth('outline');
       }
     } else {
+      // 空间恢复充足时：如果此前是因为窗口缩窄触发的 autoCollapsed，自动恢复展开！
+      if (autoCollapsed.tree && collapsed.tree) {
+        autoCollapsed.tree = false;
+        collapsed.tree = false;
+        applyCollapsed('tree');
+      }
       if (!collapsed.tree) {
-        widths.tree = clampWidth('tree', widths.tree);
+        widths.tree = clampWidth('tree', preferredWidths.tree || widths.tree);
         applyWidth('tree');
       }
       if (outlineOpen) {
-        widths.outline = clampWidth('outline', widths.outline);
+        widths.outline = clampWidth('outline', preferredWidths.outline || widths.outline);
         applyWidth('outline');
       }
     }
@@ -170,8 +182,10 @@
   function parseWidth(panel, raw) { return clampWidth(panel, raw); }
 
   function restore() {
-    widths.tree = parseWidth('tree', storageGet(KEYS.tree.width));
-    widths.outline = parseWidth('outline', storageGet(KEYS.outline.width));
+    preferredWidths.tree = parseWidth('tree', storageGet(KEYS.tree.width));
+    preferredWidths.outline = parseWidth('outline', storageGet(KEYS.outline.width));
+    widths.tree = preferredWidths.tree;
+    widths.outline = preferredWidths.outline;
     collapsed.tree = storageGet(KEYS.tree.collapsed) === '1';
     applyWidth('tree');
     applyWidth('outline');
@@ -185,11 +199,13 @@
   function resetPanel(panel) {
     if (panel === 'tree') {
       storageRemove(KEYS.tree.width);
+      preferredWidths.tree = DEFAULTS.tree;
       widths.tree = DEFAULTS.tree;
       applyWidth('tree');
       constrainLayout();
     } else if (panel === 'outline') {
       storageRemove(KEYS.outline.width);
+      preferredWidths.outline = DEFAULTS.outline;
       widths.outline = DEFAULTS.outline;
       applyWidth('outline');
       constrainLayout();
@@ -201,6 +217,8 @@
     storageRemove(KEYS.tree.collapsed);
     storageRemove(KEYS.outline.width);
     storageRemove(KEY_OUTLINE_OPEN);
+    preferredWidths.tree = DEFAULTS.tree;
+    preferredWidths.outline = DEFAULTS.outline;
     widths.tree = DEFAULTS.tree;
     widths.outline = DEFAULTS.outline;
     collapsed.tree = false;
@@ -256,11 +274,13 @@
     if (r) r.classList.remove('dragging');
     if (panel === 'tree') {
       widths.tree = clampWidth('tree', widths.tree);
+      preferredWidths.tree = widths.tree;
       applyWidth('tree');
       storageSet(KEYS.tree.width, String(Math.round(widths.tree)));
       constrainLayout();
     } else if (panel === 'outline') {
       widths.outline = clampWidth('outline', widths.outline);
+      preferredWidths.outline = widths.outline;
       applyWidth('outline');
       storageSet(KEYS.outline.width, String(Math.round(widths.outline)));
       constrainLayout();
@@ -294,6 +314,39 @@
     }
   }
 
+  function registerCommands() {
+    if (!window.Commands || typeof window.Commands.register !== 'function') return;
+    var reg = window.Commands.register;
+    if (!window.Commands.has('layout.tree.toggle')) {
+      reg('layout.tree.toggle', {
+        label: '切换项目树',
+        category: 'View',
+        run: function() { toggle('tree'); }
+      });
+    }
+    if (!window.Commands.has('layout.tree.collapse')) {
+      reg('layout.tree.collapse', {
+        label: '折叠项目树',
+        category: 'View',
+        run: function() { collapse('tree'); }
+      });
+    }
+    if (!window.Commands.has('layout.tree.expand')) {
+      reg('layout.tree.expand', {
+        label: '展开项目树',
+        category: 'View',
+        run: function() { expand('tree'); }
+      });
+    }
+    if (!window.Commands.has('layout.tree.resetWidth')) {
+      reg('layout.tree.resetWidth', {
+        label: '重置项目树宽度',
+        category: 'View',
+        run: function() { resetPanel('tree'); }
+      });
+    }
+  }
+
   function init() {
     els.tree = document.getElementById('panel-tree');
     els.outline = document.getElementById('panel-outline');
@@ -308,6 +361,7 @@
     document.addEventListener('pointercancel', onDocumentPointerUp);
     restore();
     if (window.addEventListener) window.addEventListener('resize', constrainLayout);
+    registerCommands();
   }
 
   window.LayoutUI = {
@@ -317,8 +371,11 @@
     isCollapsed: isCollapsed,
     restore: restore,
     reset: reset,
+    resetWidth: resetPanel,
+    resetPanel: resetPanel,
     resize: constrainLayout,
-    setOutlineSide: setOutlineSide
+    setOutlineSide: setOutlineSide,
+    registerCommands: registerCommands
   };
   init();
 })();

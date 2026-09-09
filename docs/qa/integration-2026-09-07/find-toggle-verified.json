@@ -1,0 +1,1096 @@
+{
+  "config": {
+    "argv": [
+      "C:\\Program Files\\nodejs\\node.exe",
+      "D:\\WorkDev\\MyShare\\GlanceMD-Ultra\\tests\\e2e\\node_modules\\playwright\\cli.js",
+      "test",
+      "-c",
+      "D:/WorkDev/MyShare/GlanceMD-Ultra/tests/e2e/playwright.config.js",
+      "editor-navigation-regressions",
+      "app.spec",
+      "outline-navigation",
+      "vim-visible-ui",
+      "--workers=2",
+      "--reporter=json"
+    ],
+    "configFile": "D:\\WorkDev\\MyShare\\GlanceMD-Ultra\\tests\\e2e\\playwright.config.js",
+    "rootDir": "D:/WorkDev/MyShare/GlanceMD-Ultra/tests/e2e/specs",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": "D:\\WorkDev\\MyShare\\GlanceMD-Ultra\\tests\\e2e\\global-setup.js",
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 2
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "D:/WorkDev/MyShare/GlanceMD-Ultra/tests/e2e/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 2
+        },
+        "id": "",
+        "name": "",
+        "testDir": "D:/WorkDev/MyShare/GlanceMD-Ultra/tests/e2e/specs",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.62.1",
+    "workers": 2,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "app.spec.js",
+      "file": "app.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "页面加载：标题栏、平台标记与欢迎视图就绪",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1020,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:10.100Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a510cc93a867214a2ea0-4cb7d5281bf7307194f1",
+          "file": "app.spec.js",
+          "line": 73,
+          "column": 1
+        },
+        {
+          "title": "Alt+Shift+F O：完整脚本加载后触发一次 open_file IPC",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 678,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:11.831Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a510cc93a867214a2ea0-0892ad9fdaab89aa8fec",
+          "file": "app.spec.js",
+          "line": 85,
+          "column": 1
+        },
+        {
+          "title": "新建 tab 核心交互：新建后欢迎隐藏且 tab 栏出现，多 tab 可切换",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 858,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:12.542Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a510cc93a867214a2ea0-bf3d481d4dc09704bcf6",
+          "file": "app.spec.js",
+          "line": 95,
+          "column": 1
+        },
+        {
+          "title": "欢迎视图：启动展示最近文件，点击可触发打开，快捷新建可直接进入编辑",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1116,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:13.434Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a510cc93a867214a2ea0-7d08761ef7e5029665df",
+          "file": "app.spec.js",
+          "line": 117,
+          "column": 1
+        },
+        {
+          "title": "欢迎视图双 Tab：默认展示最近项目，可切到最近文件，点击项目触发 workspace.open",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1681,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:14.578Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a510cc93a867214a2ea0-60145a6403ade46b085f",
+          "file": "app.spec.js",
+          "line": 151,
+          "column": 1
+        },
+        {
+          "title": "大纲单入口：顶栏 #btn-toc 切换 Outline 面板，不增加独立活动栏占宽",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 924,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:16.282Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a510cc93a867214a2ea0-0737054b0a226b47aa0f",
+          "file": "app.spec.js",
+          "line": 188,
+          "column": 1
+        },
+        {
+          "title": "双入口与设置：文件、项目、设置按钮分别触发对应命令",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 901,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:17.233Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a510cc93a867214a2ea0-96a4690ef3bcc8b8e963",
+          "file": "app.spec.js",
+          "line": 217,
+          "column": 1
+        },
+        {
+          "title": "设置专项：modal 可见、七类真实分类与关闭/Escape",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 1,
+                  "status": "passed",
+                  "duration": 1578,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:10.155Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a510cc93a867214a2ea0-52fff9578b6805efc856",
+          "file": "app.spec.js",
+          "line": 230,
+          "column": 1
+        },
+        {
+          "title": "设置专项：搜索按真实中文分类聚合，点击分类后保留过滤词",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 1,
+                  "status": "passed",
+                  "duration": 1147,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:12.544Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a510cc93a867214a2ea0-5e39988afcacb4265504",
+          "file": "app.spec.js",
+          "line": 250,
+          "column": 1
+        },
+        {
+          "title": "设置专项：原生枚举 select 保持可操作且明暗主题 token 生效",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 1,
+                  "status": "passed",
+                  "duration": 2102,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:13.720Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a510cc93a867214a2ea0-ddf99777cc84ef1dc63f",
+          "file": "app.spec.js",
+          "line": 266,
+          "column": 1
+        },
+        {
+          "title": "设置与布局关键路径：窄视口保留编辑器可用区域且 modal 不溢出",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 1,
+                  "status": "passed",
+                  "duration": 864,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:15.847Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a510cc93a867214a2ea0-11c83a051af2ef408a62",
+          "file": "app.spec.js",
+          "line": 286,
+          "column": 1
+        },
+        {
+          "title": "侧栏自由拖宽：项目树可拖至窗口右侧附近，仅保留最小编辑区",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 1,
+                  "status": "passed",
+                  "duration": 868,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:16.739Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a510cc93a867214a2ea0-f1ab27a2b39be593c26b",
+          "file": "app.spec.js",
+          "line": 299,
+          "column": 1
+        },
+        {
+          "title": "主题切换：data-theme 往返并通过统一 settings 命令持久化",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 1,
+                  "status": "passed",
+                  "duration": 789,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:17.632Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a510cc93a867214a2ea0-cd04678fae4ea87f6962",
+          "file": "app.spec.js",
+          "line": 314,
+          "column": 1
+        },
+        {
+          "title": "Outline 左右侧拖动与停靠验收：right 拖左缘向左变宽、left 拖右缘向右变宽且边界正确、关闭无折叠窄条",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 1,
+                  "status": "passed",
+                  "duration": 1683,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:18.449Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a510cc93a867214a2ea0-2a5baef56f06c5498c99",
+          "file": "app.spec.js",
+          "line": 331,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "editor-navigation-regressions.spec.js",
+      "file": "editor-navigation-regressions.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Ctrl+F searches selected text in the editor and keeps find inline",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1264,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:18.176Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "99ac3960672e30e14088-07ca084e263a047247d1",
+          "file": "editor-navigation-regressions.spec.js",
+          "line": 22,
+          "column": 1
+        },
+        {
+          "title": "Ctrl+L accepts an exact logical line and selects it",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 765,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:19.470Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "99ac3960672e30e14088-6e7cb46a6cab76864a50",
+          "file": "editor-navigation-regressions.spec.js",
+          "line": 39,
+          "column": 1
+        },
+        {
+          "title": "Vim enters with current tab cursor and keeps a resident status hint",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 1,
+                  "status": "passed",
+                  "duration": 948,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:20.170Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "99ac3960672e30e14088-f186c8a50a18fb8111e7",
+          "file": "editor-navigation-regressions.spec.js",
+          "line": 52,
+          "column": 1
+        },
+        {
+          "title": "Ctrl+L 31 repeated three times selects a visible logical line after long Chinese soft wraps",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1306,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:20.262Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "99ac3960672e30e14088-a1a411451a13eb05ed34",
+          "file": "editor-navigation-regressions.spec.js",
+          "line": 72,
+          "column": 1
+        },
+        {
+          "title": "Ctrl+K and Ctrl+Shift+K from find input scroll to visible next and previous matches",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 1,
+                  "status": "passed",
+                  "duration": 1032,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:21.147Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "99ac3960672e30e14088-cc0e73698938b7d29543",
+          "file": "editor-navigation-regressions.spec.js",
+          "line": 86,
+          "column": 1
+        },
+        {
+          "title": "Entering Vim from middle of preview preserves reading location and shows the block cursor",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1788,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:21.600Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "99ac3960672e30e14088-65006b9bd477da195950",
+          "file": "editor-navigation-regressions.spec.js",
+          "line": 103,
+          "column": 1
+        },
+        {
+          "title": "F7/F12 focus flash remains visible with reduced-motion no-preference",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 1,
+                  "status": "passed",
+                  "duration": 987,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:22.205Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "99ac3960672e30e14088-2caad3a73e888fcf961f",
+          "file": "editor-navigation-regressions.spec.js",
+          "line": 123,
+          "column": 3
+        },
+        {
+          "title": "F7/F12 focus flash remains visible with reduced-motion reduce",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 1,
+                  "status": "passed",
+                  "duration": 769,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:23.217Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "99ac3960672e30e14088-a2128df8b1b223c564b4",
+          "file": "editor-navigation-regressions.spec.js",
+          "line": 123,
+          "column": 3
+        },
+        {
+          "title": "Inline find follows actual view toggle and closes in preview: light",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1875,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:23.417Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "99ac3960672e30e14088-a18270b996d88e371cbf",
+          "file": "editor-navigation-regressions.spec.js",
+          "line": 142,
+          "column": 3
+        },
+        {
+          "title": "Inline find follows actual view toggle and closes in preview: dark",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 1,
+                  "status": "passed",
+                  "duration": 1910,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:24.013Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "99ac3960672e30e14088-860ad8f1bacd9383ce4c",
+          "file": "editor-navigation-regressions.spec.js",
+          "line": 142,
+          "column": 3
+        }
+      ]
+    },
+    {
+      "title": "outline-navigation.spec.js",
+      "file": "outline-navigation.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "点击 Outline：跳过 YAML frontmatter 与 fenced 伪标题，定位混排标题真实源行",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1570,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:25.331Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "abbc8eaf7239183d7dd9-623bfc0f19b778eeb4b9",
+          "file": "outline-navigation.spec.js",
+          "line": 22,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "vim-visible-ui.spec.js",
+      "file": "vim-visible-ui.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Vim 模式栏挂载于 #statusbar 并在视口内正确展示各模式",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 1,
+                  "status": "passed",
+                  "duration": 1072,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:25.960Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8ed2ad9194fa1491839d-07a5a80d2e5011a9e2a6",
+          "file": "vim-visible-ui.spec.js",
+          "line": 35,
+          "column": 1
+        },
+        {
+          "title": "Vim 命令行底栏实时显示输入字符、Esc 取消与 Enter 执行",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1258,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:26.944Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8ed2ad9194fa1491839d-d53c8e91def0aecba1e5",
+          "file": "vim-visible-ui.spec.js",
+          "line": 83,
+          "column": 1
+        },
+        {
+          "title": "Vim 真实方块光标 (.vim-block-cursor) 在 Normal 模式渲染并在 Insert 模式隐藏",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 1,
+                  "status": "passed",
+                  "duration": 1616,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:27.067Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8ed2ad9194fa1491839d-c70c1e09254e3cc7163b",
+          "file": "vim-visible-ui.spec.js",
+          "line": 119,
+          "column": 1
+        },
+        {
+          "title": "Vim :q! 强制关闭 dirty tab 且丢弃未保存修改",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1199,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-07T04:04:28.234Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8ed2ad9194fa1491839d-280eff9783cc3f95f080",
+          "file": "vim-visible-ui.spec.js",
+          "line": 153,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-09-07T04:04:08.006Z",
+    "duration": 21640.696,
+    "expected": 29,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

@@ -93,7 +93,11 @@
       item.appendChild(line);
 
       item.addEventListener('click', function() {
-        scrollToHeading(index);
+        if (window.Commands && typeof window.Commands.run === 'function') {
+          window.Commands.run('outline.goTo', { index: index });
+        } else {
+          scrollToHeading(index);
+        }
       });
       listEl.appendChild(item);
     });
@@ -121,6 +125,166 @@
       debounceTimer = null;
       rebuild();
     }, DEBOUNCE_MS);
+  }
+
+  /* ══════════ 面板显隐与停靠（与 LayoutUI 同步） ══════════ */
+
+  var previousFocus = null;
+  function toggle() {
+    var wasOpen = window.Outline && typeof window.Outline.isOpen === 'function' ? window.Outline.isOpen() : false;
+    if (window.LayoutUI && typeof window.LayoutUI.toggle === 'function') {
+      window.LayoutUI.toggle('outline');
+    } else {
+      var panel = document.getElementById('panel-outline');
+      if (panel && panel.classList) panel.classList.toggle('open');
+    }
+    if (wasOpen) {
+      if (previousFocus && typeof previousFocus.focus === 'function') {
+        try { previousFocus.focus(); } catch (e) {}
+      } else {
+        var editor = document.getElementById('editor');
+        if (editor && typeof editor.focus === 'function') editor.focus();
+      }
+      previousFocus = null;
+    } else {
+      previousFocus = document.activeElement;
+      var target = listEl || container || document.getElementById('panel-outline');
+      if (target && typeof target.focus === 'function') target.focus();
+    }
+  }
+
+  function show() {
+    if (window.LayoutUI && typeof window.LayoutUI.expand === 'function') {
+      window.LayoutUI.expand('outline');
+    } else {
+      var panel = document.getElementById('panel-outline');
+      if (panel && panel.classList) {
+        panel.classList.add('open');
+      }
+    }
+  }
+
+  function hide() {
+    if (window.LayoutUI && typeof window.LayoutUI.collapse === 'function') {
+      window.LayoutUI.collapse('outline');
+    } else {
+      var panel = document.getElementById('panel-outline');
+      if (panel && panel.classList) {
+        panel.classList.remove('open');
+      }
+    }
+  }
+
+  function resetWidth() {
+    if (window.LayoutUI && typeof window.LayoutUI.resetWidth === 'function') {
+      window.LayoutUI.resetWidth('outline');
+    } else if (window.LayoutUI && typeof window.LayoutUI.resetPanel === 'function') {
+      window.LayoutUI.resetPanel('outline');
+    }
+  }
+
+  function setSide(side) {
+    var next = side === 'left' || side === 'right' ? side : 'right';
+    if (window.LayoutUI && typeof window.LayoutUI.setOutlineSide === 'function') {
+      window.LayoutUI.setOutlineSide(next);
+    }
+  }
+
+  /* ══════════ 激活、键盘导航与滚动 ══════════ */
+
+  function scrollActiveIntoList() {
+    if (!listEl || typeof listEl.querySelectorAll !== 'function') {
+      return;
+    }
+    var items = listEl.querySelectorAll('.outline-item');
+    if (items && items[activeIndex]) {
+      var item = items[activeIndex];
+      if (item && typeof item.scrollIntoView === 'function') {
+        try {
+          item.scrollIntoView({ block: 'nearest' });
+        } catch (e) {}
+      }
+    }
+  }
+
+  function selectNext() {
+    if (!headings.length) return -1;
+    var nextIndex;
+    if (activeIndex === -1) {
+      nextIndex = 0;
+    } else {
+      nextIndex = Math.min(headings.length - 1, activeIndex + 1);
+    }
+    setActive(nextIndex);
+    scrollActiveIntoList();
+    return nextIndex;
+  }
+
+  function selectPrevious() {
+    if (!headings.length) return -1;
+    var prevIndex;
+    if (activeIndex === -1) {
+      prevIndex = headings.length - 1;
+    } else {
+      prevIndex = Math.max(0, activeIndex - 1);
+    }
+    setActive(prevIndex);
+    scrollActiveIntoList();
+    return prevIndex;
+  }
+
+  function openSelection() {
+    if (!headings.length) return;
+    var targetIndex = activeIndex;
+    if (targetIndex < 0 || targetIndex >= headings.length) {
+      targetIndex = 0;
+      setActive(0);
+    }
+    scrollToHeading(targetIndex);
+    var editor = document.getElementById('editor');
+    if (editor && typeof editor.focus === 'function') {
+      try {
+        editor.focus();
+      } catch (e) {}
+    }
+  }
+
+  function focus() {
+    show();
+    var target = listEl || container || document.getElementById('panel-outline');
+    if (target && typeof target.focus === 'function') {
+      try {
+        target.focus();
+      } catch (e) {}
+    }
+  }
+
+  function onKeyDown(e) {
+    if (!e || !e.key) return;
+    if (e._outlineHandled) return;
+    e._outlineHandled = true;
+
+    if (e.key === 'ArrowDown' || e.key === 'Down') {
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      selectNext();
+    } else if (e.key === 'ArrowUp' || e.key === 'Up') {
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      selectPrevious();
+    } else if (e.key === 'Enter') {
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      if (e.ctrlKey || e.metaKey) {
+        var target = activeIndex >= 0 && activeIndex < headings.length ? activeIndex : (headings.length ? 0 : -1);
+        if (target >= 0) {
+          if (activeIndex !== target) setActive(target);
+          scrollToHeading(target);
+        }
+      } else {
+        openSelection();
+      }
+    } else if (e.key === 'F5') {
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      rebuild();
+    }
   }
 
   /* ══════════ 激活与滚动 ══════════ */
@@ -153,8 +317,8 @@
     // These are independent surfaces: a failure in one must not suppress the
     // editor navigation or active-state update for the others.
     try {
-      if (heading.el && typeof heading.el.scrollIntoView === 'function') {
-        heading.el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (heading.el && window.PreviewNavigation && typeof window.PreviewNavigation.scrollToElement === 'function') {
+        window.PreviewNavigation.scrollToElement(heading.el, { behavior: 'smooth', block: 'start' });
       }
     } catch (e) {
       /* 预览滚动失败静默（如预览隐藏） */
@@ -182,7 +346,9 @@
       try { intersectionObserver.disconnect(); } catch (e) { /* 忽略 */ }
       intersectionObserver = null;
     }
-    var root = document.getElementById('preview-container');
+    var root = window.PreviewNavigation && typeof window.PreviewNavigation.getScroller === 'function'
+      ? window.PreviewNavigation.getScroller()
+      : document.getElementById('preview-wrapper');
     try {
       intersectionObserver = new IntersectionObserver(function(entries) {
         var topIndex = -1;
@@ -242,14 +408,123 @@
     listEl = document.createElement('div');
     listEl.id = 'outline-list';
     listEl.className = 'outline-list';
+    if (typeof listEl.setAttribute === 'function') {
+      listEl.setAttribute('tabindex', '0');
+    }
     clearNode(container); // 摘掉 index.html 自带的空态 <p class="panel-empty">
     container.appendChild(listEl);
+    if (typeof container.setAttribute === 'function') {
+      container.setAttribute('tabindex', '0');
+    }
+    if (typeof container.addEventListener === 'function') {
+      container.addEventListener('keydown', onKeyDown);
+      container.addEventListener('focus', function() {
+        if (window.contextKeys) window.contextKeys.set('outlineFocus', true);
+      });
+      container.addEventListener('blur', function() {
+        if (window.contextKeys) window.contextKeys.remove('outlineFocus');
+      });
+    }
+    if (typeof listEl.addEventListener === 'function') {
+      listEl.addEventListener('keydown', onKeyDown);
+    }
     return true;
+  }
+
+  function registerCommands() {
+    if (!window.Commands || typeof window.Commands.register !== 'function') {
+      return;
+    }
+    var reg = window.Commands.register;
+    if (!window.Commands.has('outline.toggle')) {
+      reg('outline.toggle', {
+        label: '切换大纲',
+        category: 'View',
+        run: function() { toggle(); }
+      });
+    }
+    if (!window.Commands.has('outline.show')) {
+      reg('outline.show', {
+        label: '显示大纲',
+        category: 'View',
+        run: function() { show(); }
+      });
+    }
+    if (!window.Commands.has('outline.hide')) {
+      reg('outline.hide', {
+        label: '隐藏大纲',
+        category: 'View',
+        run: function() { hide(); }
+      });
+    }
+    if (!window.Commands.has('outline.resetWidth')) {
+      reg('outline.resetWidth', {
+        label: '重置大纲宽度',
+        category: 'View',
+        run: function() { resetWidth(); }
+      });
+    }
+    if (!window.Commands.has('outline.setSide')) {
+      reg('outline.setSide', {
+        label: '设置大纲位置',
+        category: 'View',
+        run: function(arg) {
+          var side = (arg && typeof arg === 'object' ? arg.side : arg) || 'right';
+          setSide(side);
+        }
+      });
+    }
+    if (!window.Commands.has('outline.refresh')) {
+      reg('outline.refresh', {
+        label: '刷新大纲',
+        category: 'View',
+        run: function() { rebuild(); }
+      });
+    }
+    if (!window.Commands.has('outline.goTo')) {
+      reg('outline.goTo', {
+        label: '跳转到大纲项',
+        category: 'Navigation',
+        run: function(arg) {
+          var idx = arg && typeof arg === 'object' ? arg.index : arg;
+          scrollToHeading(Number(idx));
+        }
+      });
+    }
+    if (!window.Commands.has('outline.openSelection')) {
+      reg('outline.openSelection', {
+        label: '打开选中大纲项',
+        category: 'Navigation',
+        run: function() { openSelection(); }
+      });
+    }
+    if (!window.Commands.has('outline.selectNext')) {
+      reg('outline.selectNext', {
+        label: '选择下一项大纲',
+        category: 'Navigation',
+        run: function() { selectNext(); }
+      });
+    }
+    if (!window.Commands.has('outline.selectPrevious')) {
+      reg('outline.selectPrevious', {
+        label: '选择上一项大纲',
+        category: 'Navigation',
+        run: function() { selectPrevious(); }
+      });
+    }
+    if (!window.Commands.has('outline.focus')) {
+      reg('outline.focus', {
+        label: '聚焦大纲',
+        category: 'Navigation',
+        run: function() { focus(); }
+      });
+    }
   }
 
   if (mount()) {
     watchPreview();
     rebuild(); // 首次构建（预览为空 → 空态）
+    registerCommands();
   }
 
   window.Outline = {
@@ -269,11 +544,47 @@
     setActive: setActive,
     /** 滚动到指定下标的标题 */
     scrollTo: scrollToHeading,
+    /** 跳转到指定下标的标题 */
+    goTo: function(index) {
+      scrollToHeading(Number(index));
+    },
     /** 200ms 防抖重建（模拟预览变化后由测试/集成方触发） */
     scheduleRefresh: scheduleRebuild,
     /** 模块是否成功挂载（#outline-root 存在） */
     isMounted: function() {
       return !!(listEl && listEl.parentNode === container);
-    }
+    },
+    /** 切换 Outline 面板显隐 */
+    toggle: toggle,
+    /** 显示 Outline 面板 */
+    show: show,
+    /** 隐藏 Outline 面板 */
+    hide: hide,
+    /** 显示 Outline 面板（别名） */
+    open: show,
+    /** 隐藏 Outline 面板（别名） */
+    close: hide,
+    /** Outline 是否展开显示 */
+    isOpen: function() {
+      if (window.LayoutUI && typeof window.LayoutUI.isCollapsed === 'function') {
+        return !window.LayoutUI.isCollapsed('outline');
+      }
+      var panel = document.getElementById('panel-outline');
+      return !!(panel && panel.classList && panel.classList.contains('open'));
+    },
+    /** 重置 Outline 宽度 */
+    resetWidth: resetWidth,
+    /** 设置停靠侧 */
+    setSide: setSide,
+    /** 选中下一项 */
+    selectNext: selectNext,
+    /** 选中上一项 */
+    selectPrevious: selectPrevious,
+    /** 打开选中项（滚动并聚焦编辑器） */
+    openSelection: openSelection,
+    /** 聚焦 Outline */
+    focus: focus,
+    /** 注册 Commands 命令 */
+    registerCommands: registerCommands
   };
 })();

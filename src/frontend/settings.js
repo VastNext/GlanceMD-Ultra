@@ -960,8 +960,16 @@
   }
 
   function renderKbList(body, headerHTML, q) {
+    if (window.KeybindingsSettings && typeof window.KeybindingsSettings.mount === 'function') {
+      body.innerHTML = headerHTML + '<div id="settings-keybindings-mount"></div>';
+      var mountPoint = body.querySelector('#settings-keybindings-mount');
+      if (mountPoint) {
+        window.KeybindingsSettings.mount(mountPoint, { query: q });
+        return;
+      }
+    }
     var kb = window.Keybindings;
-    if (!kb || !kb.defaults || typeof kb.effective !== 'function') {
+    if (!kb || typeof kb.effective !== 'function') {
       body.innerHTML = headerHTML + '<p class="settings-empty">快捷键模块未加载</p>';
       return;
     }
@@ -969,7 +977,9 @@
     var eff = kb.effective();
     var ovr = kbOverrides();
     var rows = '';
-    Object.keys(kb.defaults).forEach(function (id) {
+    var keys = Object.keys(eff);
+    if (!keys.length && kb.defaults) keys = Object.keys(kb.defaults);
+    keys.forEach(function (id) {
       var label = kbLabel(id);
       if (!match(label) && !match(id) && !match(eff[id] || '')) return;
       var recording = state.kbRecording === id;
@@ -1169,6 +1179,7 @@
 
   function open() {
     state.open = true;
+    if (window.contextKeys) { window.contextKeys.set('settingsFocus', true); window.contextKeys.set('dialogOpen', true); }
     if (typeof document !== 'undefined' && document.activeElement) {
       lastFocusedEl = document.activeElement;
     }
@@ -1188,6 +1199,7 @@
 
   function close() {
     state.open = false;
+    if (window.contextKeys) { window.contextKeys.remove('settingsFocus'); window.contextKeys.remove('dialogOpen'); }
     cancelKbRecording();
     closeCustomSelect();
     var p = document.getElementById('settings-panel');
@@ -1265,6 +1277,16 @@
     open: open,
     close: close,
     toggle: function () { state.open ? close() : open(); },
+    refresh: refresh,
+    setCategory: function (category) {
+      if (CATEGORIES.some(function (item) { return item.key === category; })) {
+        state.category = category;
+        if (state.open) {
+          renderCategories();
+          render();
+        }
+      }
+    },
     receive: receive,
     getState: function () { return state; }
   };

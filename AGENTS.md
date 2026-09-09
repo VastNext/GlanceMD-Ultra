@@ -117,7 +117,7 @@ Ultra 采用独立 semver 序列：主实施计划阶段 0–6 期间为 `0.x.0`
 
 | Workflow | 触发 | 作用 |
 |---|---|---|
-| `build.yml` | 所有分支 push / PR / 手动 | 四平台格式检查 + 测试 + 构建 + 打包验证，上传 artifact（阶段 1 起并入 Playwright 冒烟套件） |
+| `build.yml` | 仅手动 workflow_dispatch（节省 Actions 配额） | 四平台格式检查 + 测试 + 构建 + 打包及 CLI 生命周期验证，上传 artifact；候选分支与合入后的 main 均需显式触发并确认对应 SHA 全绿 |
 | `release.yml` | push `v*` tag / 手动 dispatch | 三平台构建打包，创建 GitHub Release 并上传产物（`contents: write`） |
 
 ## 其他注意事项

@@ -1,0 +1,67 @@
+组装页   : D:\WorkDev\MyShare\GlanceMD-Ultra\tests\.tmp\index.html（825647 字节，32 个 <script>）
+IPC mock : D:\WorkDev\MyShare\GlanceMD-Ultra\tests\.tmp\mock-ipc.js
+平台标记 : data-platform="windows"
+
+Running 2 tests using 1 worker
+
+(node:34940) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  1 tests\e2e\specs\editor-navigation-regressions.spec.js:142:3 › Inline find follows actual view toggle and closes in preview: light (6.0s)
+(node:35420) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  2 tests\e2e\specs\editor-navigation-regressions.spec.js:142:3 › Inline find follows actual view toggle and closes in preview: dark (5.8s)
+
+
+  1) tests\e2e\specs\editor-navigation-regressions.spec.js:142:3 › Inline find follows actual view toggle and closes in preview: light 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('#preview-container > #find-bar')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for locator('#preview-container > #find-bar')
+
+
+      151 |     await page.click('#btn-toggle');
+      152 |     const bar = page.locator('#preview-container > #find-bar');
+    > 153 |     await expect(bar).toBeVisible();
+          |                       ^
+      154 |     expect(await page.evaluate(() => document.getElementById('find-bar') === window.originalFindBar)).toBe(true);
+      155 |     await expect(page.locator('#preview-container')).toHaveClass(/find-open/);
+      156 |     await page.click('#find-next');
+        at D:\WorkDev\MyShare\GlanceMD-Ultra\tests\e2e\specs\editor-navigation-regressions.spec.js:153:23
+
+    Error Context: tests\e2e\test-results\editor-navigation-regressi-4e1e8-and-closes-in-preview-light\error-context.md
+
+  2) tests\e2e\specs\editor-navigation-regressions.spec.js:142:3 › Inline find follows actual view toggle and closes in preview: dark 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('#preview-container > #find-bar')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for locator('#preview-container > #find-bar')
+
+
+      151 |     await page.click('#btn-toggle');
+      152 |     const bar = page.locator('#preview-container > #find-bar');
+    > 153 |     await expect(bar).toBeVisible();
+          |                       ^
+      154 |     expect(await page.evaluate(() => document.getElementById('find-bar') === window.originalFindBar)).toBe(true);
+      155 |     await expect(page.locator('#preview-container')).toHaveClass(/find-open/);
+      156 |     await page.click('#find-next');
+        at D:\WorkDev\MyShare\GlanceMD-Ultra\tests\e2e\specs\editor-navigation-regressions.spec.js:153:23
+
+    Error Context: tests\e2e\test-results\editor-navigation-regressi-ac4b5--and-closes-in-preview-dark\error-context.md
+
+  2 failed
+    tests\e2e\specs\editor-navigation-regressions.spec.js:142:3 › Inline find follows actual view toggle and closes in preview: light 
+    tests\e2e\specs\editor-navigation-regressions.spec.js:142:3 › Inline find follows actual view toggle and closes in preview: dark 

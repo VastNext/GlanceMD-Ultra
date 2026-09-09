@@ -1,16 +1,436 @@
-(function () {
+// 运行时快捷键分派单例 —— window.Keybindings 与 window.BindingService 实例集成
+//
+// 事实源约定（docs/dev/contracts/settings.md §2.6 / §3）：全局 settings.json 的
+// `keybindings.activeScheme` + `keybindings.schemes`（按方案隔离的用户绑定）是
+// 快捷键的唯一事实源；localStorage 键 `glancemd-ultra-keybindings` /
+// `glancemd-ultra-keyboard-scheme` 仅作为 v1.6.3 基线的遗留镜像与退化回退，
+// 启动时一次性迁移进设置文档后不再作为来源（迁移标记
+// `glancemd-ultra-keybindings-migrated` 防重入）。
+//
+// 写入路径：任何入口（facade / 设置 UI 直接调用 window.BindingService 实例方法）
+// 的覆盖表或方案变更，都以最近一次 `workspace.settings.get-global` 的完整文档
+// 为合并基座，只替换 keybindings 段后经 `workspace.settings.set-global` 落盘，
+// 绝不扰动其他设置分类；未来 schema 新增键随全局文档原样保留。
+(function (root) {
   'use strict';
-  var KEY='glancemd-ultra-keybindings', defaults={'file.open':'Ctrl+O','quickopen.toggle':'Ctrl+P','search.toggle':'Ctrl+Shift+F','palette.toggle':'Ctrl+Shift+P','settings.toggle':'Ctrl+`'}, overrides={};
-  function load(){try{overrides=JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){overrides={};}return overrides;}
-  function effective(){var x=Object.assign({},defaults,overrides);return x;}
-  // 冲突检测在 effective 级进行：defaults 与 overrides 合并后，任一组合键被两个
-  // 命令占用即冲突（否则覆盖键会静默顶掉默认绑定，如把 file.open 改成 Ctrl+P）。
-  function conflict(map){var eff=Object.assign({},defaults,map);var seen={};for(var k in eff){var v=eff[k];if(!v)continue;if(seen[v])return {key:v,commands:[seen[v],k]};seen[v]=k;}return null;}
-  function save(map){var c=conflict(map);if(c)throw new Error('快捷键冲突：'+c.key);overrides=map;try{localStorage.setItem(KEY,JSON.stringify(map));}catch(e){}return true;}
-  function normalize(e){var a=[];if(e.ctrlKey)a.push('Ctrl');if(e.altKey)a.push('Alt');if(e.shiftKey)a.push('Shift');if(e.metaKey)a.push('Meta');var k=e.key===' '?'Space':e.key.length===1?e.key.toUpperCase():e.key;return a.join('+')+(a.length?'+' :'')+k;}
-  // 输入框聚焦时仍放行的面板切换类命令（搜索/快开/面板/设置需要在编辑中可达）
-  var INPUT_ALLOWED={'quickopen.toggle':1,'search.toggle':1,'palette.toggle':1,'settings.toggle':1};
-  function dispatch(e){var inInput=e.target&&/INPUT|TEXTAREA|SELECT/.test(e.target.tagName);var key=normalize(e),map=effective();for(var id in map)if(map[id]===key&&window.Commands&&Commands.has&&Commands.has(id)){if(inInput&&!INPUT_ALLOWED[id])return null;e.preventDefault();Commands.run(id);return id;}return null;}
-  load();document.addEventListener('keydown',dispatch);
-  window.Keybindings={defaults:defaults,load:load,effective:effective,overrides:function(){return Object.assign({},overrides);},save:save,clear:function(){save({});},conflict:conflict,normalize:normalize,dispatch:dispatch,exportJSON:function(){return JSON.stringify(overrides,null,2);},importJSON:function(s){var x=JSON.parse(s);save(x);return x;}};
-})();
+
+  var KEY = 'glancemd-ultra-keybindings';
+  var SCHEME_KEY = 'glancemd-ultra-keyboard-scheme';
+  var MIGRATED_KEY = 'glancemd-ultra-keybindings-migrated';
+  var DEFAULT_SCHEME = 'ultra.eclipse';
+
+  var GET_GLOBAL_CMD = 'workspace.settings.get-global';
+  var SET_GLOBAL_CMD = 'workspace.settings.set-global';
+
+  // 确保全局 ContextKeyService 存在
+  if (!root.contextKeys && root.ContextKeyService) {
+    root.contextKeys = new root.ContextKeyService();
+  }
+
+  // 命令桥接：BindingService 调用 commandId 时转调 window.Commands
+  var commandBridge = new Proxy({}, {
+    get: function(_, prop) {
+      return function(binding) {
+        if (root.Commands && typeof root.Commands.run === 'function') {
+          return root.Commands.run(prop, binding && binding.args);
+        }
+      };
+    },
+    has: function(_, prop) {
+      return Boolean(root.Commands && typeof root.Commands.has === 'function' && root.Commands.has(prop));
+    }
+  });
+
+  // 实例化全局 BindingService
+  var platformValue = typeof navigator !== 'undefined' ? String(navigator.platform || navigator.userAgent || '') : '';
+  var platformName = /Mac/i.test(platformValue) ? 'macOS' : /Linux|X11/i.test(platformValue) ? 'Linux' : 'Windows';
+  var service = root.BindingService && typeof root.BindingService === 'function'
+    ? new root.BindingService({
+        commands: commandBridge,
+        context: root.contextKeys,
+        platform: platformName,
+        scheme: loadSavedScheme()
+      })
+    : null;
+
+  function loadSavedScheme() {
+    try {
+      return localStorage.getItem(SCHEME_KEY) || DEFAULT_SCHEME;
+    } catch (e) {
+      return DEFAULT_SCHEME;
+    }
+  }
+
+  function loadOverrides() {
+    try {
+      return JSON.parse(localStorage.getItem(KEY) || '{}') || {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  /* ── 设置文档桥接（全局 settings.json 为事实源）────────────────────── */
+
+  // 最近一次 get-global 回执的完整设置文档（写入合并基座；null = 尚未收到）。
+  var globalDoc = null;
+  // globalDoc 就绪前暂存的 keybindings 段（get-global 回执到达时冲刷落盘）。
+  var pendingWrite = null;
+  // 内部装载/切换期间抑制回写（避免设置事件回环触发 set-global）。
+  var suppressWrite = false;
+
+  function canPersist() {
+    return Boolean(root.ipc && typeof root.ipc.postMessage === 'function');
+  }
+
+  function send(m) {
+    if (root.ipc && typeof root.ipc.postMessage === 'function') {
+      root.ipc.postMessage(JSON.stringify(m));
+    }
+  }
+
+  function clone(value) {
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  // 方案 ID 校验：仅接受运行时已知的内建方案，未知回退默认方案。
+  function validSchemeId(id) {
+    if (
+      id &&
+      root.DefaultKeybindings &&
+      root.DefaultKeybindings.schemes &&
+      Object.prototype.hasOwnProperty.call(root.DefaultKeybindings.schemes, id)
+    ) {
+      return id;
+    }
+    return DEFAULT_SCHEME;
+  }
+
+  // service 覆盖表（commandId → 记录数组）→ schema v2 Keybinding 记录数组。
+  function overridesToRecords(map) {
+    var records = [];
+    Object.keys(map || {}).forEach(function (id) {
+      (map[id] || []).forEach(function (rec) {
+        if (!rec || typeof rec !== 'object') return;
+        var out = { commandId: rec.commandId || id, sequence: rec.sequence != null ? String(rec.sequence) : '' };
+        if (rec.when) out.when = rec.when;
+        if (rec.platform && rec.platform !== '*') out.platform = rec.platform;
+        if (rec.removed) out.removed = true;
+        records.push(out);
+      });
+    });
+    return records;
+  }
+
+  // schema v2 方案绑定数组 → service 覆盖表（按 commandId 分组；normalizeOverrides
+  // 负责序列规范化与 removed 保留）。
+  function schemeRecordsToOverridesMap(records) {
+    var map = {};
+    (records || []).forEach(function (rec) {
+      if (!rec || typeof rec !== 'object' || !rec.commandId) return;
+      var id = rec.commandId;
+      if (!map[id]) map[id] = [];
+      map[id].push(rec);
+    });
+    return service.normalizeOverrides(map);
+  }
+
+  // 以最近一次全局文档为基座构造当前 keybindings 段：其他方案的绑定原样保留，
+  // 当前方案的绑定取自 service 实时覆盖表。
+  function currentKeybindingsSection() {
+    var baseKb = globalDoc && globalDoc.keybindings && typeof globalDoc.keybindings === 'object' ? globalDoc.keybindings : {};
+    var schemes = clone(baseKb.schemes && typeof baseKb.schemes === 'object' ? baseKb.schemes : {});
+    var schemeId = service.getScheme();
+    schemes[schemeId] = overridesToRecords(service.getOverrides());
+    return { activeScheme: schemeId, schemes: schemes };
+  }
+
+  // 把 keybindings 段合并进最近一次全局文档并 set-global：只替换
+  // activeScheme + 当前方案 schemes 条目，其他设置分类与未来键原样保留。
+  function persistKeybindings(section) {
+    if (!canPersist()) return false;
+    if (!globalDoc) {
+      pendingWrite = section;
+      send({ command: GET_GLOBAL_CMD });
+      return true;
+    }
+    pendingWrite = null;
+    var base = clone(globalDoc);
+    var oldKb = base.keybindings && typeof base.keybindings === 'object' ? base.keybindings : {};
+    var mergedKb = Object.assign({}, oldKb, { activeScheme: section.activeScheme });
+    mergedKb.schemes = Object.assign(
+      {},
+      oldKb.schemes && typeof oldKb.schemes === 'object' ? oldKb.schemes : {},
+      section.schemes || {}
+    );
+    base.keybindings = mergedKb;
+    if (base.version == null) base.version = 2;
+    send({ command: SET_GLOBAL_CMD, data: JSON.stringify(base) });
+    return true;
+  }
+
+  // 从设置文档的 keybindings 段装载服务（幂等：与当前一致时不触碰状态；
+  // 装载期抑制回写与 localStorage 镜像，防止事件回环、避免在遗留迁移读取前
+  // 清掉 localStorage 旧数据）。
+  function loadFromSettings(kb) {
+    if (!service || !kb || typeof kb !== 'object') return false;
+    var schemeId = validSchemeId(kb.activeScheme);
+    var schemesMap = kb.schemes && typeof kb.schemes === 'object' ? kb.schemes : {};
+    var recordsMap = schemeRecordsToOverridesMap(schemesMap[schemeId] || []);
+    var changed = false;
+    suppressWrite = true;
+    try {
+      if (service.getScheme() !== schemeId) {
+        service.setScheme(schemeId);
+        changed = true;
+      }
+      var current = service.getOverrides();
+      if (JSON.stringify(current) !== JSON.stringify(recordsMap)) {
+        // 直接改内存覆盖表（不调 saveOverrides：其会写 localStorage 镜像）
+        service.overrides = service.normalizeOverrides(recordsMap);
+        changed = true;
+      }
+    } catch (e) {
+      // 设置文档与运行时方案表不一致时保持服务可用（不改写文档）
+    } finally {
+      suppressWrite = false;
+    }
+    return changed;
+  }
+
+  // 包一层服务实例的持久化方法：任何入口（含设置 UI 直接调用
+  // window.BindingService 实例方法）的写入都回写到全局设置文档；原实现
+  // （内存状态 + localStorage 镜像）保持不变。
+  function wrapServicePersistence(svc) {
+    var originalSave = svc.saveOverrides.bind(svc);
+    var originalSetScheme = svc.setScheme.bind(svc);
+
+    svc.saveOverrides = function (map) {
+      var result = originalSave(map);
+      if (!suppressWrite) persistKeybindings(currentKeybindingsSection());
+      return result;
+    };
+    svc.clearOverrides = function () {
+      // 直接走原始 saveOverrides（绕开包装，避免双写）
+      var result = originalSave({});
+      if (!suppressWrite) persistKeybindings(currentKeybindingsSection());
+      return result;
+    };
+    svc.setScheme = function (id) {
+      var result = originalSetScheme(id); // 校验 + 切换 + localStorage 镜像
+      if (!suppressWrite) {
+        // 切到目标方案：装载该方案的用户绑定（分方案独立保存），再回写 activeScheme
+        var docKb = globalDoc && globalDoc.keybindings && typeof globalDoc.keybindings === 'object' ? globalDoc.keybindings : {};
+        var schemesMap = docKb.schemes && typeof docKb.schemes === 'object' ? docKb.schemes : {};
+        suppressWrite = true;
+        try {
+          svc.saveOverrides(schemeRecordsToOverridesMap(schemesMap[id] || []));
+        } catch (e) {
+          // 方案绑定装载失败不回写（保持服务原状态）
+        } finally {
+          suppressWrite = false;
+        }
+        persistKeybindings(currentKeybindingsSection());
+      }
+      return result;
+    };
+    // bind / unbind / reset 内部经 this.saveOverrides 落盘，已被上面包装拦截，无需再包。
+  }
+
+  // 旧 localStorage 一次性迁移：设置文档 keybindings 段无用户数据且未迁移过时，
+  // 把遗留覆盖表/方案写入设置文档（避免"默认设置覆盖用户旧配置"或反向覆写）。
+  function maybeMigrateLegacy() {
+    if (!canPersist() || !globalDoc) return;
+    if (legacyMigrated()) return;
+    var kb = globalDoc.keybindings && typeof globalDoc.keybindings === 'object' ? globalDoc.keybindings : {};
+    var hasUserData =
+      kb.schemes &&
+      typeof kb.schemes === 'object' &&
+      Object.keys(kb.schemes).some(function (id) {
+        return Array.isArray(kb.schemes[id]) && kb.schemes[id].length > 0;
+      });
+    if (hasUserData) return; // 设置文档已是事实源：不迁移、不覆写
+    var legacy = readLegacyKeybindings();
+    markLegacyMigrated();
+    if (!legacy) return; // 无遗留数据：仅标记一次
+    var section = { activeScheme: legacy.scheme, schemes: {} };
+    section.schemes[legacy.scheme] = legacy.records;
+    persistKeybindings(section);
+  }
+
+  function legacyMigrated() {
+    try {
+      return root.localStorage && root.localStorage.getItem(MIGRATED_KEY) === '1';
+    } catch (e) {
+      return true;
+    }
+  }
+
+  function markLegacyMigrated() {
+    try {
+      if (root.localStorage) root.localStorage.setItem(MIGRATED_KEY, '1');
+    } catch (e) {}
+  }
+
+  // 读取遗留 localStorage 覆盖表（commandId → 记录数组）与方案，转换为
+  // schema v2 记录；无有效记录返回 null。
+  function readLegacyKeybindings() {
+    var scheme = DEFAULT_SCHEME;
+    try {
+      var saved = root.localStorage && root.localStorage.getItem(SCHEME_KEY);
+      if (saved) scheme = validSchemeId(saved);
+    } catch (e) {}
+    var raw = null;
+    try {
+      raw = root.localStorage && root.localStorage.getItem(KEY);
+    } catch (e) {}
+    var map = null;
+    try {
+      map = raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      map = null;
+    }
+    if (!map || typeof map !== 'object') return null;
+    var records = [];
+    Object.keys(map).forEach(function (id) {
+      var values = Array.isArray(map[id]) ? map[id] : [map[id]];
+      values.forEach(function (v) {
+        var rec = typeof v === 'string' ? { commandId: id, sequence: v } : Object.assign({}, v, { commandId: id });
+        if (rec && rec.commandId) {
+          records.push({
+            commandId: id,
+            sequence: rec.sequence != null ? String(rec.sequence) : '',
+            when: rec.when || undefined,
+            platform: rec.platform && rec.platform !== '*' ? rec.platform : undefined,
+            removed: Boolean(rec.removed)
+          });
+        }
+      });
+    });
+    if (!records.length) return null;
+    return { scheme: scheme, records: records };
+  }
+
+  // 订阅设置事件：全局文档（写入基座 + 迁移判定 + 外部变化刷新）。
+  if (service && root.Workspace && typeof root.Workspace.on === 'function') {
+    root.Workspace.on('workspace:settings-global', function (d) {
+      if (!d || !d.settings || typeof d.settings !== 'object') return;
+      globalDoc = clone(d.settings);
+      if (pendingWrite) {
+        var w = pendingWrite;
+        pendingWrite = null;
+        persistKeybindings(w);
+      } else if (d.settings.keybindings) {
+        loadFromSettings(d.settings.keybindings);
+      }
+      maybeMigrateLegacy();
+    });
+    root.Workspace.on('workspace:settings-changed', function () {
+      send({ command: GET_GLOBAL_CMD });
+    });
+    // 装载即拉一次全局文档作为写入合并基座（不依赖设置面板打开）。
+    send({ command: GET_GLOBAL_CMD });
+  }
+
+  if (service) {
+    wrapServicePersistence(service);
+  }
+
+  // 统一的全局 Keydown 分派
+  function dispatch(e) {
+    if (!service) return null;
+    // 快捷键录制器激活时不分发
+    if (root.contextKeys && root.contextKeys.get('keybindingRecording')) {
+      return null;
+    }
+    // 文本输入控件保护：仅放行显式声明了允许在输入框中触发的命令
+    var inInput = e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName);
+    if (inInput) {
+      if (root.contextKeys) root.contextKeys.set('inputFocus', true);
+    } else {
+      if (root.contextKeys) root.contextKeys.remove('inputFocus');
+    }
+
+    var result = service.dispatch(e);
+    if (result && result.status === 'matched') {
+      return result.binding ? result.binding.commandId : null;
+    }
+    return null;
+  }
+
+  document.addEventListener('keydown', dispatch);
+
+  // 向后兼容接口，供旧设置页与现有单元测试平滑调用
+  var facade = {
+    service: service,
+    get defaults() {
+      var scheme = service ? service.getScheme() : 'ultra.eclipse';
+      var rows = (root.DefaultKeybindings && root.DefaultKeybindings.schemes && root.DefaultKeybindings.schemes[scheme]) || [];
+      var map = {};
+      rows.forEach(function(b) { if (b.commandId && b.sequence) map[b.commandId] = b.sequence; });
+      return map;
+    },
+    load: loadOverrides,
+    effective: function() {
+      if (!service) return {};
+      var bindings = service.getBindings();
+      var out = {};
+      bindings.forEach(function(b) {
+        if (b.commandId && b.sequence) out[b.commandId] = b.sequence;
+      });
+      return out;
+    },
+    overrides: function() {
+      if (!service) return {};
+      var raw = service.getOverrides();
+      var out = {};
+      Object.keys(raw).forEach(function(id) {
+        var list = raw[id];
+        if (Array.isArray(list) && list.length && !list[0].removed) {
+          out[id] = list[0].sequence;
+        }
+      });
+      return out;
+    },
+    save: function(map) {
+      if (!service) return false;
+      service.saveOverrides(map || {});
+      try {
+        window.dispatchEvent(new CustomEvent('keybindings-changed'));
+      } catch (e) {}
+      return true;
+    },
+    clear: function() {
+      if (!service) return;
+      service.clearOverrides();
+      try {
+        window.dispatchEvent(new CustomEvent('keybindings-changed'));
+      } catch (e) {}
+    },
+    setScheme: function(id) {
+      if (!service) return;
+      service.setScheme(id);
+      try {
+        localStorage.setItem(SCHEME_KEY, id);
+      } catch (e) {}
+      // 触发全局 scheme 变更事件
+      try {
+        window.dispatchEvent(new CustomEvent('scheme-changed', { detail: { schemeId: id } }));
+      } catch (e) {}
+    },
+    getScheme: function() {
+      return service ? service.getScheme() : 'ultra.eclipse';
+    },
+    loadFromSettings: loadFromSettings,
+    normalize: function(e) {
+      return root.KeybindingParser ? root.KeybindingParser.stroke(e) : '';
+    },
+    dispatch: dispatch
+  };
+
+  root.Keybindings = facade;
+  if (service) {
+    root.BindingServiceInstance = service;
+    // 同时把已构造的单例赋值给全局 BindingService 供 UI 模块直接消费
+    root.BindingService = service;
+  }
+})(typeof window !== 'undefined' ? window : globalThis);

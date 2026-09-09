@@ -1,0 +1,22 @@
+组装页   : D:\WorkDev\MyShare\GlanceMD-Ultra\tests\.tmp\index.html（825549 字节，32 个 <script>）
+IPC mock : D:\WorkDev\MyShare\GlanceMD-Ultra\tests\.tmp\mock-ipc.js
+平台标记 : data-platform="windows"
+
+Running 12 tests using 1 worker
+
+(node:29416) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 tests\e2e\specs\editor-navigation-regressions.spec.js:22:1 › Ctrl+F searches selected text in the editor and keeps find inline (1.4s)
+  ok  2 tests\e2e\specs\editor-navigation-regressions.spec.js:39:1 › Ctrl+L accepts an exact logical line and selects it (804ms)
+  ok  3 tests\e2e\specs\editor-navigation-regressions.spec.js:52:1 › Vim enters with current tab cursor and keeps a resident status hint (803ms)
+  ok  4 tests\e2e\specs\editor-navigation-regressions.spec.js:71:1 › Ctrl+L 31 repeated three times selects a visible logical line after long Chinese soft wraps (971ms)
+  ok  5 tests\e2e\specs\editor-navigation-regressions.spec.js:85:1 › Ctrl+K and Ctrl+Shift+K from find input scroll to visible next and previous matches (768ms)
+  ok  6 tests\e2e\specs\editor-navigation-regressions.spec.js:102:1 › Entering Vim from middle of preview preserves reading location and shows the block cursor (1.5s)
+  ok  7 tests\e2e\specs\editor-navigation-regressions.spec.js:121:3 › F7/F12 focus flash remains visible with reduced-motion no-preference (640ms)
+  ok  8 tests\e2e\specs\editor-navigation-regressions.spec.js:121:3 › F7/F12 focus flash remains visible with reduced-motion reduce (985ms)
+  ok  9 tests\e2e\specs\popup-regressions.spec.js:36:1 › 快捷键 Ctrl+E 与 Ctrl+Shift+R 触发 Quick Open 并在明暗主题下保持选中文字高对比度 (871ms)
+  ok 10 tests\e2e\specs\popup-regressions.spec.js:89:1 › 快捷键 Ctrl+3 触发 Command Palette 并在明暗主题下保持选中文字高对比度 (1.3s)
+  ok 11 tests\e2e\specs\popup-regressions.spec.js:124:1 › 快捷键 Ctrl+Shift+L 触发 Key Assist 并在明暗主题下确保选中项与徽章清晰可读 (1.3s)
+  ok 12 tests\e2e\specs\popup-regressions.spec.js:173:1 › 快捷键 Ctrl+H 打开 Search Panel：居中 60vw/80vh、按钮不挤压、注入结果独立滚动、Header 拖拽与缩放 (1.1s)
+
+  12 passed (15.1s)
