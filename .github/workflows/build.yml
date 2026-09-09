@@ -89,7 +89,8 @@ jobs:
         shell: bash
         env:
           BINARY: ${{ matrix.binary }}
-        run: python -c 'import os; from pathlib import Path; p = Path(os.environ["BINARY"]); n = p.stat().st_size; print(f"{p.name}: {n} bytes / {n / 1000000:.3f} MB / {n / 1048576:.3f} MiB")'
+        run: |
+          python -c 'import os; from pathlib import Path; p = Path(os.environ["BINARY"]); n = p.stat().st_size; print(f"{p.name}: {n} bytes / {n / 1000000:.3f} MB / {n / 1048576:.3f} MiB")'
 
       - name: 安装打包工具
         if: matrix.formats != ''
