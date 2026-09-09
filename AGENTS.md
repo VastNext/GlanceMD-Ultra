@@ -46,6 +46,13 @@ cargo fmt --check            # CI 会检查格式（Windows target 上执行）
 **本地构建注意事项**：
 
 - Windows 本机默认使用 GNU Rust 工具链时，需让 PATH 包含 mingw-w64 的 `dlltool`/`windres`（当前开发机使用 `D:/Software/w64devkit/w64devkit/bin`）。`webview2-com-sys` 在 GNU 目标下动态加载 `WebView2Loader.dll`，`build.rs` 会自动把 `assets/windows/WebView2Loader.dll` 复制到 `target/<profile>/`；本地运行/分发 GNU 产物时必须让该 DLL 与 exe 同目录。GitHub Actions 的 Windows 发布构建使用 MSVC，loader 静态链接，正式 Release 仍为单 exe
+- **本地临时服务与 Node.js 进程卡死教训与防范（2026-09 踩坑记录）**：
+  - **事故原因**：在 Windows Git Bash 环境下直接执行 `node server.js &` 时，虽然加上了 `&`，但子进程默认仍继承终端的 stdio 管道句柄，Bash subshell 会持续等待管道关闭而表现为会话挂死；同时常驻的 HTTP Server 会持续占用端口（如 41234），再次启动时因未捕获 `EADDRINUSE` 错误导致静默崩溃或二次挂死假象。
+  - **防范与操作规范**：
+    1. **测试优先走静态生成**：前端装配验证优先由脚本把拼接后的单 HTML 写入 `target/preview-test.html`，浏览器直接打开文件路径或由测试套件消费，严禁在临时验证中随意启动未做进程管理的常驻 HTTP 服务；
+    2. **严禁在 Git Bash 中裸加 `&` 后台运行长服务**：如确需后台启动进程，必须切断终端 stdio 管道（如 `node server.js </dev/null >target/server.log 2>&1 & disown`），或在独立的 PowerShell / 终端窗口运行；
+    3. **临时服务代码必须包含端口冲突保护与退出信号监听**：必须监听 `server.on('error')` 优雅处理 `EADDRINUSE` 错误，并监听 `SIGINT`/`SIGTERM` 退出；
+    4. **卡死排查与清理规范**：通过 `netstat -ano | grep <port>` 查明具体占用端口的 PID，并使用精准杀进程命令（`taskkill //F //PID <PID>`）清理，严禁使用盲目批量杀死 node 的破坏性命令。
 - 前端（`src/frontend/`）改动不影响 Rust 编译正确性；验证前端行为的方式是**组装测试页在浏览器中实测**：以与 `main.rs::build_html` 相同的占位符替换方式拼接 `index.html + style.css + 各 js`，注入 `window.ipc` 等 mock，用 Playwright/浏览器工具验证交互逻辑并截图确认视觉效果
 - **回归以 Playwright 冒烟套件为准**（阶段 0 建立，策略见主实施计划 §2"回归自动化策略"）：套件随阶段累积，每次改动先跑套件；人工验证仅保留系统交互与视觉项
 - 涉及 UI 的改动必须提供明暗两个主题下的截图验证
