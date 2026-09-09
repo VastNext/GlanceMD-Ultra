@@ -622,17 +622,17 @@
     var m = metaOf('http', 'proxy');
     var overridden = isOverridden('http', 'proxy');
     var proxyValue = (objHttp.proxy !== undefined && objHttp.proxy !== null) ? String(objHttp.proxy) : '';
-    return '<div class="setting-row">'
+    return '<div class="setting-row setting-row-proxy">'
       + '<div class="setting-info">'
       + '<span class="setting-label">' + esc(m.label) + (overridden ? '<em class="setting-badge">' + t('settings.projectOverridden') + '</em>' : '') + '</span>'
       + '<span class="setting-desc">' + esc(m.desc) + '</span>'
+      + (enabled ? '' : '<span class="setting-hint setting-proxy-hint">' + esc(t('settings.proxyDisabledHint')) + '</span>')
       + '</div>'
-      + '<div class="setting-control">'
+      + '<div class="setting-control setting-control-proxy">'
       + '<div class="setting-proxy-box">'
       + '<input type="text" id="setting-proxy-url" data-setting="proxy" data-category="http"' + (enabled ? '' : ' disabled') + ' value="' + esc(proxyValue) + '" placeholder="http://127.0.0.1:7890">'
       + '<button type="button" class="btn setting-proxy-test-btn" id="setting-proxy-test-btn"' + (enabled ? '' : ' disabled') + '>' + esc(t('settings.proxyTest')) + '</button>'
       + '</div>'
-      + (enabled ? '' : '<span class="setting-hint">' + esc(t('settings.proxyDisabledHint')) + '</span>')
       + '<div class="setting-proxy-result" id="setting-proxy-result"></div>'
       + '</div>'
       + '</div>';

@@ -913,6 +913,17 @@
 }
 
 /* ── 网络分类：代理地址输入 + 测试连接（FEAT-003）── */
+.setting-row-proxy {
+  align-items: flex-start;
+}
+
+.setting-control-proxy {
+  flex: 1;
+  max-width: 380px;
+  flex-direction: column;
+  align-items: stretch;
+}
+
 .setting-proxy-box {
   display: flex;
   flex-direction: row;
@@ -977,6 +988,12 @@
   display: block;
   margin-top: 4px;
   font-size: 11px;
+  color: var(--text-dim);
+}
+
+.setting-proxy-hint {
+  margin-top: 6px;
+  line-height: 1.4;
   color: var(--text-dim);
 }
 
