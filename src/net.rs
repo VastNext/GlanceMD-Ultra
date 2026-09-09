@@ -188,7 +188,10 @@ pub fn test_proxy(
     let start = std::time::Instant::now();
     let resp = agent
         .get(TEST_TARGET)
-        .header("User-Agent", "GlanceMD-Ultra/0.3.0")
+        .header(
+            "User-Agent",
+            concat!("GlanceMD-Ultra/", env!("CARGO_PKG_VERSION")),
+        )
         .call()
         .map_err(|e| format!("连接失败：{e}"))?;
     let latency_ms = start.elapsed().as_millis();
