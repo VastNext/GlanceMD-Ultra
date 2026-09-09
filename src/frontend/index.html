@@ -24,15 +24,15 @@
         <svg viewBox="0 0 16 16" fill="none"><path d="M3 1.5h8.5L14 4v9.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-12a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.2"/><rect x="5" y="1.5" width="5" height="4" rx="0.5" stroke="currentColor" stroke-width="1.2"/><rect x="4.5" y="9" width="7" height="4.5" rx="0.5" stroke="currentColor" stroke-width="1.2"/></svg>
       </button>
       <div class="titlebar-sep"></div>
-      <div id="mode-segmented" class="mode-segmented" role="group" aria-label="Editor Mode">
-        <button id="btn-mode-edit" class="mode-seg-btn active" title="编辑模式 (Ctrl+Shift+V)" aria-label="Edit Mode" data-mode="edit" data-i18n-title="toolbar.modeEdit" data-i18n-aria="toolbar.modeEdit">
-          <svg viewBox="0 0 16 16" fill="none"><path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M9.5 3.5l3 3" stroke="currentColor" stroke-width="1.2"/></svg>
-        </button>
-        <button id="btn-mode-preview" class="mode-seg-btn" title="预览模式 (Ctrl+Shift+V)" aria-label="Preview Mode" data-mode="preview" data-i18n-title="toolbar.modePreview" data-i18n-aria="toolbar.modePreview">
-          <svg viewBox="0 0 16 16" fill="none"><path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.2"/></svg>
-        </button>
-      </div>
-      <button id="btn-toggle" style="display:none" aria-hidden="true" title="Toggle Preview" data-i18n-title="toolbar.togglePreview" data-command-id="editor.togglePreview">
+      <button id="btn-toggle" title="Toggle Preview" data-i18n-title="toolbar.togglePreview" data-command-id="editor.togglePreview">
+        <div id="mode-segmented" class="mode-segmented" role="group" aria-label="Editor Mode">
+          <span id="btn-mode-edit" class="mode-seg-btn active" title="编辑模式 (Ctrl+Shift+V)" aria-label="Edit Mode" data-mode="edit" data-i18n-title="toolbar.modeEdit" data-i18n-aria="toolbar.modeEdit">
+            <svg viewBox="0 0 16 16" fill="none"><path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M9.5 3.5l3 3" stroke="currentColor" stroke-width="1.2"/></svg>
+          </span>
+          <span id="btn-mode-preview" class="mode-seg-btn" title="预览模式 (Ctrl+Shift+V)" aria-label="Preview Mode" data-mode="preview" data-i18n-title="toolbar.modePreview" data-i18n-aria="toolbar.modePreview">
+            <svg viewBox="0 0 16 16" fill="none"><path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.2"/></svg>
+          </span>
+        </div>
         <svg id="icon-preview" viewBox="0 0 16 16" fill="none" style="display:none"><path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.2"/></svg>
         <svg id="icon-edit" viewBox="0 0 16 16" fill="none" style="display:none"><path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M9.5 3.5l3 3" stroke="currentColor" stroke-width="1.2"/></svg>
       </button>

@@ -230,6 +230,16 @@ html, body {
   background: var(--heading-glow);
 }
 
+/* 特例：#btn-toggle 内嵌胶囊开关，自身透明无内边距 */
+.titlebar-actions #btn-toggle {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  box-shadow: none !important;
+}
+
 /* Mode Segmented Pill Switcher */
 .mode-segmented {
   display: inline-flex;

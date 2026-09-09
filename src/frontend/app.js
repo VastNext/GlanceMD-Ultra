@@ -1693,39 +1693,36 @@ document.getElementById('btn-save').addEventListener('click', function() {
 });
 var btnToggleEl = document.getElementById('btn-toggle');
 if (btnToggleEl) {
-  btnToggleEl.addEventListener('click', function() {
+  btnToggleEl.addEventListener('click', function(e) {
+    var target = e.target && e.target.closest ? e.target.closest('#btn-mode-edit, #btn-mode-preview') : null;
+    if (target && target.id === 'btn-mode-edit') {
+      if (currentMode === 'image') return;
+      if (splitMode) {
+        toggleSplit();
+      } else if (currentMode === 'preview') {
+        if (window.Commands && Commands.has('editor.togglePreview')) Commands.run('editor.togglePreview');
+        else toggleMode();
+      } else {
+        var ed = (typeof $ !== 'undefined' && $.editor) || document.getElementById('editor');
+        if (ed) ed.focus();
+      }
+      return;
+    }
+    if (target && target.id === 'btn-mode-preview') {
+      if (currentMode === 'image') return;
+      if (splitMode) {
+        toggleSplit();
+      } else if (currentMode === 'edit') {
+        if (window.Commands && Commands.has('editor.togglePreview')) Commands.run('editor.togglePreview');
+        else toggleMode();
+      } else {
+        if (window.Commands && Commands.has('editor.togglePreview')) Commands.run('editor.togglePreview');
+        else toggleMode();
+      }
+      return;
+    }
     if (window.Commands && Commands.has('editor.togglePreview')) Commands.run('editor.togglePreview');
     else toggleMode();
-  });
-}
-var btnModeEdit = document.getElementById('btn-mode-edit');
-if (btnModeEdit) {
-  btnModeEdit.addEventListener('click', function() {
-    if (currentMode === 'image') return;
-    if (splitMode) {
-      toggleSplit();
-    } else if (currentMode === 'preview') {
-      if (window.Commands && Commands.has('editor.togglePreview')) Commands.run('editor.togglePreview');
-      else toggleMode();
-    } else {
-      var ed = (typeof $ !== 'undefined' && $.editor) || document.getElementById('editor');
-      if (ed) ed.focus();
-    }
-  });
-}
-var btnModePreview = document.getElementById('btn-mode-preview');
-if (btnModePreview) {
-  btnModePreview.addEventListener('click', function() {
-    if (currentMode === 'image') return;
-    if (splitMode) {
-      toggleSplit();
-    } else if (currentMode === 'edit') {
-      if (window.Commands && Commands.has('editor.togglePreview')) Commands.run('editor.togglePreview');
-      else toggleMode();
-    } else {
-      if (window.Commands && Commands.has('editor.togglePreview')) Commands.run('editor.togglePreview');
-      else toggleMode();
-    }
   });
 }
 var btnWordWrap = document.getElementById('btn-word-wrap');
