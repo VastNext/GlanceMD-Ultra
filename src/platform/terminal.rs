@@ -35,8 +35,27 @@ pub fn parse_args_template(template: &str, dir: &Path) -> Vec<String> {
     args
 }
 
+fn default_args_for_path(path: &str, dir: &Path) -> Vec<String> {
+    let lower = path.to_lowercase();
+    if lower.contains("git-bash") {
+        vec![format!("--cd={}", dir.to_string_lossy())]
+    } else if lower.contains("powershell") || lower.contains("pwsh") {
+        vec!["-NoExit".to_string()]
+    } else if lower.contains("cmd") {
+        vec!["/K".to_string()]
+    } else if lower.ends_with("wt.exe") || lower == "wt" {
+        vec!["-d".to_string(), dir.to_string_lossy().into_owned()]
+    } else {
+        Vec::new()
+    }
+}
+
 pub fn spawn_custom(path: &str, args_template: &str, dir: &Path) -> Result<(), PlatformError> {
-    let args = parse_args_template(args_template, dir);
+    let args = if args_template.trim().is_empty() {
+        default_args_for_path(path, dir)
+    } else {
+        parse_args_template(args_template, dir)
+    };
     spawn_detached(path, &args, Some(dir))
 }
 
@@ -94,21 +113,33 @@ pub fn scan_terminals() -> Vec<TerminalInfo> {
             ),
             ("wsl", "WSL", "wsl.exe", vec!["--cd".into(), "{dir}".into()]),
         ];
-        let git = [
-            r"C:\Program Files\Git\git-bash.exe",
-            r"C:\Program Files\Git\bin\bash.exe",
+        let mut git = vec![
+            r"C:\Program Files\Git\git-bash.exe".to_string(),
+            r"C:\Program Files\Git\bin\bash.exe".to_string(),
+            r"C:\Program Files (x86)\Git\git-bash.exe".to_string(),
+            r"C:\Program Files (x86)\Git\bin\bash.exe".to_string(),
         ];
-        for p in git {
+        if let Ok(local_app) = std::env::var("LOCALAPPDATA") {
+            let p = Path::new(&local_app).join("Programs").join("Git");
+            git.push(p.join("git-bash.exe").to_string_lossy().into_owned());
+            git.push(
+                p.join("bin")
+                    .join("bash.exe")
+                    .to_string_lossy()
+                    .into_owned(),
+            );
+        }
+        for p in &git {
             if Path::new(p).exists() {
                 let is_git_bash = p.ends_with("git-bash.exe");
                 c.push((
                     "git-bash",
                     "Git Bash",
-                    p,
+                    p.as_str(),
                     if is_git_bash {
-                        vec!["--cd".into(), "{dir}".into()]
+                        vec!["--cd={dir}"]
                     } else {
-                        vec!["--login".into(), "-i".into()]
+                        vec!["--login", "-i"]
                     },
                 ));
             }

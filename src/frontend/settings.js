@@ -25,7 +25,7 @@
   'use strict';
   function t(key, params) { return window.I18n ? window.I18n.t(key, params) : key; }
 
-  var state = { open: false, category: 'appearance', global: {}, effective: {}, project: {}, kbRecording: null, kbError: null, pendingTheme: null, warnings: [], overridden: [], terminals: null, terminalsScanning: false, terminalsScanned: false, customTerminalSelected: false, cliShim: { installed: false, dir: '', message: '' } };
+  var state = { open: false, category: 'appearance', global: {}, effective: {}, project: {}, kbRecording: null, kbError: null, pendingTheme: null, warnings: [], overridden: [], terminals: null, terminalsScanning: false, terminalsScanned: false, customTerminalSelected: false, cliShim: { installed: false, dir: '', message: '' }, proxyTesting: false, proxyTestResult: null, proxyTestTimer: null };
 
   // 分类（与 Rust settings schema 一一对应）：中文标签 + 每类一句描述 + SVG 图标。
   var CATEGORIES = [
@@ -622,6 +622,16 @@
     var m = metaOf('http', 'proxy');
     var overridden = isOverridden('http', 'proxy');
     var proxyValue = (objHttp.proxy !== undefined && objHttp.proxy !== null) ? String(objHttp.proxy) : '';
+    var isTesting = Boolean(state.proxyTesting);
+    var resClass = 'setting-proxy-result';
+    var resText = '';
+    if (isTesting) {
+      resClass += ' setting-proxy-testing';
+      resText = t('settings.proxyTesting');
+    } else if (state.proxyTestResult) {
+      resClass += state.proxyTestResult.ok ? ' setting-proxy-ok' : ' setting-proxy-fail';
+      resText = state.proxyTestResult.message || '';
+    }
     return '<div class="setting-row setting-row-proxy">'
       + '<div class="setting-info">'
       + '<span class="setting-label">' + esc(m.label) + (overridden ? '<em class="setting-badge">' + t('settings.projectOverridden') + '</em>' : '') + '</span>'
@@ -630,39 +640,43 @@
       + '<div class="setting-control setting-control-proxy">'
       + '<div class="setting-proxy-box">'
       + '<input type="text" id="setting-proxy-url" data-setting="proxy" data-category="http"' + (enabled ? '' : ' disabled') + ' value="' + esc(proxyValue) + '" placeholder="http://127.0.0.1:7890">'
-      + '<button type="button" class="btn setting-proxy-test-btn" id="setting-proxy-test-btn"' + (enabled ? '' : ' disabled') + '>' + esc(t('settings.proxyTest')) + '</button>'
+      + '<button type="button" class="btn setting-proxy-test-btn" id="setting-proxy-test-btn"' + (enabled && !isTesting ? '' : ' disabled') + '>' + esc(t('settings.proxyTest')) + '</button>'
       + '</div>'
       + (enabled ? '' : '<span class="setting-hint setting-proxy-hint">' + esc(t('settings.proxyDisabledHint')) + '</span>')
-      + '<div class="setting-proxy-result" id="setting-proxy-result"></div>'
+      + '<div class="' + resClass + '" id="setting-proxy-result">' + esc(resText) + '</div>'
       + '</div>'
       + '</div>';
-  }
-
-  function showProxyResult(el, d) {
-    if (!el) return;
-    var ok = !!(d && d.ok);
-    el.className = 'setting-proxy-result' + (ok ? ' setting-proxy-ok' : ' setting-proxy-fail');
-    el.textContent = (d && d.message) || '';
   }
 
   function wireProxyTest(container, objHttp) {
     var btn = container.querySelector('#setting-proxy-test-btn');
     if (!btn) return;
     btn.onclick = function () {
+      if (state.proxyTesting) return;
       var input = container.querySelector('#setting-proxy-url');
-      var result = container.querySelector('#setting-proxy-result');
       var proxy = ((input && input.value) || '').trim();
       if (!proxy) {
-        showProxyResult(result, { ok: false, message: t('settings.proxyTestEmpty') });
+        state.proxyTesting = false;
+        state.proxyTestResult = { ok: false, message: t('settings.proxyTestEmpty') };
+        render();
         return;
       }
       var strictSsl = true;
       var sw = container.querySelector('[data-setting="proxyStrictSSL"]');
       if (sw && sw.type === 'checkbox') strictSsl = !!sw.checked;
-      if (result) {
-        result.className = 'setting-proxy-result setting-proxy-testing';
-        result.textContent = t('settings.proxyTesting');
-      }
+
+      state.proxyTesting = true;
+      state.proxyTestResult = null;
+      if (state.proxyTestTimer) clearTimeout(state.proxyTestTimer);
+      state.proxyTestTimer = setTimeout(function () {
+        if (state.proxyTesting) {
+          state.proxyTesting = false;
+          state.proxyTestResult = { ok: false, message: t('settings.proxyTestTimeout') };
+          if (state.open) render();
+        }
+      }, 10000);
+
+      render();
       send({ command: 'net.testProxy', proxy: proxy, strictSsl: strictSsl });
     };
   }
@@ -1242,10 +1256,15 @@
         } else if (val === '') {
           state.customTerminalSelected = false;
           commit('files', 'terminalPath', '');
+          commit('files', 'terminalArgs', '');
           render();
         } else {
           state.customTerminalSelected = false;
           commit('files', 'terminalPath', val);
+          var matchedTerm = (state.terminals || []).find(function (t) { return t.path === val; });
+          if (matchedTerm && Array.isArray(matchedTerm.args)) {
+            commit('files', 'terminalArgs', matchedTerm.args.join(' '));
+          }
           render();
         }
       };
@@ -1355,8 +1374,15 @@
       }
     }
     else if (e === 'workspace:proxy-test-result' || e === 'net:test-proxy-result') {
-      // FEAT-003：测试连接回执（可能晚于面板重建，元素不存在时静默忽略）
-      showProxyResult(document.getElementById('setting-proxy-result'), d);
+      if (state.proxyTestTimer) {
+        clearTimeout(state.proxyTestTimer);
+        state.proxyTestTimer = null;
+      }
+      state.proxyTesting = false;
+      state.proxyTestResult = d;
+      if (state.open) {
+        render();
+      }
     }
   }
 

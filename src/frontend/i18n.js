@@ -126,6 +126,7 @@
       'settings.proxyTest': '测试连接',
       'settings.proxyTesting': '测试中…',
       'settings.proxyTestEmpty': '请先填写代理地址',
+      'settings.proxyTestTimeout': '连接超时，未收到探测响应',
       'settings.proxyDisabledHint': '将代理模式设为“使用下方指定代理”后可用',
       'settings.proxyRestartHint': '代理设置需重启应用后生效。',
 
@@ -379,6 +380,7 @@
       'settings.proxyTest': 'Test connection',
       'settings.proxyTesting': 'Testing…',
       'settings.proxyTestEmpty': 'Enter a proxy address first',
+      'settings.proxyTestTimeout': 'Connection timed out, no response received',
       'settings.proxyDisabledHint': 'Select "Use the proxy below" to enable',
       'settings.proxyRestartHint': 'Proxy settings take effect after restarting the app.',
 

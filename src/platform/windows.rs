@@ -52,7 +52,7 @@ impl Revealer for Windows {
 
 impl TerminalOpener for Windows {
     fn open_in_terminal(&self, dir: &Path) -> Result<(), PlatformError> {
-        spawn_first_ok(Self::terminal_candidates(dir), None)
+        spawn_first_ok(Self::terminal_candidates(dir), Some(dir))
     }
 }
 
