@@ -57,7 +57,7 @@
 
 1. `cargo test` 全绿 + `cargo fmt --check` 通过（本机 windows-gnu 工具链；CI 用 MSVC，配置已隔离到 `.cargo/config.toml` 的 GNU 段）
 2. JS 测试 `node --test src/frontend/*.test.js tests/` 全绿（零依赖 node:test 约定）
-3. 最终集成追加：`cargo build --release` 成功、产物 `GlanceMD-Ultra.exe` ≤ 5 MB；Playwright 冒烟（若环境就绪）
+3. 最终集成追加：`cargo build --release` 成功、产物 `GlanceMD-Ultra.exe` ≤ 8 MB（2026-09-09 由 5 MB 放宽，见 backlog FEAT-004）；Playwright 冒烟（若环境就绪）
 4. 提交规范：Conventional Commits + 简体中文；**不 push、不打 tag**（tag=发布，由维护者执行）
 
 ## 3. 环境事实（所有 subagent 必读）

@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/github/last-commit/VastNext/GlanceMD-Ultra?style=flat-square&color=8b5cf6" alt="last commit">
 </p>
 
-A **lightweight native workspace editor** for local Markdown and structured-text projects: project tree, file watching with conflict protection, full-text search, and a settings & keyboard-shortcut system. It evolves independently from the [GlanceMD](https://github.com/VastNext/GlanceMD) v1.6.3 snapshot while staying natively light — a 2–5 MB binary with no Electron/Monaco and no external runtime dependencies.
+A **lightweight native workspace editor** for local Markdown and structured-text projects: project tree, file watching with conflict protection, full-text search, and a settings & keyboard-shortcut system. It evolves independently from the [GlanceMD](https://github.com/VastNext/GlanceMD) v1.6.3 snapshot while staying natively light — a 2–8 MB binary with no Electron/Monaco and no external runtime dependencies.
 
 Built with Rust and the system webview, with no Electron. Windows uses WebView2, macOS uses WebKit, and Linux uses WebKitGTK. Notepad-fast startup, Obsidian-pretty rendering.
 

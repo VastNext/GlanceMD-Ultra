@@ -52,6 +52,7 @@
 | FEAT-001 | 2026-09-07 | CLI / 工作区 | 命令行支持打开目录为工作区（如 `gmdu .`，类似 `code .`） | 高 (P1) | ✅ 已完成 |
 | FEAT-002 | 2026-09-07 | 软件更新 / 发布 | 软件内支持“检查并一键更新”，自动获取 GitHub Latest Release 匹配当前平台的包并覆盖更新 | 中 (P2) | ⏳ 待排期 |
 | FEAT-003 | 2026-09-07 | 网络 / 系统设置 | 设置页支持配置 HTTP/HTTPS/SOCKS5 网络代理，支持系统代理跟随与自定义覆盖（FEAT-002 前置） | 中 (P2) | ⏳ 待排期 |
+| FEAT-004 | 2026-09-09 | 体积 / 发布 | 二进制减重：内嵌前端资产 gzip 预压缩 + `opt-level="z"`，使 Windows 产物回到 5 MB 以内（预算放宽后的偿还计划） | 中 (P2) | ⏳ 待排期 |
 
 ### 需求详细记录
 
@@ -119,7 +120,21 @@
 - **涉及模块 / 影响范围**：
   - `src/workspace/settings.rs`（新增 `HttpSettings` 结构及 schema）
   - `src/frontend/settings.js` & `settings.css`（设置面板新增“网络 / Network”分节及测试按钮）
-  - Rust HTTP client 初始化层（如 `reqwest` / `ureq` 加载全局 proxy 设置）
+   - Rust HTTP client 初始化层（如 `reqwest` / `ureq` 加载全局 proxy 设置）
+- **处理状态**：⏳ 待排期 (`backlog`)
+
+#### FEAT-004: 二进制减重——内嵌资产预压缩与体积优化（2026-09-09 放宽预算后的偿还计划）
+- **背景 / 决策来源**：v0.3.0 集成双键位方案、Key Assist 与 Vim 后，Windows 正式 MSVC 产物实测 5,695,488 字节（5.695 MB / 5.432 MiB），超出原 2–5 MB 预算。维护者决策（2026-09-09）：预算放宽为 2–8 MB 以维持发布节奏，减重作为独立事项偿还，`strip = "none"` 与零外部运行时约束不变。
+- **实测基线（v0.3.0 候选 d2f9ea9，MSVC release）**：
+  - Windows x64：5,695,488 字节（5.695 MB / 5.432 MiB）
+  - macOS Intel：6,413,760 字节；macOS Apple Silicon：6,361,552 字节；Linux x64：10,406,872 字节（含 AppImage 运行时）
+- **体积构成（架构评估）**：三大 vendored 库（mermaid ~1.05 MB、highlight ~380 KB、marked ~55 KB，零压缩内嵌 `.rdata`）占 ~28%；产品代码新增 ~430–500 KB。
+- **方案（按 ROI 排序，均为评估结论，实施前需重新验证）**：
+  1. **方案 A（主项）**：build.rs 用 `flate2`/`miniz_oxide`（纯 Rust、零 C 依赖）将 JS/CSS 预压缩为 `.gz` blob 经 `include_bytes!` 嵌入，`build_html()` 解压拼装。文本 gzip 典型 3:1，预计净减 ~0.9–1.1 MB；启动解压 ~1.5 MB 文本约 3–8 ms。需锁定版本并验证三平台编译。
+  2. **方案 B（辅项）**：`opt-level` 由 `"s"` 改 `"z"`（原生码约省 5–15%，~150–400 KB），编辑器场景对轻微 CPU 损耗不敏感；需回归验证。
+  3. 备选：Mermaid 降级 10.x（~400 KB）或懒注入（产品决策，暂不动）；产品 JS 构建时 minify（ROI 低，不推荐）。
+  - **不可行项**：strip 符号（崩溃诊断硬约束）、外置资产文件（违反一切内嵌约束）、UPX 壳（误报/签名/启动开销）。
+- **验收目标**：Windows 产物回到 ≤ 5 MB（十进制），且启动耗时无可感知退化、全部既有测试与四平台 CI 保持全绿。
 - **处理状态**：⏳ 待排期 (`backlog`)
 
 ---

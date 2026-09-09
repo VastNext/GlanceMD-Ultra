@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/github/last-commit/VastNext/GlanceMD-Ultra?style=flat-square&color=8b5cf6" alt="last commit">
 </p>
 
-一款面向本地 Markdown 与结构化文本项目的**轻量原生工作区编辑器**：项目树、文件监听与冲突保护、全文搜索、设置与快捷键体系。基于 [GlanceMD](https://github.com/VastNext/GlanceMD) v1.6.3 快照独立演进，保持原生轻量——二进制 2–5 MB，无 Electron/Monaco、无外部运行时依赖。
+一款面向本地 Markdown 与结构化文本项目的**轻量原生工作区编辑器**：项目树、文件监听与冲突保护、全文搜索、设置与快捷键体系。基于 [GlanceMD](https://github.com/VastNext/GlanceMD) v1.6.3 快照独立演进，保持原生轻量——二进制 2–8 MB，无 Electron/Monaco、无外部运行时依赖。
 
 使用 Rust + 系统 WebView 构建，不含 Electron。Windows 使用 WebView2，macOS 使用系统 WebKit，Linux 使用 WebKitGTK。启动速度媲美记事本，渲染效果媲美 Obsidian。
 

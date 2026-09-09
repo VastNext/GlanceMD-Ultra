@@ -230,6 +230,15 @@ jobs:
           pattern: release-*
           merge-multiple: true
           path: release-assets
+      - name: 校验 Windows 产物体积预算（2–8 MB，十进制）
+        run: |
+          SIZE=$(stat -c%s release-assets/GlanceMD-Ultra-windows-x64.exe)
+          LIMIT=8000000
+          echo "Windows 产物：${SIZE} 字节（预算上限 ${LIMIT}）"
+          if [ "$SIZE" -gt "$LIMIT" ]; then
+            echo "超出体积预算：${SIZE} > ${LIMIT}。请优先实施 backlog FEAT-004 减重，而不是放宽预算。" >&2
+            exit 1
+          fi
       - name: 创建或更新 Release
         env:
           GH_TOKEN: ${{ github.token }}

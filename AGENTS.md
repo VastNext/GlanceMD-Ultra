@@ -4,7 +4,7 @@
 
 ## 项目背景
 
-**GlanceMD Ultra** 是面向本地 Markdown 与结构化文本项目的轻量原生工作区编辑器：项目树、文件监听与冲突保护、全文搜索、设置与快捷键体系，同时保持"记事本般的启动速度"与原生轻量——二进制 2–5 MB 以内，不采用 Electron/Monaco，无外部运行时依赖。
+**GlanceMD Ultra** 是面向本地 Markdown 与结构化文本项目的轻量原生工作区编辑器：项目树、文件监听与冲突保护、全文搜索、设置与快捷键体系，同时保持"记事本般的启动速度"与原生轻量——二进制 2–8 MB 以内（2026-09-09 由 2–5 MB 放宽，减重计划见 backlog FEAT-004），不采用 Electron/Monaco，无外部运行时依赖。
 
 - 代码基线取自 `VastNext/GlanceMD` v1.6.3 快照，清除旧提交历史后在本仓库独立演进（决策见 `docs/adr/0001-glancemd-ultra-独立仓库.md`）
 - `origin`（`VastNext/GlanceMD-Ultra`）是本产品唯一的开发与发布仓库
