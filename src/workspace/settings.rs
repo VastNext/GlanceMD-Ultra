@@ -621,8 +621,9 @@ pub fn effective(global: &Settings, project: &SettingsPatch) -> Settings {
                 global.editor.large_file_mb,
             ),
         },
-        // Project keybindings are intentionally ignored by default. A workspace
-        // file must not silently change commands/shortcuts when opened.
+        // 快捷键为全局限定分类（2026-09-06 schema v2 引入的决定，契约 §2.6/§3）：
+        // 项目 keybindings 永不生效——打开工作区文件不得静默改变命令/快捷键。
+        // 项目补丁中的 keybindings 段在 load_project_checked 即被丢弃并告警。
         keybindings: global.keybindings.clone(),
         recovery: Recovery {
             confirm_close_dirty: opt_or(
@@ -671,7 +672,8 @@ pub fn is_overridden(project: &SettingsPatch, key_path: &str) -> bool {
             "watching" => project.watching.is_some(),
             "search" => project.search.is_some(),
             "editor" => project.editor.is_some(),
-            "keybindings" => project.keybindings.is_some(),
+            // 快捷键为全局限定分类：项目覆盖永不生效，不假称覆盖
+            "keybindings" => false,
             "recovery" => project.recovery.is_some(),
             _ => false,
         };
@@ -755,14 +757,9 @@ pub fn is_overridden(project: &SettingsPatch, key_path: &str) -> bool {
             .editor
             .as_ref()
             .is_some_and(|e| e.large_file_mb.is_some()),
-        ("keybindings", "activeScheme") => project
-            .keybindings
-            .as_ref()
-            .is_some_and(|k| k.active_scheme.is_some()),
-        ("keybindings", "schemes") => project
-            .keybindings
-            .as_ref()
-            .is_some_and(|k| k.schemes.is_some()),
+        // 快捷键为全局限定分类：项目覆盖永不生效（effective 始终取 global），
+        // 覆盖报告对任何 keybindings 路径一律返回 false，不假称生效。
+        ("keybindings", _) => false,
         ("recovery", "confirmCloseDirty") => project
             .recovery
             .as_ref()
@@ -803,8 +800,7 @@ pub fn overridden_keys(project: &SettingsPatch) -> Vec<String> {
         "editor.wordWrap",
         "editor.lineNumbers",
         "editor.largeFileMB",
-        "keybindings.activeScheme",
-        "keybindings.schemes",
+        // keybindings 为全局限定分类：项目覆盖永不生效，不进入覆盖报告
         "recovery.confirmCloseDirty",
         "recovery.crashRecovery",
         "recovery.createProjectSettings",
@@ -926,6 +922,16 @@ pub fn load_project_checked(root: &Path) -> Option<LoadedPatch> {
     }
     let mut warnings = Vec::new();
     let mut raw = raw;
+    // 快捷键为全局限定分类（与 window 同类）：打开工作区不得静默改变命令/快捷键，
+    // 项目 keybindings 段一律忽略并告警——覆盖徽标与 overridden 报告因此不再假称生效。
+    if raw.get("keybindings").is_some() {
+        if let Some(obj) = raw.as_object_mut() {
+            obj.remove("keybindings");
+        }
+        warnings.push(
+            "项目快捷键覆盖已忽略：快捷键仅为全局设置，打开工作区不会静默改变命令快捷键".into(),
+        );
+    }
     migrate_v1_keybindings(&mut raw, &mut warnings);
     collect_unknown_keys(&raw, &mut warnings);
     if raw.get("window").is_some() {

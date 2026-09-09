@@ -74,6 +74,8 @@
 
 **前端事实源与迁移握手（阶段 5 强快捷键落地）**：运行时唯一事实源为本设置文档 `keybindings` 段；前端 `keybinding-service.js` 的两个 localStorage 键（`glancemd-ultra-keybindings` / `glancemd-ultra-keyboard-scheme`）仅为启动期一次性迁移源——首次装载时若设置文档尚无用户 keybindings 数据，则将遗留 overrides 并入 `schemes[activeScheme]` 并写入标记 `glancemd-ultra-keybindings-migrated` 防重入；标记存在或文档已有用户数据时绝不迁移、绝不覆写。前端保存 binding 前负责冲突拒绝与 when 合法性校验；本模块仅存取与迁移该结构。
 
+**全局限定（2026-09-06 schema v2 引入的既有决定）**：`keybindings` 与 §2.8 `window` 同为**全局限定分类**——项目补丁中的 `keybindings` 段在 `load_project_checked` 解析时即被**丢弃并告警**（"项目快捷键覆盖已忽略"），`effective` 始终取 global 值，`is_overridden`/`overridden_keys` 对任何 `keybindings.*` 路径恒不报告（覆盖报告只反映会生效的覆盖）。理由：打开工作区文件不得静默改变命令/快捷键（安全边界）。若未来产品决定开放项目级快捷键，须先修订本契约并恢复合并逻辑，不得在实现层先行。
+
 ### 2.7 recovery（恢复与启动行为）
 
 | JSON 键 | 类型 | 默认 | 语义 |
@@ -96,8 +98,9 @@
 
 ## 3. 合并语义
 
-- `effective(global, project) -> Settings`：**字段级覆盖**——项目补丁中 `Some` 的字段覆盖全局对应字段，`None`/缺省保留全局；**`Vec` 与 map 为整体替换，不做并集**（项目想"在全局基础上追加"必须写出完整列表）；结果 `version` 恒为当前版本。例外：`window` 为全局限定分类，effective 始终取 global。
-- `is_overridden(project, key_path) -> bool`：`key_path` 用 JSON 键名，字段级 `"appearance.theme"` / `"files.watcherExclude"`，类级 `"files"`（该类任一字段被覆盖）；未知路径返回 `false`。设置 UI 据此显示"项目已覆盖"徽标。
+- `effective(global, project) -> Settings`：**字段级覆盖**——项目补丁中 `Some` 的字段覆盖全局对应字段，`None`/缺省保留全局；**`Vec` 与 map 为整体替换，不做并集**（项目想"在全局基础上追加"必须写出完整列表）；结果 `version` 恒为当前版本。例外（全局限定分类，effective 始终取 global）：`window` 与 `keybindings`；项目文件中的 `keybindings` 段在 `load_project_checked` 即被丢弃并告警。
+- `is_overridden(project, key_path) -> bool`：`key_path` 用 JSON 键名，字段级 `"appearance.theme"` / `"files.watcherExclude"`，类级 `"files"`（该类任一字段被覆盖）；未知路径返回 `false`；`keybindings.*` 一律 `false`（全局限定，永不生效，不假称覆盖）。设置 UI 据此显示"项目已覆盖"徽标。
+- `overridden_keys(project) -> string[]`：只返回会生效的显式覆盖字段路径（不含 `keybindings.*`）。
 - 项目文件解析为补丁（`SettingsPatch`）：文件里未出现的类别为 `None`；保存补丁时 `None` 字段不落盘。
 - 项目文件版本守卫：`version > 2` 时**整体忽略**项目覆盖并告警（避免半新半旧混合）；缺 `version` 容忍（仅字段补丁，无需迁移）。
 
@@ -116,12 +119,15 @@
 | `workspace.settings.get-global` | 无 | `load_global_checked(base_dir)` | `workspace:settings-global {settings, warnings}` |
 | `workspace.settings.get-effective` | 无 | 取全局 + 当前项目补丁 → `effective()`；`overridden` 为被覆盖的 key_path 列表 | `workspace:settings-effective {settings, warnings, overridden: string[]}` |
 | `workspace.settings.set-global` | `settings`（完整 Settings JSON，设置 UI 生成） | 反序列化校验 → `save(base_dir, …)` → 广播变更 | 成功广播 `workspace:settings-changed {scope:"global"}`；失败发 `error {message}` |
+| `workspace.settings.set-keybindings` | `data`（keybindings 段 JSON：`{activeScheme, schemes}`，对象或字符串形态） | **段级专用 patch**：以磁盘最新全局文档为基座（文件不存在 → 默认设置），只替换 `activeScheme` 并按**方案键**合并 `schemes`（补丁中出现的方案键整体替换，未提及的方案保留磁盘值，其他分类/未来顶层键原样保留）→ `save` → 广播。磁盘文档 JSON 损坏或 `version` 高于当前 schema 时**拒绝写入不落盘**（禁止未来版本原地覆写，也不得以默认文档覆写损坏文件丢用户数据）；失败发 `error {message}` | 同 `set-global`；错误经 `error {message}` 透出 |
 | `workspace.settings.save-global` | `content`（原始 JSON 文本，"打开设置 JSON"编辑器保存） | 解析 → `migrate_checked` 校验 → 落盘 → 广播；解析/版本错误不落盘 | 同 `set-global`；错误经 `error {message}` 透出 warnings |
 | `workspace.settings.load-project` | `path`?（项目根，缺省当前工作区根） | `load_project_checked(root)`；无文件且 `recovery.createProjectSettings=true` 时先 `save_project(root, {"version":1})` | `workspace:settings-project {patch, warnings, path}` |
 | `workspace.settings.open-settings-json` | `scope`: `"global"` \| `"project"`（默认 global） | 目标文件不存在则先创建（全局写默认值，项目写 `{"version":1}`），随后按普通文件在编辑器中打开 | `file_opened {content, path}`（复用既有事件） |
 
 - `base_dir` 注入点：粘合层调用 `dirs::config_dir()/glancemd-ultra`（`dirs` crate 已在依赖中）。
 - `get-effective` 在无打开工作区时等价于全局（`overridden: []`）。
+- **写入并发边界**：`set-keybindings` 的段级 patch 以磁盘最新文档为基座，前端无需维护写入合并基座缓存，任何时序下快捷键写入都不回滚其他设置分类。`set-global` 仍是设置 UI 的全量写入语义（以 UI 持有的完整文档落盘）——设置面板打开期间另一写入源改动其他分类、随后用户在面板内修改的毫秒级在途窗口内，全量写可能回滚该改动（既有全量语义的固有边界，面板经 `workspace:settings-changed` 刷新已把窗口收窄到数据在途期间；通用 patch 化属后续阶段工作）。前端 keybindings.js 全部写入走 `set-keybindings`，不使用 `set-global`。
+- 迁移标记握手更新：遗留数据迁移写入**确认成功**（后端广播 `workspace:settings-changed` → 前端 `get-global` 回执中磁盘已含用户数据）后才置 `glancemd-ultra-keybindings-migrated`；写入失败经 `error` 事件可见、标记不置、遗留 localStorage 数据保留（下次启动重新迁移），会话内不重试。
 - 命令回执事件名落地时同步登记进 `docs/dev/interfaces.md` §3（维护规则：先改契约再写代码）。
 
 ## 6. 事件
@@ -194,6 +200,10 @@
 
 ## 9. 变更记录
 
+- 2026-09-09（v0.3.0 终审集成修复）：
+  - `keybindings` 明确为全局限定分类（补记 2026-09-06 schema v2 引入的既有实现决定，理由：工作区文件不得静默改变命令/快捷键）：项目文件 `keybindings` 段在 `load_project_checked` 丢弃并告警，`is_overridden`/`overridden_keys` 恒不报告 `keybindings.*`，`effective` 始终取 global（§2.6/§3）；
+  - 新增段级专用写入命令 `workspace.settings.set-keybindings`（§5）：以磁盘最新文档为基座、版本校验（未来版本/损坏拒绝落盘）、`schemes` 按方案键合并，前端 keybindings.js 写入改走该命令，消除"缓存全量文档回滚其他设置"问题；
+  - 迁移标记改为写入确认成功后置位，失败可见且遗留数据保留不丢。
 - 2026-09-09（v0.3.0 集成）：schema v2 八类全表（补记七类→八类与 v2 版本位）；§2.6 补充前端事实源与 localStorage 一次性迁移握手（`glancemd-ultra-keybindings-migrated` 标记）；命令保存路径统一经 `migrate_checked`，版本高于当前支持时拒绝落盘。
 - 2026-09-06：补充设置 v2 批准设计契约：原型作为视觉基线、七类不可变、custom select 明暗 token 规则、密度公式、动态宽度与编辑器 420px 下限，并记录当前测试与未接入项。
 

@@ -488,7 +488,7 @@ fn 嵌套vec与map为整体覆盖_不做并集合并() {
     assert_eq!(merged.files.watcher_exclude, vec!["logs".to_string()]);
     // 同类其他字段不受影响
     assert_eq!(merged.files.visible_exts, Files::default().visible_exts);
-    // 快捷键覆盖同理：整体替换
+    // 项目快捷键覆盖永不生效（全局限定）：effective 始终取 global 值
     let project = SettingsPatch {
         keybindings: Some(KeybindingsPatch {
             active_scheme: Some("custom".to_string()),
@@ -503,6 +503,71 @@ fn 嵌套vec与map为整体覆盖_不做并集合并() {
         Settings::default().keybindings.active_scheme
     );
     assert!(merged.keybindings.schemes.is_empty());
+}
+
+#[test]
+fn 项目keybindings段_加载即丢弃并告警_覆盖报告不再假称生效() {
+    // 项目文件同时携带 v2 schemes 与 v1 overrides 两种形态的快捷键覆盖
+    let dir = temp_dir("project-keybindings-ignored");
+    write_json(
+        &project_settings_path(&dir),
+        r#"{
+            "version": 2,
+            "editor": { "fontSize": 12 },
+            "keybindings": {
+                "activeScheme": "custom.malicious",
+                "schemes": { "custom.malicious": [
+                    { "commandId": "file.save", "sequence": "Ctrl+Q" }
+                ] }
+            }
+        }"#,
+    );
+    let loaded = load_project_checked(&dir).unwrap();
+    // keybindings 段加载即丢弃 + 明确中文告警（不静默）
+    assert!(loaded.patch.keybindings.is_none());
+    assert!(
+        loaded
+            .warnings
+            .iter()
+            .any(|w| w.contains("快捷键") && w.contains("已忽略")),
+        "{:?}",
+        loaded.warnings
+    );
+    // 其他分类不受丢弃影响
+    assert_eq!(loaded.patch.editor.as_ref().unwrap().font_size, Some(12));
+
+    // 合并后快捷键与覆盖报告均取全局语义：不假称项目覆盖生效
+    let global = Settings::default();
+    let mut global_kb = global.clone();
+    global_kb.keybindings.active_scheme = "ultra.vscode".to_string();
+    let merged = effective(&global_kb, &loaded.patch);
+    assert_eq!(merged.keybindings.active_scheme, "ultra.vscode");
+    assert!(!is_overridden(&loaded.patch, "keybindings.activeScheme"));
+    assert!(!is_overridden(&loaded.patch, "keybindings.schemes"));
+    assert!(!is_overridden(&loaded.patch, "keybindings"));
+    assert_eq!(
+        settings::overridden_keys(&loaded.patch),
+        vec!["editor.fontSize".to_string()]
+    );
+    cleanup(&dir);
+}
+
+#[test]
+fn 覆盖报告_手工构造keybindings补丁也不假称生效() {
+    // 即使绕过加载层直接构造含 keybindings 的补丁，is_overridden / overridden_keys
+    // 对全局限定的 keybindings 也恒不报告（报告只反映会生效的覆盖）
+    let patch = SettingsPatch {
+        keybindings: Some(KeybindingsPatch {
+            active_scheme: Some("custom".to_string()),
+            schemes: Some(BTreeMap::new()),
+            overrides: None,
+        }),
+        ..SettingsPatch::default()
+    };
+    assert!(!is_overridden(&patch, "keybindings"));
+    assert!(!is_overridden(&patch, "keybindings.activeScheme"));
+    assert!(!is_overridden(&patch, "keybindings.schemes"));
+    assert!(settings::overridden_keys(&patch).is_empty());
 }
 
 #[test]

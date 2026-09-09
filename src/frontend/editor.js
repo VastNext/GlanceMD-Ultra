@@ -241,11 +241,15 @@
   }
 
   editor.addEventListener('input', function() {
+    // dirty 必须同步标记且绑定产生输入的 tab：若延迟到 300ms 防抖回调，
+    // 输入后立即保存/关闭会在回调触发前丢失 dirty 标记而静默丢数据。
+    // 防抖仅保留字数/最近面板/TOC 等重计算，回调内不得再触碰 dirty 状态，
+    // 避免把已保存（clean）的 tab 重新标脏。
     var activeTab = TabManager.getActiveTab();
     if (activeTab) activeTab.parsedHtml = null;
+    TabManager.markDirty(activeTab ? activeTab.id : undefined);
     clearTimeout(changeTimer);
     changeTimer = setTimeout(function() {
-      TabManager.markDirty();
       updateWordCount();
       if (typeof showRecentPanel === 'function') showRecentPanel();
       if (typeof tocOpen !== 'undefined' && tocOpen) updateTOC();

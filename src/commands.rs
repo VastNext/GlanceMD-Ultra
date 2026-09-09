@@ -167,6 +167,10 @@ pub fn register_builtin() {
         ("workspace.settings.get-global", settings_global),
         ("workspace.settings.get-effective", settings_effective),
         ("workspace.settings.set-global", settings_set),
+        (
+            "workspace.settings.set-keybindings",
+            settings_set_keybindings,
+        ),
         ("workspace.settings.set-theme", settings_set_theme),
         ("workspace.settings.load-project", settings_project),
         ("workspace.settings.save-global", settings_set),
@@ -1620,6 +1624,63 @@ fn settings_set(_: &CommandContext, p: &CommandPayload) {
     }
 }
 
+fn settings_set_keybindings(_: &CommandContext, p: &CommandPayload) {
+    let Some(raw) = value(p, &["data", "keybindings"]) else {
+        return;
+    };
+    if let Err(e) = apply_keybindings_at(&settings_base(), raw) {
+        error(e);
+    }
+}
+
+/// `settings.set-keybindings` 的纯逻辑：全局快捷键**段级专用 patch** 写入。
+///
+/// 背景：前端 keybindings.js 曾以缓存的 get-global 全量文档为基座走
+/// `set-global` 落盘——基座过期时会把其他设置分类（主题、字号等）回滚为旧值。
+/// 本命令改为后端以**磁盘最新文档**为基座，只替换 keybindings 段，解决
+/// "不靠前端先 get 也无法消除的读写竞态"。
+///
+/// 语义（契约 §5）：
+/// - 基座：磁盘文件不存在 → 全默认设置；存在但 JSON 损坏或版本高于当前
+///   schema（`migrate_checked` 的 `UnsupportedVersion`）→ **拒绝写入不落盘**
+///   （未来版本原地覆写会把用户配置降级损坏，损坏文件覆写会丢数据）；
+/// - 段级替换：`activeScheme` 直接替换；`schemes` 按**方案键**合并——
+///   补丁中出现的方案键整体替换，未提及的方案保留磁盘值（其他方案绑定
+///   绝不因当前方案的写入而回滚）；
+/// - 成功后广播 `workspace:settings-changed {scope:"global"}`；失败经
+///   `error {message}` 透出（前端统一 toast 展示，可见）。
+fn apply_keybindings_at(base: &Path, raw: Value) -> Result<(), String> {
+    let v = match raw {
+        Value::String(s) => {
+            serde_json::from_str::<Value>(&s).map_err(|e| format!("设置格式错误：{e}"))?
+        }
+        other => other,
+    };
+    let section: workspace::settings::Keybindings =
+        serde_json::from_value(v).map_err(|e| format!("快捷键设置格式错误：{e}"))?;
+    // 以磁盘最新文档为基座：先版本校验（未来版本拒绝原地覆写），损坏拒绝写入
+    let path = workspace::settings::global_settings_path(base);
+    let mut settings = if path.exists() {
+        let text = std::fs::read_to_string(&path).map_err(|e| format!("读取全局设置失败：{e}"))?;
+        let disk: Value = serde_json::from_str(&text)
+            .map_err(|e| format!("全局设置 JSON 解析失败：{e}，已拒绝快捷键写入"))?;
+        workspace::settings::migrate_checked(&disk)
+            .map_err(|e| format!("已拒绝快捷键写入：{e}"))?
+            .settings
+    } else {
+        workspace::settings::Settings::default()
+    };
+    settings.keybindings.active_scheme = section.active_scheme;
+    for (scheme_id, records) in section.schemes {
+        settings.keybindings.schemes.insert(scheme_id, records);
+    }
+    workspace::settings::save(base, &settings).map_err(|e| format!("保存快捷键设置失败：{e}"))?;
+    emit(workspace::events::Event::SettingsChanged {
+        scope: "global".into(),
+    });
+    Ok(())
+}
+
 fn settings_set_theme(_: &CommandContext, p: &CommandPayload) {
     let Some(theme) = string(p, &["theme"]) else {
         return;
@@ -2233,6 +2294,152 @@ mod tests {
                 .watching
                 .enable_watcher
         );
+
+        std::fs::remove_dir_all(&base).unwrap();
+    }
+
+    // ══════════ 快捷键段级 patch 写入（settings.set-keybindings） ══════════
+
+    #[test]
+    fn apply_keybindings_以磁盘最新为基座_顺序交错不回滚其他设置() {
+        let base =
+            std::env::temp_dir().join(format!("glancemd-ultra-kbpatch-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+
+        // 第一步：设置 UI 全量写入（主题 + 编辑器字号 + eclipse 方案绑定）
+        let full = json!({
+            "version": 2,
+            "appearance": { "theme": "dark" },
+            "editor": { "fontSize": 18 },
+            "keybindings": {
+                "activeScheme": "ultra.eclipse",
+                "schemes": { "ultra.eclipse": [
+                    { "commandId": "file.open", "sequence": "Alt+O" }
+                ] }
+            }
+        });
+        apply_settings_at(&base, full).unwrap();
+
+        // 第二步：快捷键写入与主题写入顺序交错——切到 vscode 方案并改绑定
+        // （模拟用户先改主题、后改快捷键；后端以磁盘最新为基座，主题不得回滚）
+        let section = json!({
+            "activeScheme": "ultra.vscode",
+            "schemes": { "ultra.vscode": [
+                { "commandId": "file.open", "sequence": "Alt+V" }
+            ] }
+        });
+        apply_keybindings_at(&base, section).unwrap();
+
+        let saved = workspace::settings::load_global(&base);
+        // 其他设置分类以磁盘最新值为基座保留（不回滚默认值）
+        assert_eq!(
+            saved.appearance.theme,
+            workspace::settings::Theme::Dark,
+            "主题不回滚"
+        );
+        assert_eq!(saved.editor.font_size, 18, "编辑器字号不回滚");
+        // activeScheme 替换；schemes 按方案键合并——未提及的 eclipse 方案保留
+        assert_eq!(saved.keybindings.active_scheme, "ultra.vscode");
+        assert_eq!(
+            saved.keybindings.schemes["ultra.vscode"][0].sequence,
+            "Alt+V"
+        );
+        assert_eq!(
+            saved.keybindings.schemes["ultra.eclipse"][0].sequence, "Alt+O",
+            "未提及方案的绑定保留磁盘值"
+        );
+
+        // 第三步：反向交错——再次全量 set-global 前先在 eclipse 方案下改绑定
+        let section = json!({
+            "activeScheme": "ultra.eclipse",
+            "schemes": { "ultra.eclipse": [
+                { "commandId": "file.open", "sequence": "Alt+O2" }
+            ] }
+        });
+        apply_keybindings_at(&base, section).unwrap();
+        let saved = workspace::settings::load_global(&base);
+        assert_eq!(
+            saved.keybindings.schemes["ultra.vscode"][0].sequence, "Alt+V",
+            "写入 eclipse 方案不影响 vscode 方案"
+        );
+        assert_eq!(
+            saved.keybindings.schemes["ultra.eclipse"][0].sequence,
+            "Alt+O2"
+        );
+
+        std::fs::remove_dir_all(&base).unwrap();
+    }
+
+    #[test]
+    fn apply_keybindings_磁盘无文件时以默认设置落盘() {
+        let base = std::env::temp_dir().join(format!(
+            "glancemd-ultra-kbpatch-fresh-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&base);
+
+        let section = json!({
+            "activeScheme": "ultra.vscode",
+            "schemes": { "ultra.vscode": [
+                { "commandId": "file.open", "sequence": "Alt+V" }
+            ] }
+        });
+        apply_keybindings_at(&base, section).unwrap();
+        let saved = workspace::settings::load_global(&base);
+        assert_eq!(saved.version, workspace::settings::SCHEMA_VERSION);
+        assert_eq!(saved.keybindings.active_scheme, "ultra.vscode");
+        assert_eq!(
+            saved.keybindings.schemes["ultra.vscode"][0].sequence,
+            "Alt+V"
+        );
+        // 无文件时的其他分类为默认值（磁盘本就无"其他设置"可回滚）
+        assert_eq!(saved.appearance.theme, workspace::settings::Theme::Light);
+
+        std::fs::remove_dir_all(&base).unwrap();
+    }
+
+    #[test]
+    fn apply_keybindings_未来版本与损坏文档拒绝写入且不落盘() {
+        let base = std::env::temp_dir().join(format!(
+            "glancemd-ultra-kbpatch-guard-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&base);
+        let section = json!({
+            "activeScheme": "ultra.vscode",
+            "schemes": { "ultra.vscode": [
+                { "commandId": "file.open", "sequence": "Alt+V" }
+            ] }
+        });
+
+        // 未来版本（version=3）：禁止原地覆写（降级会损坏用户配置）
+        let disk_future = r#"{"version":3,"appearance":{"theme":"dark"}}"#;
+        std::fs::create_dir_all(&base).unwrap();
+        std::fs::write(base.join("settings.json"), disk_future).unwrap();
+        let err = apply_keybindings_at(&base, section.clone()).unwrap_err();
+        assert!(err.contains("高于当前支持的版本"), "{err}");
+        let after = std::fs::read_to_string(base.join("settings.json")).unwrap();
+        assert_eq!(after, disk_future, "未来版本磁盘文档原样保留，未覆写");
+
+        // 损坏 JSON：拒绝写入（以默认文档为基座覆写会丢用户数据）
+        std::fs::write(base.join("settings.json"), "not-json").unwrap();
+        let err = apply_keybindings_at(&base, section.clone()).unwrap_err();
+        assert!(err.contains("已拒绝快捷键写入"), "{err}");
+        assert_eq!(
+            std::fs::read_to_string(base.join("settings.json")).unwrap(),
+            "not-json"
+        );
+
+        // 段格式非法（activeScheme 非字符串）：拒绝且不落盘
+        let bad_section = json!({ "activeScheme": 42, "schemes": {} });
+        std::fs::write(
+            base.join("settings.json"),
+            r#"{"version":2,"appearance":{"theme":"dark"}}"#,
+        )
+        .unwrap();
+        assert!(apply_keybindings_at(&base, bad_section).is_err());
+        let saved = workspace::settings::load_global(&base);
+        assert_eq!(saved.appearance.theme, workspace::settings::Theme::Dark);
 
         std::fs::remove_dir_all(&base).unwrap();
     }

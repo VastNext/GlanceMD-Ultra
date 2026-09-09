@@ -8,9 +8,10 @@
 // `glancemd-ultra-keybindings-migrated` 防重入）。
 //
 // 写入路径：任何入口（facade / 设置 UI 直接调用 window.BindingService 实例方法）
-// 的覆盖表或方案变更，都以最近一次 `workspace.settings.get-global` 的完整文档
-// 为合并基座，只替换 keybindings 段后经 `workspace.settings.set-global` 落盘，
-// 绝不扰动其他设置分类；未来 schema 新增键随全局文档原样保留。
+// 的覆盖表或方案变更，都把 keybindings 段经 `workspace.settings.set-keybindings`
+// 落盘。后端以磁盘最新全局文档为基座做段级 patch（activeScheme 替换、schemes 按
+// 方案键合并），因此前端无需维护"写入合并基座"缓存——即使 globalDoc 过期或另一
+// 窗口刚改了主题/字号，快捷键写入也绝不回滚其他设置分类。
 (function (root) {
   'use strict';
 
@@ -20,7 +21,7 @@
   var DEFAULT_SCHEME = 'ultra.eclipse';
 
   var GET_GLOBAL_CMD = 'workspace.settings.get-global';
-  var SET_GLOBAL_CMD = 'workspace.settings.set-global';
+  var SET_KEYBINDINGS_CMD = 'workspace.settings.set-keybindings';
 
   // 确保全局 ContextKeyService 存在
   if (!root.contextKeys && root.ContextKeyService) {
@@ -71,11 +72,13 @@
 
   /* ── 设置文档桥接（全局 settings.json 为事实源）────────────────────── */
 
-  // 最近一次 get-global 回执的完整设置文档（写入合并基座；null = 尚未收到）。
+  // 最近一次 get-global 回执的完整设置文档（仅用于装载 keybindings 段与
+  // 迁移判定；写入不再依赖它做合并基座——后端以磁盘最新文档为基座）。
   var globalDoc = null;
-  // globalDoc 就绪前暂存的 keybindings 段（get-global 回执到达时冲刷落盘）。
-  var pendingWrite = null;
-  // 内部装载/切换期间抑制回写（避免设置事件回环触发 set-global）。
+  // 遗留迁移写入的会话内防重入：写入已发出但未确认成功前不再重试
+  // （失败保持不标记，旧 localStorage 数据保留，下次启动重新迁移）。
+  var legacyPersistAttempted = false;
+  // 内部装载/切换期间抑制回写（避免设置事件回环触发 set-keybindings）。
   var suppressWrite = false;
 
   function canPersist() {
@@ -134,37 +137,22 @@
     return service.normalizeOverrides(map);
   }
 
-  // 以最近一次全局文档为基座构造当前 keybindings 段：其他方案的绑定原样保留，
-  // 当前方案的绑定取自 service 实时覆盖表。
+  // 构造当前方案的 keybindings 段：只含 activeScheme + 当前方案的用户绑定。
+  // 其他方案的绑定由后端按磁盘值保留（段级 patch 按方案键合并），前端缓存
+  // 过期也不会把其他方案回滚成旧值。
   function currentKeybindingsSection() {
-    var baseKb = globalDoc && globalDoc.keybindings && typeof globalDoc.keybindings === 'object' ? globalDoc.keybindings : {};
-    var schemes = clone(baseKb.schemes && typeof baseKb.schemes === 'object' ? baseKb.schemes : {});
     var schemeId = service.getScheme();
+    var schemes = {};
     schemes[schemeId] = overridesToRecords(service.getOverrides());
     return { activeScheme: schemeId, schemes: schemes };
   }
 
-  // 把 keybindings 段合并进最近一次全局文档并 set-global：只替换
-  // activeScheme + 当前方案 schemes 条目，其他设置分类与未来键原样保留。
+  // 段级写入：经 workspace.settings.set-keybindings 落盘（后端以磁盘最新
+  // 全局文档为基座，只替换 activeScheme 与补丁中出现的方案键）。成功后后端
+  // 广播 workspace:settings-changed，前端随后经 get-global 回执装载新文档。
   function persistKeybindings(section) {
     if (!canPersist()) return false;
-    if (!globalDoc) {
-      pendingWrite = section;
-      send({ command: GET_GLOBAL_CMD });
-      return true;
-    }
-    pendingWrite = null;
-    var base = clone(globalDoc);
-    var oldKb = base.keybindings && typeof base.keybindings === 'object' ? base.keybindings : {};
-    var mergedKb = Object.assign({}, oldKb, { activeScheme: section.activeScheme });
-    mergedKb.schemes = Object.assign(
-      {},
-      oldKb.schemes && typeof oldKb.schemes === 'object' ? oldKb.schemes : {},
-      section.schemes || {}
-    );
-    base.keybindings = mergedKb;
-    if (base.version == null) base.version = 2;
-    send({ command: SET_GLOBAL_CMD, data: JSON.stringify(base) });
+    send({ command: SET_KEYBINDINGS_CMD, data: JSON.stringify(section) });
     return true;
   }
 
@@ -238,6 +226,10 @@
 
   // 旧 localStorage 一次性迁移：设置文档 keybindings 段无用户数据且未迁移过时，
   // 把遗留覆盖表/方案写入设置文档（避免"默认设置覆盖用户旧配置"或反向覆写）。
+  //
+  // 迁移标记防丢数据：写入确认成功（settings-changed 广播 → get-global 回执
+  // → 磁盘已有用户数据 → 本函数再次进入 hasUserData 分支）后才置标记；写入
+  // 失败时标记永不置位，遗留 localStorage 数据保留，下次启动重新迁移。
   function maybeMigrateLegacy() {
     if (!canPersist() || !globalDoc) return;
     if (legacyMigrated()) return;
@@ -248,12 +240,23 @@
       Object.keys(kb.schemes).some(function (id) {
         return Array.isArray(kb.schemes[id]) && kb.schemes[id].length > 0;
       });
-    if (hasUserData) return; // 设置文档已是事实源：不迁移、不覆写
+    if (hasUserData) {
+      // 设置文档已是事实源（含本会话此前的迁移写入或外部写入）：补置标记，
+      // 绝不迁移、绝不覆写
+      markLegacyMigrated();
+      return;
+    }
+    if (legacyPersistAttempted) return; // 已发出迁移写入且未确认成功：会话内不重试
     var legacy = readLegacyKeybindings();
-    markLegacyMigrated();
-    if (!legacy) return; // 无遗留数据：仅标记一次
+    if (!legacy) {
+      markLegacyMigrated(); // 无遗留数据：仅标记一次
+      return;
+    }
     var section = { activeScheme: legacy.scheme, schemes: {} };
     section.schemes[legacy.scheme] = legacy.records;
+    legacyPersistAttempted = true;
+    // 标记延后：写入确认成功后经 hasUserData 分支补置；失败不标记（可见于
+    // 后端 error 事件 → 统一错误提示），旧数据不丢
     persistKeybindings(section);
   }
 
@@ -310,16 +313,12 @@
     return { scheme: scheme, records: records };
   }
 
-  // 订阅设置事件：全局文档（写入基座 + 迁移判定 + 外部变化刷新）。
+  // 订阅设置事件：全局文档（装载 keybindings 段 + 迁移判定 + 外部变化刷新）。
   if (service && root.Workspace && typeof root.Workspace.on === 'function') {
     root.Workspace.on('workspace:settings-global', function (d) {
       if (!d || !d.settings || typeof d.settings !== 'object') return;
       globalDoc = clone(d.settings);
-      if (pendingWrite) {
-        var w = pendingWrite;
-        pendingWrite = null;
-        persistKeybindings(w);
-      } else if (d.settings.keybindings) {
+      if (d.settings.keybindings) {
         loadFromSettings(d.settings.keybindings);
       }
       maybeMigrateLegacy();
@@ -327,7 +326,7 @@
     root.Workspace.on('workspace:settings-changed', function () {
       send({ command: GET_GLOBAL_CMD });
     });
-    // 装载即拉一次全局文档作为写入合并基座（不依赖设置面板打开）。
+    // 装载即拉一次全局文档（迁移判定依赖磁盘文档；写入不依赖它）。
     send({ command: GET_GLOBAL_CMD });
   }
 
