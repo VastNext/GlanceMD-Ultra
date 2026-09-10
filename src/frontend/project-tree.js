@@ -806,11 +806,14 @@
   }
 
   function buildMenu() {
-    if (menuEl) return menuEl;
+    if (menuEl) {
+      refreshMenuLabels();
+      return menuEl;
+    }
     menuEl = makeEl('div');
     menuEl.className = 'ctx-menu';
     menuEl.setAttribute('role', 'menu');
-    menuEl.setAttribute('aria-label', '项目树操作');
+    menuEl.setAttribute('aria-label', t('tree.menuAria'));
     menuEl.addEventListener('keydown', onMenuKeyDown);
     MENU_ITEMS.forEach(function(def) {
       if (def.sep) {
@@ -841,6 +844,30 @@
       menuEl.appendChild(item);
     });
     return menuEl;
+  }
+
+  function refreshMenuLabels() {
+    if (!menuEl) return;
+    menuEl.setAttribute('aria-label', t('tree.menuAria'));
+    menuItems().forEach(function(item) {
+      var def = MENU_ITEMS.filter(function(entry) { return entry.id === item.dataset.action; })[0];
+      if (!def) return;
+      var label = def.id === 'create-file' ? t('tree.createFile')
+        : def.id === 'create-dir' ? t('tree.createDir')
+        : def.id === 'cut' ? t('tree.cut')
+        : def.id === 'copy' ? t('tree.copy')
+        : def.id === 'paste' ? t('tree.paste')
+        : def.id === 'rename' ? t('tree.rename')
+        : def.id === 'delete' ? t('tree.delete')
+        : def.id === 'delete-permanent' ? t('tree.deletePermanent')
+        : def.id === 'terminal' ? t('tree.openInTerminal')
+        : def.id === 'reveal' ? t('tree.revealInFileManager')
+        : def.id === 'copy-abs' ? t('tree.copyAbsolutePath')
+        : def.id === 'copy-rel' ? t('tree.copyRelativePath') : def.label;
+      var kbd = item.querySelector ? item.querySelector('.kbd') : null;
+      item.textContent = label;
+      if (kbd) item.appendChild(kbd);
+    });
   }
 
   // 当前菜单目标目录：目录行 = 自身；文件行 = 父目录；无行 = 项目根
@@ -1477,7 +1504,11 @@
       window.addEventListener('i18n-changed', function() {
         if (els.empty) els.empty.textContent = t('tree.emptyState');
         if (els.tree) els.tree.setAttribute('aria-label', t('tree.ariaTree'));
-        if (els.headBtn) els.headBtn.setAttribute('title', t('tree.revealCurrent'));
+        if (els.headBtn) {
+          els.headBtn.setAttribute('title', t('tree.revealCurrent'));
+          els.headBtn.setAttribute('aria-label', t('tree.revealCurrent'));
+        }
+        refreshMenuLabels();
       });
     }
 

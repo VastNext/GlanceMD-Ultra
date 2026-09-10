@@ -240,6 +240,9 @@ function loadTree({ rootPath = null, lsExpanded = null, withClipboard = true } =
     },
     dispatchEvent(ev) {
       dispatched.push(ev);
+      if (ev && ev.type === 'i18n-changed') {
+        (windowHandlers[ev.type] || []).forEach((fn) => fn(ev));
+      }
     },
     Workspace: {
       on(event, handler) {
@@ -254,6 +257,10 @@ function loadTree({ rootPath = null, lsExpanded = null, withClipboard = true } =
         return { root: rootPath, fileCount: null, error: null };
       },
     },
+  };
+  const windowHandlers = {};
+  context.window.addEventListener = (type, handler) => {
+    (windowHandlers[type] = windowHandlers[type] || []).push(handler);
   };
   context.window.window = context.window;
 
@@ -652,6 +659,19 @@ test('右键打开上下文菜单：未选中行先选中，Esc/外点击关闭'
   assert.ok(item);
   h.docHandlers.click.forEach((fn) => fn({ target: item }));
   assert.ok(h.menu(), '菜单内点击不触发外点关闭');
+});
+
+test('右键菜单在语言切换后刷新已打开菜单的文案', () => {
+  const h = loadTree('G:/proj');
+  h.open('G:/proj');
+  h.listed('', [{ name: 'README.md', rel: 'README.md', kind: 'file' }], true);
+  h.contextOn('README.md');
+  assert.equal(h.menuItem('create-file').textContent, '新建文件');
+  h.context.window.I18n.setLanguage('en');
+  h.context.window.dispatchEvent({ type: 'i18n-changed', detail: { language: 'en' } });
+  assert.equal(h.menu().getAttribute('aria-label'), 'Project tree actions');
+  assert.equal(h.menuItem('create-file').textContent, 'New File');
+  assert.equal(h.menuItem('copy-abs').textContent, 'Copy Absolute Path');
 });
 
 test('上下文菜单无障碍语义与键盘导航：aria-disabled、方向键、Enter、Escape', () => {

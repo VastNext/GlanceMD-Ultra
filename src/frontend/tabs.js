@@ -594,7 +594,10 @@ var TabManager = (function() {
   }
 
   function buildTabMenu() {
-    if (tabMenuEl) return tabMenuEl;
+    if (tabMenuEl) {
+      refreshTabMenuLabels();
+      return tabMenuEl;
+    }
     tabMenuEl = document.createElement('div');
     tabMenuEl.className = 'ctx-menu';
     tabMenuEl.setAttribute('role', 'menu');
@@ -618,6 +621,23 @@ var TabManager = (function() {
     });
     return tabMenuEl;
   }
+
+  function refreshTabMenuLabels() {
+    if (!tabMenuEl) return;
+    tabMenuEl.setAttribute('aria-label', t('tabs.menuAria'));
+    var labels = {
+      close: 'tabs.menuClose',
+      left: 'tabs.menuCloseLeft',
+      right: 'tabs.menuCloseRight',
+      all: 'tabs.menuCloseAll'
+    };
+    tabMenuItems().forEach(function(item) {
+      var key = labels[item.dataset.action];
+      if (key) item.textContent = t(key);
+    });
+  }
+
+  window.addEventListener('i18n-changed', refreshTabMenuLabels);
 
   /* 可用态：以右键目标 tab 为锚，对应侧没有 tab 时置灰 */
   function refreshTabMenuState() {
@@ -681,6 +701,7 @@ var TabManager = (function() {
       tabMenuEl.parentNode.removeChild(tabMenuEl);
     }
   }
+
 
   /* 菜单开着期间：菜单外点击 / 右键 / Esc 均关闭（document 级，开合状态门控） */
   document.addEventListener('click', function(e) {

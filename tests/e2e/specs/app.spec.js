@@ -544,3 +544,24 @@ test('多语言切换专项：从设置切换为英文后全界面即时更新�
   await expect(page.locator('#panel-tree .panel-title')).toHaveText('资源管理器');
   await expect(page.locator('#btn-new')).toHaveAttribute('title', /新建/);
 });
+
+test('右键菜单专项：切换英文后已打开的项目树菜单立即刷新', async ({ page }) => {
+  await installSettingsMock(page);
+  await page.evaluate(() => {
+    window.__fromRust('workspace:opened', { root: 'G:/workspace' });
+    window.__fromRust('workspace:tree-listed', {
+      path: '',
+      entries: [{ name: 'README.md', relPath: 'README.md', kind: 'file' }]
+    });
+  });
+  const row = page.locator('#project-tree-root .tree-row').first();
+  await expect(row).toBeVisible();
+  await row.click({ button: 'right' });
+  const menu = page.locator('.ctx-menu').last();
+  await expect(menu).toContainText('新建文件');
+
+  await page.evaluate(() => window.I18n.setLanguage('en'));
+  await expect(menu).toContainText('New File');
+  await expect(menu).toContainText('Copy Absolute Path');
+  await expect(menu).not.toContainText('新建文件');
+});
