@@ -325,9 +325,9 @@ test('设置专项：网络分类代理配置与测试连接交互', async ({ pa
   expect(testCmd.proxy).toBe('http://127.0.0.1:7890');
   expect(testCmd.strictSsl).toBe(true);
 
-  // 模拟 Rust 返回成功回执
+  // 模拟 Rust 返回成功回执（真实经由 window.__fromRust 驱动事件网桥）
   await page.evaluate(() => {
-    window.SettingsUI.receive('workspace:proxy-test-result', {
+    window.__fromRust('workspace:proxy-test-result', {
       ok: true,
       message: '连通成功：https://api.github.com（45ms，状态 200）',
       status: 200,

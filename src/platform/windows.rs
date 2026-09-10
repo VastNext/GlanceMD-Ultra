@@ -26,9 +26,10 @@ impl Windows {
     /// 1. Windows Terminal：`wt -d <dir>`（未安装时进程启动失败，自动降级到下一候选）
     /// 2. cmd 兜底：`cmd /c start "" /D <dir>`（`start` 后的空字符串是窗口标题占位符）
     pub fn terminal_candidates(dir: &Path) -> Vec<(String, Vec<String>)> {
-        let dir = dir.as_os_str().to_string_lossy().into_owned();
+        let clean = super::terminal::clean_path_for_terminal(dir);
+        let dir_str = clean.to_string_lossy().into_owned();
         vec![
-            ("wt".to_string(), vec!["-d".to_string(), dir.clone()]),
+            ("wt".to_string(), vec!["-d".to_string(), dir_str.clone()]),
             (
                 "cmd".to_string(),
                 vec![
@@ -36,7 +37,7 @@ impl Windows {
                     "start".to_string(),
                     String::new(),
                     "/D".to_string(),
-                    dir,
+                    dir_str,
                 ],
             ),
         ]

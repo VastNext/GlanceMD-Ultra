@@ -119,7 +119,7 @@ impl Event {
             Event::RecoveryRestored { .. } => "workspace:recovery-restored",
             Event::RecoveryOpened { .. } => "workspace:recovery-opened",
             Event::CliShimStatus { .. } => "workspace:cli-shim-status",
-            Event::ProxyTestResult { .. } => "net:test-proxy-result",
+            Event::ProxyTestResult { .. } => "workspace:proxy-test-result",
         }
     }
 

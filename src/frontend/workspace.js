@@ -119,7 +119,7 @@
   var previousHandler = typeof window.__fromRust === 'function' ? window.__fromRust : null;
 
   function fromRust(event, data) {
-    if (typeof event === 'string' && event.indexOf('workspace:') === 0) {
+    if (typeof event === 'string' && (event.indexOf('workspace:') === 0 || event.indexOf('net:') === 0)) {
       dispatch(event, data);
       return;
     }

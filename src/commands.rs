@@ -718,6 +718,7 @@ fn fs_terminal(c: &CommandContext, p: &CommandPayload) {
         let x = match resolve_in_root(&r, p.path.as_deref().unwrap_or("")) {
             Ok(x) => x,
             Err(e) => {
+                crate::log_warn!("commands", "fs.terminal 路径解析失败: {e}");
                 ipc::send_to_js(c.webview, "error", &json!({"message": e}));
                 return;
             }
@@ -727,10 +728,23 @@ fn fs_terminal(c: &CommandContext, p: &CommandPayload) {
         } else {
             x.parent().unwrap_or(&r).to_path_buf()
         };
-        let settings = workspace::settings::load_global(&settings_base());
+        let settings = effective_settings(&r);
+        crate::log_info!(
+            "commands",
+            "在终端中打开目录: 目标='{}', terminal_path='{}', terminal_args='{}'",
+            d.display(),
+            settings.files.terminal_path,
+            settings.files.terminal_args
+        );
         let result = if settings.files.terminal_path.is_empty() {
+            crate::log_info!("commands", "使用系统默认终端候选打开");
             platform::terminal_opener().open_in_terminal(&d)
         } else {
+            crate::log_info!(
+                "commands",
+                "使用自定义终端配置启动: '{}'",
+                settings.files.terminal_path
+            );
             platform::terminal::spawn_custom(
                 &settings.files.terminal_path,
                 &settings.files.terminal_args,
@@ -738,6 +752,7 @@ fn fs_terminal(c: &CommandContext, p: &CommandPayload) {
             )
         };
         if let Err(e) = result {
+            crate::log_error!("commands", "终端启动失败: {e}");
             ipc::send_to_js(c.webview, "error", &json!({"message":e.to_string()}));
         }
     }
@@ -1640,38 +1655,67 @@ fn net_test_proxy(_: &CommandContext, p: &CommandPayload) {
         .get("strictSsl")
         .and_then(Value::as_bool)
         .unwrap_or(true);
-    let proxy_uri = if proxy.trim().is_empty() {
-        None
-    } else {
-        // 校验并规范化为标准 URI（纯解析，不发起请求）
-        match crate::net::parse_proxy_url(&proxy) {
-            Ok(spec) => Some(spec.to_uri()),
+
+    crate::log_info!(
+        "net",
+        "收到代理探测请求: 原始地址='{}', 严格SSL={}",
+        proxy,
+        strict_ssl
+    );
+
+    std::thread::spawn(move || {
+        let proxy_uri = if proxy.trim().is_empty() {
+            crate::log_info!("net", "代理地址为空，执行公网直连探测");
+            None
+        } else {
+            match crate::net::parse_proxy_url(&proxy) {
+                Ok(spec) => {
+                    let uri = spec.to_uri();
+                    crate::log_info!("net", "代理地址解析成功: {}", uri);
+                    Some(uri)
+                }
+                Err(e) => {
+                    crate::log_warn!("net", "代理地址解析失败: {}", e);
+                    emit(workspace::events::Event::ProxyTestResult {
+                        payload: serde_json::json!({ "ok": false, "message": e }),
+                    });
+                    return;
+                }
+            }
+        };
+
+        let timeout = std::time::Duration::from_secs(8);
+        crate::log_info!("net", "开始发起 GitHub API 连通性测试 (超时 8s)...");
+        match crate::net::test_proxy(proxy_uri.as_deref(), strict_ssl, timeout) {
+            Ok(r) => {
+                crate::log_info!(
+                    "net",
+                    "代理探测成功: 目标={}, 状态码={}, 延迟={}ms",
+                    r.target,
+                    r.status,
+                    r.latency_ms
+                );
+                emit(workspace::events::Event::ProxyTestResult {
+                    payload: serde_json::json!({
+                        "ok": true,
+                        "message": format!(
+                            "连通成功：{}（{}ms，状态 {}）",
+                            r.target, r.latency_ms, r.status
+                        ),
+                        "status": r.status,
+                        "latencyMs": r.latency_ms,
+                        "target": r.target,
+                    }),
+                });
+            }
             Err(e) => {
+                crate::log_warn!("net", "代理探测失败: {}", e);
                 emit(workspace::events::Event::ProxyTestResult {
                     payload: serde_json::json!({ "ok": false, "message": e }),
                 });
-                return;
             }
         }
-    };
-    let timeout = std::time::Duration::from_secs(8);
-    match crate::net::test_proxy(proxy_uri.as_deref(), strict_ssl, timeout) {
-        Ok(r) => emit(workspace::events::Event::ProxyTestResult {
-            payload: serde_json::json!({
-                "ok": true,
-                "message": format!(
-                    "连通成功：{}（{}ms，状态 {}）",
-                    r.target, r.latency_ms, r.status
-                ),
-                "status": r.status,
-                "latencyMs": r.latency_ms,
-                "target": r.target,
-            }),
-        }),
-        Err(e) => emit(workspace::events::Event::ProxyTestResult {
-            payload: serde_json::json!({ "ok": false, "message": e }),
-        }),
-    }
+    });
 }
 
 fn settings_set_keybindings(_: &CommandContext, p: &CommandPayload) {

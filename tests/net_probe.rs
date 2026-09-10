@@ -75,3 +75,13 @@ fn 解析_非法输入报错() {
     assert!(parse_proxy_url("http://:7890").is_err());
     assert!(parse_proxy_url("http://host:70000").is_err());
 }
+
+#[test]
+fn 真实网络测试_测试代理请求() {
+    let r = net::test_proxy(
+        Some("http://127.0.0.1:7890"),
+        true,
+        std::time::Duration::from_secs(5),
+    );
+    println!("test_proxy result: {:?}", r);
+}

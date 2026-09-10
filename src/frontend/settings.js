@@ -1232,6 +1232,17 @@
     send({ command: 'workspace.settings.set-global', data: JSON.stringify(next) });
   }
 
+  function commitMulti(cat, kvs) {
+    var patch = {};
+    patch[cat] = {};
+    Object.keys(kvs).forEach(function (k) {
+      patch[cat][k] = kvs[k];
+    });
+    var next = Object.assign({}, state.global);
+    next[cat] = Object.assign({}, state.global[cat], patch[cat]);
+    send({ command: 'workspace.settings.set-global', data: JSON.stringify(next) });
+  }
+
   // appearance.theme：即时预览由统一设置生效层解析，持久化仍由 Rust settings 完成。
   function applyTheme(v) {
     if (window.SettingsApply && typeof window.SettingsApply.applyTheme === 'function') {
@@ -1255,16 +1266,13 @@
           if (customInput && typeof customInput.focus === 'function') customInput.focus();
         } else if (val === '') {
           state.customTerminalSelected = false;
-          commit('files', 'terminalPath', '');
-          commit('files', 'terminalArgs', '');
+          commitMulti('files', { terminalPath: '', terminalArgs: '' });
           render();
         } else {
           state.customTerminalSelected = false;
-          commit('files', 'terminalPath', val);
           var matchedTerm = (state.terminals || []).find(function (t) { return t.path === val; });
-          if (matchedTerm && Array.isArray(matchedTerm.args)) {
-            commit('files', 'terminalArgs', matchedTerm.args.join(' '));
-          }
+          var defArgs = (matchedTerm && Array.isArray(matchedTerm.args)) ? matchedTerm.args.join(' ') : '';
+          commitMulti('files', { terminalPath: val, terminalArgs: defArgs });
           render();
         }
       };

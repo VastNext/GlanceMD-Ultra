@@ -23,6 +23,7 @@ mod data_dir;
 mod file_codec;
 mod file_ops;
 mod ipc;
+mod logger;
 mod net;
 mod platform;
 #[cfg(target_os = "windows")]
@@ -370,12 +371,18 @@ fn run_cli_control(flag: CliControlFlag) -> ! {
 }
 
 fn main() {
+    // 便携数据目录与诊断日志初始化：优先于一切 CLI 与 GUI 流程
+    let data_base = data_dir::data_base();
+    logger::init(data_base);
+    log_info!("main", "程序启动，版本：v{}", env!("CARGO_PKG_VERSION"));
+
     // Parse CLI args
     let args: Vec<String> = std::env::args().skip(1).collect();
 
     // FEAT-001：CLI 控制旗标优先于一切 GUI 流程——命中即无窗口执行并退出，
     // 旗标不再进入下方路径参数解析（不会误当作待打开文件）。
     if let Some(flag) = parse_cli_control_flag(&args) {
+        log_info!("main", "命中 CLI 控制旗标: {:?}", flag);
         run_cli_control(flag);
     }
 
@@ -466,11 +473,20 @@ fn main() {
     // 环境表无同步机制）；本 crate 仍为 edition 2021（调用现为安全，allow 抑制
     // unused_unsafe），且此处仅在 main 启动早期、单线程、事件循环与任何后台
     // 线程启动之前调用一次，不存在并发读写环境变量的竞态。
-    let data_base = data_dir::data_base();
     // FEAT-003：启动早期读取全局网络代理设置，供 WebView 构建时注入
     // （with_proxy_config 为构建时生效，运行中变更需重启应用）。
     let http_settings = workspace::settings::load_global(data_base).http;
+    log_info!(
+        "main",
+        "读取全局网络设置: 模式={:?}, 代理='{}', 严格SSL={}",
+        http_settings.proxy_support,
+        http_settings.proxy,
+        http_settings.proxy_strict_ssl
+    );
     let wry_proxy = resolve_wry_proxy_config(&http_settings);
+    if wry_proxy.is_some() {
+        log_info!("main", "WebView 注入全局代理配置成功");
+    }
     // 无 CLI 路径时恢复上次打开的工作区；显式路径（目录或文件）保持既有行为。
     if cli_file.is_none() {
         if let Some(last_root) = workspace::session::restore_pending_root(data_base, None) {

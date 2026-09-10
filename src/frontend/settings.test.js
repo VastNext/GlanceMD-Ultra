@@ -764,6 +764,33 @@ test('终端特例控件：当前值不在扫描列表中时自动追加“当�
   assert.match(customCurrent.textContent, /当前值/);
 });
 
+test('终端特例控件：选择预设终端原子提交 terminalPath 与预设 terminalArgs', () => {
+  const h = load();
+  const msgs = [];
+  h.ctx.ipc = { postMessage: (m) => msgs.push(JSON.parse(m)) };
+  h.ctx.SettingsUI.open();
+  h.ctx.SettingsUI.receive('workspace:settings-global', { settings: GLOBAL_SETTINGS });
+  h.ctx.SettingsUI.receive('workspace:terminal-list', {
+    terminals: [
+      { id: 'git-bash', name: 'Git Bash', path: 'C:/Program Files/Git/git-bash.exe', args: ['--cd={dir}'] },
+    ],
+  });
+  const panel = h.els['settings-panel'];
+  panel.querySelector('#settings-categories').children[1].onclick(); // 文件
+  const termSelect = panel.querySelector('#setting-terminal-select');
+
+  termSelect.value = 'C:/Program Files/Git/git-bash.exe';
+  termSelect.onchange();
+
+  const setGlobalMsgs = msgs.filter((m) => m.command === 'workspace.settings.set-global');
+  assert.equal(setGlobalMsgs.length, 1, '应只发一次原子更新请求，不发两次相互覆盖的旧文档');
+  const lastMsg = setGlobalMsgs[0];
+  assert.equal(lastMsg.command, 'workspace.settings.set-global');
+  const parsed = JSON.parse(lastMsg.data);
+  assert.equal(parsed.files.terminalPath, 'C:/Program Files/Git/git-bash.exe');
+  assert.equal(parsed.files.terminalArgs, '--cd={dir}');
+});
+
 /* ── 窗口与命令行分类及 CLI Shim 交互测试 ── */
 
 test('窗口与命令行分类：渲染 reuseWindowForFolder 开关与默认未安装的 CLI 区块', () => {

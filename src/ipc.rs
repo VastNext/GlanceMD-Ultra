@@ -58,10 +58,13 @@ pub fn handle_ipc_message(
     let parsed: IpcMessage = match serde_json::from_str(msg) {
         Ok(m) => m,
         Err(e) => {
+            crate::log_error!("ipc", "IPC 解析失败: {e}, 消息体: {msg}");
             eprintln!("IPC parse error: {e}");
             return;
         }
     };
+
+    crate::log_info!("ipc", "收到前端上行 IPC 命令: '{}'", parsed.command);
 
     // 阶段 0 迁移：open_file / workspace.open 改经命令注册表分发。
     // "open_file" 分支逐行迁移至 commands::open_file，行为保持完全一致。
@@ -79,6 +82,7 @@ pub fn handle_ipc_message(
             state,
         };
         if let Err(e) = commands::dispatch(&id, &payload, &ctx) {
+            crate::log_error!("ipc", "命令注册表分发失败 [{}]: {e}", id);
             eprintln!("命令分发失败: {e}");
         }
         return;
@@ -250,6 +254,7 @@ fn save_reply(
 }
 
 pub(crate) fn send_to_js(webview: &WebView, event: &str, data: &serde_json::Value) {
+    crate::log_info!("ipc", "向前端下行事件: '{}'，数据: {}", event, data);
     let script = format!(
         "window.__fromRust({}, {})",
         serde_json::to_string(event).unwrap(),
