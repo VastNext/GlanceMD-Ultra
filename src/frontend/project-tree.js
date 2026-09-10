@@ -613,7 +613,7 @@
         });
       }
     }
-    if (els.tree && els.tree.focus) els.tree.focus();
+    if (!menuOpen && els.tree && els.tree.focus) els.tree.focus();
   }
 
   function bindEditorInput(input) {
@@ -641,7 +641,7 @@
     var input = makeEl('input');
     input.className = 'tree-rename-input';
     input.value = basename(rel);
-    input.setAttribute('aria-label', '重命名');
+    input.setAttribute('aria-label', t('tree.rename'));
     nm.style.display = 'none';
     row.appendChild(input);
     row.classList.add('st-editing');
@@ -655,11 +655,14 @@
     if (root === null) return;
     var row = rowByRel[dirRel];
     if (!row) return;
+    if (dirRel !== '' && !setHas(expanded, dirRel)) {
+      expandDir(dirRel);
+    }
     var input = makeEl('input');
     input.className = 'tree-create-input';
     input.value = '';
-    input.setAttribute('placeholder', type === 'file' ? '新建文件（无扩展名自动补 .md）' : '新建文件夹');
-    input.setAttribute('aria-label', type === 'file' ? '新建文件' : '新建文件夹');
+    input.setAttribute('placeholder', type === 'file' ? t('tree.createFilePlaceholder') : t('tree.createDir'));
+    input.setAttribute('aria-label', type === 'file' ? t('tree.createFile') : t('tree.createDir'));
     var holder = makeEl('div');
     holder.className = 'tree-row tree-create-row';
     holder.style.paddingLeft = 'calc(8px + var(--tree-indent) * ' + (depthOf(dirRel) + 1) + ')';
@@ -922,7 +925,9 @@
       menuItems().forEach(function(item) { item.classList.remove('is-active'); });
       if (menuEl.parentNode) menuEl.parentNode.removeChild(menuEl);
     }
-    if (els.tree && els.tree.focus) els.tree.focus();
+    if (!editing && els.tree && els.tree.focus) {
+      els.tree.focus();
+    }
   }
 
   function runMenuAction(action) {
