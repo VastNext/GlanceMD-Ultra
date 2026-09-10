@@ -165,15 +165,23 @@ pub(crate) fn spawn_detached(
     if let Some(dir) = current_dir {
         cmd.current_dir(dir);
     }
-    #[cfg(target_os = "windows")]
-    {
-        use std::os::windows::process::CommandExt;
-        // CREATE_NO_WINDOW：对 cmd.exe 这类控制台中转程序避免闪现黑窗；对 GUI 程序
-        // （explorer.exe / wt.exe）无副作用。阶段 3 行为接线时逐项实测确认。
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
+
+    match cmd.spawn() {
+        Ok(_) => Ok(()),
+        #[cfg(target_os = "windows")]
+        Err(e) if e.raw_os_error() == Some(740) => {
+            // Windows OS Error 740: ERROR_ELEVATION_REQUIRED
+            // 直接 CreateProcess 遇到需要提权或受 UAC 保护的程序时，回退到 Shell `cmd.exe /c start ""` 拉起
+            let mut shell_cmd = std::process::Command::new("cmd.exe");
+            shell_cmd.arg("/c").arg("start").arg("").arg(program);
+            shell_cmd.args(args);
+            if let Some(dir) = current_dir {
+                shell_cmd.current_dir(dir);
+            }
+            shell_cmd.spawn().map(|_| ()).map_err(PlatformError::Io)
+        }
+        Err(e) => Err(PlatformError::Io(e)),
     }
-    cmd.spawn().map(|_| ()).map_err(PlatformError::Io)
 }
 
 /// 依序尝试候选命令，第一个启动成功的生效；全部失败时返回最后一个错误。
