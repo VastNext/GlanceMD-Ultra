@@ -22,6 +22,10 @@
   var mutationObserver = null;
   var intersectionObserver = null;
 
+  function t(key, params) {
+    return window.I18n && typeof window.I18n.t === 'function' ? window.I18n.t(key, params) : key;
+  }
+
   /* ══════════ 提取与渲染 ══════════ */
 
   function largeFileAllowed() {
@@ -71,7 +75,7 @@
     if (!headings.length) {
       var empty = document.createElement('p');
       empty.className = 'panel-empty outline-empty';
-      empty.textContent = '暂无大纲';
+      empty.textContent = t('outline.empty');
       listEl.appendChild(empty);
       activeIndex = -1;
       return;
@@ -525,6 +529,13 @@
     watchPreview();
     rebuild(); // 首次构建（预览为空 → 空态）
     registerCommands();
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      window.addEventListener('i18n-changed', function() {
+        if (!headings.length) {
+          render();
+        }
+      });
+    }
   }
 
   window.Outline = {

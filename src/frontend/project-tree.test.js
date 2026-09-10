@@ -257,6 +257,9 @@ function loadTree({ rootPath = null, lsExpanded = null, withClipboard = true } =
   };
   context.window.window = context.window;
 
+  const i18nSource = fs.readFileSync(path.join(__dirname, 'i18n.js'), 'utf8');
+  vm.runInNewContext(i18nSource, context, { filename: 'i18n.js' });
+
   const source = fs.readFileSync(path.join(__dirname, 'project-tree.js'), 'utf8');
   vm.runInNewContext(source, context, { filename: 'project-tree.js' });
 

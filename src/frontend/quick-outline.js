@@ -13,6 +13,10 @@
 (function (root) {
   'use strict';
 
+  function t(key, params) {
+    return window.I18n && typeof window.I18n.t === 'function' ? window.I18n.t(key, params) : key;
+  }
+
   var state = {
     isOpen: false,
     headings: [],
@@ -98,28 +102,28 @@
     dialog.className = 'quick-outline-dialog';
     dialog.setAttribute('role', 'dialog');
     dialog.setAttribute('aria-modal', 'true');
-    dialog.setAttribute('aria-label', '大纲');
+    dialog.setAttribute('aria-label', t('quickoutline.title'));
     dialog.setAttribute('tabindex', '-1');
 
     dialog.innerHTML = [
       '<div class="quick-outline-header">',
       '  <div class="quick-outline-title-wrap">',
-      '    <h2 class="quick-outline-title">大纲</h2>',
-      '    <span id="quick-outline-count-badge" class="quick-outline-badge">0 个标题</span>',
+      '    <h2 class="quick-outline-title">' + escapeHtml(t('quickoutline.title')) + '</h2>',
+      '    <span id="quick-outline-count-badge" class="quick-outline-badge">' + escapeHtml(t('quickoutline.badgeCount', { n: 0 })) + '</span>',
       '  </div>',
-      '  <button id="quick-outline-btn-close" class="quick-outline-close-btn" aria-label="关闭">✕</button>',
+      '  <button id="quick-outline-btn-close" class="quick-outline-close-btn" aria-label="' + escapeHtml(t('quickoutline.closeAria')) + '">✕</button>',
       '</div>',
       '<div class="quick-outline-search-box">',
       '  <input id="quick-outline-search-input" class="quick-outline-input" type="text"',
       '    role="combobox" aria-autocomplete="list" aria-expanded="true"',
-      '    placeholder="按标题快速过滤 (↑↓ 导航, Enter 跳转)..." />',
+      '    placeholder="' + escapeHtml(t('quickoutline.placeholder')) + '" />',
       '</div>',
       '<ul id="quick-outline-list" class="quick-outline-list" role="listbox"></ul>',
       '<div class="quick-outline-footer">',
       '  <div class="quick-outline-hints">',
-      '    <span class="quick-outline-hint-item"><kbd>↑↓</kbd> 导航</span>',
-      '    <span class="quick-outline-hint-item"><kbd>Enter</kbd> 跳转</span>',
-      '    <span class="quick-outline-hint-item"><kbd>Esc</kbd> 关闭</span>',
+      '    <span class="quick-outline-hint-item"><kbd>↑↓</kbd> ' + escapeHtml(t('quickoutline.hintNav')) + '</span>',
+      '    <span class="quick-outline-hint-item"><kbd>Enter</kbd> ' + escapeHtml(t('quickoutline.hintJump')) + '</span>',
+      '    <span class="quick-outline-hint-item"><kbd>Esc</kbd> ' + escapeHtml(t('quickoutline.hintClose')) + '</span>',
       '  </div>',
       '</div>'
     ].join('');
@@ -224,13 +228,13 @@
     var dom = state.dom;
     if (!dom) return;
 
-    dom.badge.textContent = state.filtered.length + ' 个标题';
+    dom.badge.textContent = t('quickoutline.badgeCount', { n: state.filtered.length });
     dom.list.innerHTML = '';
 
     if (state.filtered.length === 0) {
       var emptyLi = document.createElement('li');
       emptyLi.className = 'quick-outline-empty';
-      emptyLi.textContent = state.headings.length === 0 ? '当前文档无标题' : '无匹配标题';
+      emptyLi.textContent = state.headings.length === 0 ? t('quickoutline.emptyDoc') : t('quickoutline.noMatches');
       dom.list.appendChild(emptyLi);
       return;
     }
@@ -254,7 +258,7 @@
 
       var lineSpan = document.createElement('span');
       lineSpan.className = 'quick-outline-line-hint';
-      lineSpan.textContent = '行 ' + (h.line + 1);
+      lineSpan.textContent = t('quickoutline.line', { n: h.line + 1 });
 
       li.appendChild(badge);
       li.appendChild(textSpan);
@@ -409,7 +413,7 @@
     }
   }
 
-  root.QuickOutline = {
+    root.QuickOutline = {
     open: open,
     close: close,
     toggle: toggle,
@@ -423,5 +427,14 @@
       };
     }
   };
+
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('i18n-changed', function() {
+      if (state.dom) {
+        state.dom.overlay.parentNode.removeChild(state.dom.overlay);
+        state.dom = null;
+      }
+    });
+  }
 
 })(typeof window !== 'undefined' ? window : globalThis);

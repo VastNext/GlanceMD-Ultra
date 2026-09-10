@@ -490,7 +490,8 @@ function updateWordCount() {
   }
   var text = ($.editor || document.getElementById('editor')).value;
   var words = text.trim() ? text.trim().split(/\s+/).length : 0;
-  countEl.textContent = words + ' word' + (words !== 1 ? 's' : '');
+  var key = words === 1 ? 'app.word' : 'app.words';
+  countEl.textContent = t(key, { n: words });
 }
 
 // Recent Files, Recent Projects & Welcome View
@@ -1970,5 +1971,6 @@ window.addEventListener('keybindings-changed', refreshShortcutTooltips);
 window.addEventListener('language-changed', refreshShortcutTooltips);
 window.addEventListener('i18n-changed', function() {
   updateWelcome();
+  updateWordCount();
   refreshShortcutTooltips();
 });

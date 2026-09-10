@@ -192,3 +192,19 @@ test('窗口与命令行分类及复用开关在英文模式下完整翻译', ()
   assert.match(h.ctx.I18n.t('settings.reuseWindowForFolder'), /Reuse an existing window/);
   assert.match(h.ctx.I18n.t('settings.reuseWindowForFolderDesc'), /Windows only/);
 });
+
+test('设置分类、设置项、枚举与快速大纲在中英双语下均全量翻译', () => {
+  const h = load();
+  // zh-CN
+  assert.equal(h.ctx.I18n.t('settings.cat.appearance'), '外观');
+  assert.equal(h.ctx.I18n.t('settings.meta.editor.fontSize'), '字号（px）');
+  assert.equal(h.ctx.I18n.t('settings.enum.theme.system'), '跟随系统');
+  assert.equal(h.ctx.I18n.t('quickoutline.title'), '大纲');
+
+  // en
+  h.ctx.I18n.setLanguage('en');
+  assert.equal(h.ctx.I18n.t('settings.cat.appearance'), 'Appearance');
+  assert.equal(h.ctx.I18n.t('settings.meta.editor.fontSize'), 'Font Size (px)');
+  assert.equal(h.ctx.I18n.t('settings.enum.theme.system'), 'System');
+  assert.equal(h.ctx.I18n.t('quickoutline.title'), 'Outline');
+});

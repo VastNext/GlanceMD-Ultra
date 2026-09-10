@@ -45,15 +45,22 @@ const SETTINGS_FIXTURE = {
 };
 
 async function installSettingsMock(page) {
-  await page.evaluate((settings) => {
+  await page.evaluate((initialSettings) => {
+    let currentSettings = JSON.parse(JSON.stringify(initialSettings));
     window.__ipcResponder = (raw) => {
       const message = JSON.parse(raw);
       if (message.command === 'workspace.settings.get-effective') {
-        window.__fromRust('workspace:settings-effective', { settings });
+        window.__fromRust('workspace:settings-effective', { settings: currentSettings });
       } else if (message.command === 'workspace.settings.get-global') {
-        window.__fromRust('workspace:settings-global', { settings });
+        window.__fromRust('workspace:settings-global', { settings: currentSettings });
       } else if (message.command === 'workspace.settings.load-project') {
         window.__fromRust('workspace:settings-project', { patch: {} });
+      } else if (message.command === 'workspace.settings.set-global') {
+        try {
+          const parsed = typeof message.data === 'string' ? JSON.parse(message.data) : message.data;
+          currentSettings = parsed;
+          window.__fromRust('workspace:settings-changed', {});
+        } catch (e) {}
       }
     };
   }, SETTINGS_FIXTURE);
@@ -470,4 +477,70 @@ test('Outline 左右侧拖动与停靠验收：right 拖左缘向左变宽、lef
   expect(await outlinePanel.boundingBox()).toBeNull();
   expect(await outlineResizer.boundingBox()).toBeNull();
   await expect(page.locator('#panel-outline .panel-expand-btn')).toBeHidden();
+});
+
+test('多语言切换专项：从设置切换为英文后全界面即时更新为英文，切回中文恢复', async ({ page }) => {
+  await installSettingsMock(page);
+  await page.click('#btn-settings');
+  const panel = page.locator('#settings-panel');
+  await expect(panel).toBeVisible();
+
+  // 1. 在设置中将语言切换为 English
+  const langSelect = panel.locator('[data-setting="language"]');
+  await expect(langSelect).toBeAttached();
+  // 查找 language 对应的自定义下拉组件
+  const langRow = panel.locator('.setting-row').filter({ hasText: /界面语言|Language/ });
+  const langTrigger = langRow.locator('.custom-select-trigger');
+  await langTrigger.click();
+  await page.locator('.custom-select-menu.open .custom-select-option[data-val="en"]').click();
+
+  // 2. 验证设置弹窗内部即时更新为英文
+  await expect(panel.locator('#settings-dialog-title')).toHaveText('Settings');
+  await expect(panel.locator('#current-category-badge')).toHaveText('Appearance');
+  await expect(panel.locator('#settings-reset-category')).toHaveText('Reset current category to defaults');
+  await expect(panel.locator('#settings-done')).toHaveText('Done');
+  await expect(panel.locator('#settings-categories button[data-category="appearance"]')).toContainText('Appearance');
+  await expect(panel.locator('#settings-categories button[data-category="files"]')).toContainText('Files');
+  await expect(panel.locator('#settings-categories button[data-category="editor"]')).toContainText('Editor');
+
+  // 3. 关闭设置弹窗，验证主界面各区域
+  await panel.locator('#settings-done').click();
+  await expect(panel).toBeHidden();
+
+  // 验证顶栏按钮 Tooltip / 描述（包含快捷键）
+  await expect(page.locator('#btn-new')).toHaveAttribute('title', /New/);
+  await expect(page.locator('#btn-open')).toHaveAttribute('title', /Open Folder/);
+  await expect(page.locator('#btn-open-file')).toHaveAttribute('title', /Open File/);
+  await expect(page.locator('#btn-settings')).toHaveAttribute('title', /Settings/);
+  await expect(page.locator('#btn-save')).toHaveAttribute('title', /Save/);
+  await expect(page.locator('#btn-split')).toHaveAttribute('title', /Split View/);
+  await expect(page.locator('#btn-toc')).toHaveAttribute('title', /Outline/);
+
+  // 验证欢迎页
+  await expect(page.locator('.welcome-subtitle')).toHaveText('Lightweight native Markdown workspace editor');
+  await expect(page.locator('#welcome-btn-new .welcome-btn-primary')).toHaveText('New File');
+  await expect(page.locator('#welcome-btn-open-file .welcome-btn-primary')).toHaveText('Open File');
+  await expect(page.locator('#welcome-btn-open-folder .welcome-btn-primary')).toHaveText('Open Folder');
+  await expect(page.locator('#welcome-tab-projects')).toHaveText('Recent Projects');
+  await expect(page.locator('#welcome-tab-files')).toHaveText('Recent Files');
+
+  // 验证侧栏资源管理器与大纲面板
+  await expect(page.locator('#panel-tree .panel-title')).toHaveText('Explorer');
+  await expect(page.locator('#panel-tree .panel-empty')).toHaveText('No project opened');
+  await expect(page.locator('#panel-outline .panel-title')).toHaveText('Outline');
+  await expect(page.locator('#panel-outline .panel-empty')).toHaveText('No outline');
+
+  // 4. 切回中文
+  await page.click('#btn-settings');
+  await expect(panel).toBeVisible();
+  const langRowEn = panel.locator('.setting-row').filter({ hasText: /Language/ });
+  const langTriggerEn = langRowEn.locator('.custom-select-trigger');
+  await langTriggerEn.click();
+  await page.locator('.custom-select-menu.open .custom-select-option[data-val="zh-CN"]').click();
+
+  await expect(panel.locator('#settings-dialog-title')).toHaveText('设置');
+  await expect(panel.locator('#current-category-badge')).toHaveText('外观');
+  await panel.locator('#settings-done').click();
+  await expect(page.locator('#panel-tree .panel-title')).toHaveText('资源管理器');
+  await expect(page.locator('#btn-new')).toHaveAttribute('title', /新建/);
 });

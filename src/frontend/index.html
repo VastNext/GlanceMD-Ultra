@@ -80,31 +80,31 @@
          左侧项目树面板 | 拖宽手柄 | 中央编辑列（既有 DOM 原样内移） | 拖宽手柄 | Outline 面板。
          面板折叠/拖宽/持久化由 layout.js（window.LayoutUI）负责；
          #project-tree-root 由阶段 1 的 project-tree.js 挂载树内容。 -->
-    <aside id="panel-tree" class="workspace-panel" data-panel="tree" aria-label="项目树">
+    <aside id="panel-tree" class="workspace-panel" data-panel="tree" aria-label="项目树" data-i18n-aria="tree.ariaTree">
       <div class="panel-head">
-        <span class="panel-title">资源管理器</span>
-        <button id="panel-tree-collapse" class="panel-btn" type="button" title="折叠面板" aria-label="折叠面板">
+        <span class="panel-title" data-i18n="tree.explorer">资源管理器</span>
+        <button id="panel-tree-collapse" class="panel-btn" type="button" title="折叠面板" aria-label="折叠面板" data-i18n-title="toolbar.collapsePanel" data-i18n-aria="toolbar.collapsePanel">
           <svg viewBox="0 0 16 16" fill="none"><path d="M10 3.5 5.5 8l4.5 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
       </div>
       <div class="panel-body" id="project-tree-root">
-        <p class="panel-empty">尚未打开项目</p>
+        <p class="panel-empty" data-i18n="tree.emptyState">尚未打开项目</p>
       </div>
-      <button id="panel-tree-expand" class="panel-expand-btn" type="button" title="展开面板" aria-label="展开项目树面板">资源管理器</button>
+      <button id="panel-tree-expand" class="panel-expand-btn" type="button" title="展开面板" aria-label="展开项目树面板" data-i18n="tree.explorer" data-i18n-title="toolbar.expandPanel" data-i18n-aria="toolbar.expandTreeAria">资源管理器</button>
     </aside>
 
-    <div class="panel-resizer" id="panel-tree-resizer" title="拖动调整宽度" aria-label="调整项目树面板宽度"></div>
+    <div class="panel-resizer" id="panel-tree-resizer" title="拖动调整宽度" aria-label="调整项目树面板宽度" data-i18n-title="toolbar.resizeWidth" data-i18n-aria="toolbar.resizeTreeAria"></div>
 
     <div id="editor-column">
       <section id="navigation-fallback" role="alert" aria-live="assertive" tabindex="-1" hidden>
         <div class="navigation-fallback-copy">
-          <strong>无法打开链接</strong>
+          <strong data-i18n="app.cannotOpenLink">无法打开链接</strong>
           <span id="navigation-fallback-target"></span>
         </div>
         <div class="navigation-fallback-actions">
-          <button id="navigation-fallback-back" type="button">返回文档</button>
-          <button id="navigation-fallback-retry" type="button">重试</button>
-          <button id="navigation-fallback-close" class="navigation-fallback-close" type="button" aria-label="关闭提示">&times;</button>
+          <button id="navigation-fallback-back" type="button" data-i18n="app.backToDoc">返回文档</button>
+          <button id="navigation-fallback-retry" type="button" data-i18n="app.retry">重试</button>
+          <button id="navigation-fallback-close" class="navigation-fallback-close" type="button" aria-label="关闭提示" data-i18n-aria="app.dismissNotice">&times;</button>
         </div>
       </section>
         <div id="welcome-view" class="welcome-view" style="display:none;">
@@ -209,19 +209,19 @@
       </div>
     </div>
 
-    <div class="panel-resizer" id="panel-outline-resizer" title="拖动调整宽度" aria-label="调整 Outline 面板宽度"></div>
+    <div class="panel-resizer" id="panel-outline-resizer" title="拖动调整宽度" aria-label="调整 Outline 面板宽度" data-i18n-title="toolbar.resizeWidth" data-i18n-aria="toolbar.resizeOutlineAria"></div>
 
-    <aside id="panel-outline" class="workspace-panel" data-panel="outline" aria-label="大纲">
+    <aside id="panel-outline" class="workspace-panel" data-panel="outline" aria-label="大纲" data-i18n-aria="outline.ariaPanel">
       <div class="panel-head">
-        <span class="panel-title">Outline</span>
-        <button id="panel-outline-collapse" class="panel-btn" type="button" title="折叠面板" aria-label="折叠面板">
+        <span class="panel-title" data-i18n="outline.title">Outline</span>
+        <button id="panel-outline-collapse" class="panel-btn" type="button" title="折叠面板" aria-label="折叠面板" data-i18n-title="toolbar.collapsePanel" data-i18n-aria="toolbar.collapsePanel">
           <svg viewBox="0 0 16 16" fill="none"><path d="M6 3.5 10.5 8 6 12.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
       </div>
       <div class="panel-body" id="outline-root">
-        <p class="panel-empty">暂无大纲</p>
+        <p class="panel-empty" data-i18n="outline.empty">暂无大纲</p>
       </div>
-      <button id="panel-outline-expand" class="panel-expand-btn" type="button" title="展开面板" aria-label="展开 Outline 面板">Outline</button>
+      <button id="panel-outline-expand" class="panel-expand-btn" type="button" title="展开面板" aria-label="展开 Outline 面板" data-i18n="outline.title" data-i18n-title="toolbar.expandPanel" data-i18n-aria="outline.expandAria">Outline</button>
     </aside>
   </div>
 

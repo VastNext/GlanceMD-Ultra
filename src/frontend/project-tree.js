@@ -1449,14 +1449,14 @@
     els.root.innerHTML = '';
     els.empty = makeEl('p');
     els.empty.className = 'panel-empty';
-    els.empty.textContent = '尚未打开项目';
+    els.empty.textContent = t('tree.emptyState');
     els.root.appendChild(els.empty);
 
     els.tree = makeEl('div');
     els.tree.className = 'tree';
     els.tree.setAttribute('tabindex', '0');
     els.tree.setAttribute('role', 'tree');
-    els.tree.setAttribute('aria-label', '项目树');
+    els.tree.setAttribute('aria-label', t('tree.ariaTree'));
     els.root.appendChild(els.tree);
 
     els.tree.addEventListener('click', onTreeClick);
@@ -1472,6 +1472,14 @@
         window.contextKeys.remove('projectTreeFocus');
       }
     });
+
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      window.addEventListener('i18n-changed', function() {
+        if (els.empty) els.empty.textContent = t('tree.emptyState');
+        if (els.tree) els.tree.setAttribute('aria-label', t('tree.ariaTree'));
+        if (els.headBtn) els.headBtn.setAttribute('title', t('tree.revealCurrent'));
+      });
+    }
 
     if (window.Workspace && typeof window.Workspace.on === 'function') {
       window.Workspace.on('workspace:opened', onOpened);

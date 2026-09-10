@@ -284,6 +284,8 @@ function loadHarness({ headings = [], withIntersection = false, seedPreview = tr
   }
 
   vm.createContext(context);
+  const I18N_SOURCE = fs.readFileSync(path.join(__dirname, 'i18n.js'), 'utf8');
+  vm.runInContext(I18N_SOURCE, context, { filename: 'i18n.js' });
   vm.runInContext(SOURCE, context, { filename: 'outline.js' });
 
   return {

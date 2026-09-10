@@ -33,30 +33,40 @@
       key: 'appearance',
       label: '外观',
       desc: '主题与界面配色',
+      labelKey: 'settings.cat.appearance',
+      descKey: 'settings.cat.appearanceDesc',
       icon: '<svg class="svg-icon nav-icon" viewBox="0 0 24 24"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg>'
     },
     {
       key: 'files',
       label: '文件',
       desc: '可见类型、隐藏文件与排除规则',
+      labelKey: 'settings.cat.files',
+      descKey: 'settings.cat.filesDesc',
       icon: '<svg class="svg-icon nav-icon" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>'
     },
     {
       key: 'watching',
       label: '监听',
       desc: '文件监听与自动保存行为',
+      labelKey: 'settings.cat.watching',
+      descKey: 'settings.cat.watchingDesc',
       icon: '<svg class="svg-icon nav-icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>'
     },
     {
       key: 'search',
       label: '搜索',
       desc: '搜索范围与结果数量上限',
+      labelKey: 'settings.cat.search',
+      descKey: 'settings.cat.searchDesc',
       icon: '<svg class="svg-icon nav-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>'
     },
     {
       key: 'editor',
       label: '编辑器',
       desc: '字号、缩进、换行与大文件阈值',
+      labelKey: 'settings.cat.editor',
+      descKey: 'settings.cat.editorDesc',
       icon: '<svg class="svg-icon nav-icon" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>'
     },
     {
@@ -79,48 +89,52 @@
       key: 'keybindings',
       label: '快捷键',
       desc: '查看并修改命令快捷键',
+      labelKey: 'settings.cat.keybindings',
+      descKey: 'settings.cat.keybindingsDesc',
       icon: '<svg class="svg-icon nav-icon" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="6" y1="8" x2="6.01" y2="8"></line><line x1="10" y1="8" x2="10.01" y2="8"></line><line x1="14" y1="8" x2="14.01" y2="8"></line><line x1="18" y1="8" x2="18.01" y2="8"></line><line x1="8" y1="12" x2="16" y2="12"></line><line x1="6" y1="16" x2="18" y2="16"></line></svg>'
     },
     {
       key: 'recovery',
       label: '恢复',
       desc: '未保存确认与崩溃恢复',
+      labelKey: 'settings.cat.recovery',
+      descKey: 'settings.cat.recoveryDesc',
       icon: '<svg class="svg-icon nav-icon" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>'
     }
   ];
 
   // 设置键元数据：key_path（类名.JSON 字段名，与序列化键一致）→ 中文标签 + 说明 + 约束。
   var META = {
-    'appearance.theme': { label: '主题', desc: '界面配色：深色、浅色或跟随系统' },
-    'appearance.language': { label: '界面语言', desc: '界面文案语言；切换后立即生效（个别面板重新打开后刷新）' },
-    'appearance.sidebarFontSize': { label: '侧栏字体大小（px）', desc: '资源管理器与大纲面板的基准字号（12–18）', min: 12, max: 18, step: 1 },
-    'appearance.outlineSide': { label: 'Outline 显示位置', desc: '大纲浮层显示在编辑区右侧或左侧，修改后立即生效' },
-    'files.visibleExts': { label: '可见扩展名', desc: '项目树中显示的文件类型，逗号分隔' },
-    'files.showHidden': { label: '显示隐藏文件', desc: '在项目树中显示点开头的隐藏文件' },
-    'files.exclude': { label: '浏览排除', desc: '项目树不展示的目录或路径段，逗号分隔' },
-    'files.watcherExclude': { label: '监听排除', desc: '文件监听忽略的目录或路径段，逗号分隔' },
-    'files.terminalPath': { label: '终端程序', desc: '在终端中打开项目或目录时调用的程序' },
-    'files.terminalArgs': { label: '终端参数', desc: '附加启动参数，支持 {dir} 作为目标目录占位符' },
-    'watching.enableWatcher': { label: '启用文件监听', desc: '监听文件变更；修改此设置后自动暂停或恢复监听' },
-    'watching.autoSave': { label: '自动保存', desc: '关闭、延时后自动保存，或失去焦点时保存' },
-    'watching.autoSaveDelayMs': { label: '自动保存延时（毫秒）', desc: '“延时后自动保存”模式的触发延时', min: 100, max: 60000, step: 100 },
-    'search.exclude': { label: '搜索排除', desc: '全文搜索跳过的目录或 glob，逗号分隔' },
-    'search.maxFileSizeMB': { label: '文件大小上限（MB）', desc: '超过该大小的文件不参与搜索', min: 1, max: 100, step: 1 },
-    'search.maxResults': { label: '结果数上限', desc: '单次搜索最多返回的结果数', min: 100, max: 10000, step: 100 },
-    'editor.fontSize': { label: '字号（px）', desc: '编辑区字体大小', min: 10, max: 36, step: 1 },
-    'editor.tabSize': { label: 'Tab 宽度', desc: '一个 Tab 对应的空格数', min: 1, max: 8, step: 1 },
-    'editor.wordWrap': { label: '自动换行', desc: '超出编辑区宽度时自动折行' },
-    'editor.lineNumbers': { label: '显示行号', desc: '编辑区左侧显示行号' },
-    'editor.largeFileMB': { label: '大文件阈值（MB）', desc: '超过该大小进入大文件模式', min: 1, max: 100, step: 1 },
+    'appearance.theme': { label: '主题', desc: '界面配色：深色、浅色或跟随系统', labelKey: 'settings.meta.appearance.theme', descKey: 'settings.meta.appearance.themeDesc' },
+    'appearance.language': { label: '界面语言', desc: '界面文案语言；切换后立即生效（个别面板重新打开后刷新）', labelKey: 'settings.meta.appearance.language', descKey: 'settings.meta.appearance.languageDesc' },
+    'appearance.sidebarFontSize': { label: '侧栏字体大小（px）', desc: '资源管理器与大纲面板的基准字号（12–18）', labelKey: 'settings.meta.appearance.sidebarFontSize', descKey: 'settings.meta.appearance.sidebarFontSizeDesc', min: 12, max: 18, step: 1 },
+    'appearance.outlineSide': { label: 'Outline 显示位置', desc: '大纲浮层显示在编辑区右侧或左侧，修改后立即生效', labelKey: 'settings.meta.appearance.outlineSide', descKey: 'settings.meta.appearance.outlineSideDesc' },
+    'files.visibleExts': { label: '可见扩展名', desc: '项目树中显示的文件类型，逗号分隔', labelKey: 'settings.meta.files.visibleExts', descKey: 'settings.meta.files.visibleExtsDesc' },
+    'files.showHidden': { label: '显示隐藏文件', desc: '在项目树中显示点开头的隐藏文件', labelKey: 'settings.meta.files.showHidden', descKey: 'settings.meta.files.showHiddenDesc' },
+    'files.exclude': { label: '浏览排除', desc: '项目树不展示的目录或路径段，逗号分隔', labelKey: 'settings.meta.files.exclude', descKey: 'settings.meta.files.excludeDesc' },
+    'files.watcherExclude': { label: '监听排除', desc: '文件监听忽略的目录或路径段，逗号分隔', labelKey: 'settings.meta.files.watcherExclude', descKey: 'settings.meta.files.watcherExcludeDesc' },
+    'files.terminalPath': { label: '终端程序', desc: '在终端中打开项目或目录时调用的程序', labelKey: 'settings.terminal', descKey: 'settings.terminalDesc' },
+    'files.terminalArgs': { label: '终端参数', desc: '附加启动参数，支持 {dir} 作为目标目录占位符', labelKey: 'settings.terminalArgs', descKey: 'settings.terminalArgsDesc' },
+    'watching.enableWatcher': { label: '启用文件监听', desc: '监听文件变更；修改此设置后自动暂停或恢复监听', labelKey: 'settings.meta.watching.enableWatcher', descKey: 'settings.meta.watching.enableWatcherDesc' },
+    'watching.autoSave': { label: '自动保存', desc: '关闭、延时后自动保存，或失去焦点时保存', labelKey: 'settings.meta.watching.autoSave', descKey: 'settings.meta.watching.autoSaveDesc' },
+    'watching.autoSaveDelayMs': { label: '自动保存延时（毫秒）', desc: '“延时后自动保存”模式的触发延时', labelKey: 'settings.meta.watching.autoSaveDelayMs', descKey: 'settings.meta.watching.autoSaveDelayMsDesc', min: 100, max: 60000, step: 100 },
+    'search.exclude': { label: '搜索排除', desc: '全文搜索跳过的目录或 glob，逗号分隔', labelKey: 'settings.meta.search.exclude', descKey: 'settings.meta.search.excludeDesc' },
+    'search.maxFileSizeMB': { label: '文件大小上限（MB）', desc: '超过该大小的文件不参与搜索', labelKey: 'settings.meta.search.maxFileSizeMB', descKey: 'settings.meta.search.maxFileSizeMBDesc', min: 1, max: 100, step: 1 },
+    'search.maxResults': { label: '结果数上限', desc: '单次搜索最多返回的结果数', labelKey: 'settings.meta.search.maxResults', descKey: 'settings.meta.search.maxResultsDesc', min: 100, max: 10000, step: 100 },
+    'editor.fontSize': { label: '字号（px）', desc: '编辑区字体大小', labelKey: 'settings.meta.editor.fontSize', descKey: 'settings.meta.editor.fontSizeDesc', min: 10, max: 36, step: 1 },
+    'editor.tabSize': { label: 'Tab 宽度', desc: '一个 Tab 对应的空格数', labelKey: 'settings.meta.editor.tabSize', descKey: 'settings.meta.editor.tabSizeDesc', min: 1, max: 8, step: 1 },
+    'editor.wordWrap': { label: '自动换行', desc: '超出编辑区宽度时自动折行', labelKey: 'settings.meta.editor.wordWrap', descKey: 'settings.meta.editor.wordWrapDesc' },
+    'editor.lineNumbers': { label: '显示行号', desc: '编辑区左侧显示行号', labelKey: 'settings.meta.editor.lineNumbers', descKey: 'settings.meta.editor.lineNumbersDesc' },
+    'editor.largeFileMB': { label: '大文件阈值（MB）', desc: '超过该大小进入大文件模式', labelKey: 'settings.meta.editor.largeFileMB', descKey: 'settings.meta.editor.largeFileMBDesc', min: 1, max: 100, step: 1 },
     'window.reuseWindowForFolder': {
       label: '命令行打开目录时复用已有窗口',
       desc: '关闭（默认）时每次打开新窗口；开启后切换已有窗口工作区',
       labelKey: 'settings.reuseWindowForFolder',
       descKey: 'settings.reuseWindowForFolderDesc'
     },
-    'recovery.confirmCloseDirty': { label: '关闭未保存确认', desc: '关闭有未保存修改的标签时弹出确认' },
-    'recovery.crashRecovery': { label: '崩溃恢复', desc: '定期把编辑内容写入恢复区' },
-    'recovery.createProjectSettings': { label: '自动创建项目设置', desc: '打开工作区时自动创建 .glancemd/settings.json' },
+    'recovery.confirmCloseDirty': { label: '关闭未保存确认', desc: '关闭有未保存修改的标签时弹出确认', labelKey: 'settings.meta.recovery.confirmCloseDirty', descKey: 'settings.meta.recovery.confirmCloseDirtyDesc' },
+    'recovery.crashRecovery': { label: '崩溃恢复', desc: '定期把编辑内容写入恢复区', labelKey: 'settings.meta.recovery.crashRecovery', descKey: 'settings.meta.recovery.crashRecoveryDesc' },
+    'recovery.createProjectSettings': { label: '自动创建项目设置', desc: '打开工作区时自动创建 .glancemd/settings.json', labelKey: 'settings.meta.recovery.createProjectSettings', descKey: 'settings.meta.recovery.createProjectSettingsDesc' },
     'http.proxySupport': {
       label: '代理模式',
       desc: '跟随系统代理、显式指定代理，或直连禁用',
@@ -164,27 +178,27 @@
   // 枚举键：取值清单（渲染 <select>；当前值不在清单内时补一项兜底）。
   var ENUMS = {
     'appearance.theme': [
-      { value: 'dark', label: '深色' },
-      { value: 'light', label: '浅色' },
-      { value: 'system', label: '跟随系统' }
+      { value: 'dark', label: '深色', labelKey: 'settings.enum.theme.dark' },
+      { value: 'light', label: '浅色', labelKey: 'settings.enum.theme.light' },
+      { value: 'system', label: '跟随系统', labelKey: 'settings.enum.theme.system' }
     ],
     'appearance.language': [
       { value: 'zh-CN', label: '简体中文' },
       { value: 'en', label: 'English' }
     ],
     'appearance.outlineSide': [
-      { value: 'right', label: '右侧' },
-      { value: 'left', label: '左侧' }
+      { value: 'right', label: '右侧', labelKey: 'settings.enum.outlineSide.right' },
+      { value: 'left', label: '左侧', labelKey: 'settings.enum.outlineSide.left' }
     ],
     'watching.autoSave': [
-      { value: 'off', label: '关闭' },
-      { value: 'afterDelay', label: '延时后保存' },
-      { value: 'onFocusLost', label: '失焦时保存' }
+      { value: 'off', label: '关闭', labelKey: 'settings.enum.autoSave.off' },
+      { value: 'afterDelay', label: '延时后保存', labelKey: 'settings.enum.autoSave.afterDelay' },
+      { value: 'onFocusLost', label: '失焦时保存', labelKey: 'settings.enum.autoSave.onFocusLost' }
     ],
     'http.proxySupport': [
-      { value: 'off', label: '直连（禁用代理）' },
-      { value: 'system', label: '跟随系统代理' },
-      { value: 'override', label: '使用下方指定代理' }
+      { value: 'off', label: '直连（禁用代理）', labelKey: 'settings.enum.proxySupport.off' },
+      { value: 'system', label: '跟随系统代理', labelKey: 'settings.enum.proxySupport.system' },
+      { value: 'override', label: '使用下方指定代理', labelKey: 'settings.enum.proxySupport.override' }
     ]
   };
 
@@ -243,28 +257,28 @@
       + '<div class="dialog-header-title">'
       + '<svg class="svg-icon title-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>'
       + '<strong id="settings-dialog-title">' + t('settings.title') + '</strong>'
-      + '<span class="badge" id="current-category-badge">' + esc(categoryOf(state.category).label) + '</span>'
+      + '<span class="badge" id="current-category-badge">' + esc(categoryLabel(categoryOf(state.category))) + '</span>'
       + '</div>'
       + '<div class="dialog-header-actions">'
       + '<div class="search-input-box">'
       + '<svg class="svg-icon" width="13" height="13" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>'
-      + '<input id="settings-filter" placeholder="' + t('settings.searchPlaceholder') + '（支持中文标签或键名）" aria-label="' + t('settings.searchPlaceholder') + '">'
+      + '<input id="settings-filter" placeholder="' + t('settings.searchPlaceholder') + '" aria-label="' + t('settings.searchPlaceholder') + '">'
       + '</div>'
-      + '<button id="settings-close" class="modal-close-btn" title="' + t('settings.close') + '（Esc）" aria-label="' + t('settings.close') + '"><svg class="svg-icon" width="16" height="16" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>'
+      + '<button id="settings-close" class="modal-close-btn" title="' + t('settings.close') + ' (Escape)" aria-label="' + t('settings.close') + '"><svg class="svg-icon" width="16" height="16" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>'
       + '</div>'
       + '</header>'
       + '<div class="settings-layout dialog-body">'
-      + '<nav id="settings-categories" class="dialog-nav" aria-label="设置分类"></nav>'
+      + '<nav id="settings-categories" class="dialog-nav" aria-label="' + t('settings.title') + '"></nav>'
       + '<main id="settings-body" class="dialog-content"></main>'
       + '</div>'
       + '<footer class="dialog-footer">'
-      + '<button id="settings-json" class="btn" title="在内置编辑器中直接查看与编辑 JSON 配置文件"><svg class="svg-icon" width="13" height="13" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><polyline points="10 13 8 15 10 17"></polyline><polyline points="14 13 16 15 14 17"></polyline></svg> ' + t('settings.openJson') + '</button>'
+      + '<button id="settings-json" class="btn" title="' + t('settings.openJsonTitle') + '"><svg class="svg-icon" width="13" height="13" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><polyline points="10 13 8 15 10 17"></polyline><polyline points="14 13 16 15 14 17"></polyline></svg> ' + t('settings.openJson') + '</button>'
       + '<div class="dialog-footer-actions">'
-      + '<button type="button" class="btn" id="settings-reset-category">重置当前分类为默认</button>'
-      + '<button type="button" class="btn btn-primary" id="settings-done">完成</button>'
+      + '<button type="button" class="btn" id="settings-reset-category">' + t('settings.resetCategory') + '</button>'
+      + '<button type="button" class="btn btn-primary" id="settings-done">' + t('settings.done') + '</button>'
       + '</div>'
       + '</footer>'
-      + '<div id="settings-resize-handle" class="dialog-resize-grip settings-resize-handle" title="调整大小"></div>'
+      + '<div id="settings-resize-handle" class="dialog-resize-grip settings-resize-handle" title="Resize"></div>'
       + '</div>';
     document.body.appendChild(p);
 
@@ -287,7 +301,6 @@
     wireResize(p);
     wireFocusTrap(p);
     renderCategories();
-    render();
     return p;
   }
 
@@ -469,16 +482,17 @@
       };
     });
     var badge = p.querySelector('#current-category-badge');
-    if (badge) badge.textContent = categoryOf(state.category).label;
+    if (badge) badge.textContent = categoryLabel(categoryOf(state.category));
   }
 
   // ── 控件渲染：按当前值类型选择控件 ──
   function optionsHTML(keyPath, v) {
     var opts = ENUMS[keyPath].slice();
     var hasCurrent = opts.some(function (o) { return o.value === v; });
-    if (!hasCurrent) opts.unshift({ value: v, label: String(v) + '（当前值）' });
+    if (!hasCurrent) opts.unshift({ value: v, label: String(v) + t('settings.currentValue') });
     return opts.map(function (o) {
-      return '<option value="' + esc(o.value) + '"' + (o.value === v ? ' selected' : '') + '>' + esc(o.label) + '</option>';
+      var optLabel = o.labelKey ? t(o.labelKey) : (o.label || o.value);
+      return '<option value="' + esc(o.value) + '"' + (o.value === v ? ' selected' : '') + '>' + esc(optLabel) + '</option>';
     }).join('');
   }
 
@@ -923,11 +937,11 @@
     var filter = p.querySelector('#settings-filter');
     var q = ((filter && filter.value) || '').trim().toLowerCase();
     var badge = p.querySelector('#current-category-badge');
-    if (badge) badge.textContent = categoryOf(state.category).label;
+    if (badge) badge.textContent = categoryLabel(categoryOf(state.category));
 
     if (!q) return renderCategory(state.category);
 
-    var html = warningsHTML() + '<h2>搜索：“' + esc(q) + '”</h2>';
+    var html = warningsHTML() + '<h2>' + esc(t('settings.searchHeading', { q: q })) + '</h2>';
     var total = 0;
     CATEGORIES.forEach(function (c) {
       if (c.key === 'keybindings') return;
@@ -990,7 +1004,7 @@
     if (hasProjectOverride) {
       html += '<div class="settings-warning-banner">'
         + '<svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'
-        + '<span>此分类下有设置项已被当前项目配置 (.glancemd/settings.json) 覆盖</span>'
+        + '<span>' + esc(t('settings.projectOverriddenBanner')) + '</span>'
         + '</div>';
     }
 
@@ -1318,6 +1332,8 @@
     var p = ensure();
     p.hidden = false;
     restoreGeometry(p);
+    renderCategories();
+    render();
     sendReads();
     if (!state.terminalsScanned) {
       sendScanTerminal();
@@ -1407,7 +1423,29 @@
 
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
     window.addEventListener('i18n-changed', function () {
-      if (state.open) {
+      var p = document.getElementById('settings-panel');
+      if (p) {
+        var titleEl = p.querySelector('#settings-dialog-title');
+        if (titleEl) titleEl.textContent = t('settings.title');
+        var filterEl = p.querySelector('#settings-filter');
+        if (filterEl) {
+          filterEl.placeholder = t('settings.searchPlaceholder');
+          filterEl.setAttribute('aria-label', t('settings.searchPlaceholder'));
+        }
+        var closeEl = p.querySelector('#settings-close');
+        if (closeEl) {
+          closeEl.title = t('settings.close') + ' (Escape)';
+          closeEl.setAttribute('aria-label', t('settings.close'));
+        }
+        var jsonEl = p.querySelector('#settings-json');
+        if (jsonEl) {
+          jsonEl.title = t('settings.openJsonTitle');
+          jsonEl.innerHTML = '<svg class="svg-icon" width="13" height="13" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><polyline points="10 13 8 15 10 17"></polyline><polyline points="14 13 16 15 14 17"></polyline></svg> ' + t('settings.openJson');
+        }
+        var resetEl = p.querySelector('#settings-reset-category');
+        if (resetEl) resetEl.textContent = t('settings.resetCategory');
+        var doneEl = p.querySelector('#settings-done');
+        if (doneEl) doneEl.textContent = t('settings.done');
         renderCategories();
         render();
       }
