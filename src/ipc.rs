@@ -41,7 +41,8 @@ fn registry_command_id(wire_command: &str) -> Option<String> {
             || wire_command.starts_with("quickopen.")
             || wire_command.starts_with("palette.")
             || wire_command.starts_with("settings.")
-            || wire_command.starts_with("net.") =>
+            || wire_command.starts_with("net.")
+            || wire_command.starts_with("translate.") =>
         {
             Some(wire_command.to_string())
         }
@@ -286,6 +287,14 @@ mod tests {
         assert_eq!(
             registry_command_id("net.testProxy"),
             Some("net.testProxy".to_string())
+        );
+        assert_eq!(
+            registry_command_id("translate.request"),
+            Some("translate.request".to_string())
+        );
+        assert_eq!(
+            registry_command_id("translate.test"),
+            Some("translate.test".to_string())
         );
         assert_eq!(
             registry_command_id("open_file"),
