@@ -144,13 +144,9 @@ pub fn normalize_language(language: &str) -> String {
     let normalized = language.trim().replace('_', "-");
     let lower = normalized.to_lowercase();
     if lower.starts_with("zh") {
-        let hant = [ "-tw", "-hk", "-mo", "-hant" ]
+        let hant = ["tw", "hk", "mo", "hant"]
             .iter()
-            .any(|suffix| {
-                lower == suffix.trim_start_matches('-')
-                    || lower.starts_with(&format!("{suffix}-"))
-                    || lower.starts_with(suffix)
-            });
+            .any(|code| lower == format!("zh-{code}") || lower.starts_with(&format!("zh-{code}-")));
         return if hant { "zh-Hant".to_string() } else { "zh-Hans".to_string() };
     }
     lower.split('-').next().unwrap_or("en").to_string()
@@ -291,18 +287,19 @@ pub fn with_retry<T, F>(mut op: F) -> Result<T, String>
 where
     F: FnMut() -> Result<T, TranslateError>,
 {
-    with_retry_impl(MAX_RETRIES, &mut op, &|ms| std::thread::sleep(std::time::Duration::from_millis(ms)))
+    let mut sleep_fn = |ms: u64| std::thread::sleep(std::time::Duration::from_millis(ms));
+    with_retry_impl(MAX_RETRIES, &mut op, &mut sleep_fn)
 }
 
 /// 探针测试用：显式注入重试次数与 sleep（不真实等待）。
 pub fn with_retry_impl<T, F, S>(
     retries: u32,
     op: &mut F,
-    sleep: &S,
+    sleep: &mut S,
 ) -> Result<T, String>
 where
     F: FnMut() -> Result<T, TranslateError>,
-    S: Fn(u64),
+    S: FnMut(u64),
 {
     let mut last: Option<TranslateError> = None;
     for attempt in 0..=retries {
@@ -448,13 +445,24 @@ pub fn translate_google_once(
     target_language: &str,
     batch: &[TranslationSegment],
 ) -> Result<Vec<TranslationResult>, TranslateError> {
+    translate_google_at(agent, GOOGLE_ENDPOINT, source_language, target_language, batch)
+}
+
+/// Google 单批翻译（端点可注入，探针测试用 mock 服务）。
+pub fn translate_google_at(
+    agent: &ureq::Agent,
+    endpoint: &str,
+    source_language: &str,
+    target_language: &str,
+    batch: &[TranslationSegment],
+) -> Result<Vec<TranslationResult>, TranslateError> {
     let sl = if source_language == "auto" {
         "auto".to_string()
     } else {
         map_google_language(normalize_language(source_language).as_str())
     };
     let tl = map_google_language(target_language);
-    let url = format!("{GOOGLE_ENDPOINT}?client=gtx&dt=t&sl={sl}&tl={tl}");
+    let url = format!("{endpoint}?client=gtx&dt=t&sl={sl}&tl={tl}");
     let body: String = batch
         .iter()
         .map(|segment| format!("q={}", form_urlencode(&segment.text)))
@@ -514,6 +522,17 @@ pub fn translate_bing_once(
     target_language: &str,
     batch: &[TranslationSegment],
 ) -> Result<Vec<TranslationResult>, TranslateError> {
+    translate_bing_at(agent, BING_ENDPOINT, source_language, target_language, batch)
+}
+
+/// Bing 单批翻译（端点可注入，探针测试用 mock 服务）。
+pub fn translate_bing_at(
+    agent: &ureq::Agent,
+    endpoint: &str,
+    source_language: &str,
+    target_language: &str,
+    batch: &[TranslationSegment],
+) -> Result<Vec<TranslationResult>, TranslateError> {
     let mut params = format!(
         "to={}&isEnterpriseClient=false",
         form_urlencode(&map_bing_language(target_language))
@@ -524,7 +543,7 @@ pub fn translate_bing_once(
             form_urlencode(&map_bing_language(normalize_language(source_language).as_str()))
         ));
     }
-    let url = format!("{BING_ENDPOINT}?{params}");
+    let url = format!("{endpoint}?{params}");
     let texts: Vec<&str> = batch.iter().map(|segment| segment.text.as_str()).collect();
     let body = serde_json::to_string(&texts)
         .map_err(|_| TranslateError::new("Bing 翻译请求体序列化失败"))?;
@@ -584,7 +603,7 @@ fn create_translation_messages(
 ///
 /// 对齐插件 `parseTranslationResponse`：JSON 结构、逐段 id/text 类型、
 /// 数量一致、无未知 id。
-fn parse_translation_response(
+pub fn parse_translation_response(
     content: &str,
     expected: &[TranslationSegment],
 ) -> Result<Vec<TranslationResult>, TranslateError> {
@@ -632,7 +651,7 @@ fn is_response_format_unsupported(body: &str) -> bool {
 /// 规范化 base_url：去尾部斜杠；对 OpenAI 兼容端点补 /chat/completions。
 ///
 /// 用户可填 `https://api.openai.com/v1` 或 `https://api.openai.com/v1/chat/completions`。
-fn build_chat_completions_url(base_url: &str) -> String {
+pub fn build_chat_completions_url(base_url: &str) -> String {
     let trimmed = base_url.trim().trim_end_matches('/');
     if trimmed.ends_with("/chat/completions") {
         trimmed.to_string()
