@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">GlanceMD Ultra 图标概念探索</title>
+  <desc id="desc">三个全新图标方向：G 形视口、工作区树形符号、折叠页面与 U。</desc>
+  <defs>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9b5cff"/>
+      <stop offset="1" stop-color="#ed3f9c"/>
+    </linearGradient>
+    <linearGradient id="accentSoft" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#c18aff"/>
+      <stop offset="1" stop-color="#ff75bd"/>
+    </linearGradient>
+    <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#272044" flood-opacity=".13"/>
+    </filter>
+    <filter id="iconShadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="14" stdDeviation="12" flood-color="#0b0b14" flood-opacity=".28"/>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="1000" fill="#f8f7fc"/>
+  <text x="800" y="78" fill="#171827" font-family="Segoe UI, Arial, sans-serif" font-size="40" font-weight="700" text-anchor="middle">GlanceMD Ultra · Icon Explorations</text>
+  <text x="800" y="116" fill="#77788a" font-family="Segoe UI, Arial, sans-serif" font-size="18" text-anchor="middle">三个全新方向：品牌视口、工作区结构、Markdown 文档</text>
+
+  <g stroke="#deddea" stroke-width="1">
+    <path d="M54 164H1546V900H54Z"/>
+    <path d="M552 164V900M1048 164V900"/>
+  </g>
+
+  <!-- A：G 形视口 -->
+  <g transform="translate(84 196)">
+    <text x="232" y="0" fill="#171827" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">A · G 形视口</text>
+    <text x="232" y="34" fill="#77788a" font-family="Segoe UI, Arial, sans-serif" font-size="15" text-anchor="middle">Glance / 浏览 / 窗口</text>
+    <rect x="18" y="76" width="428" height="428" rx="94" fill="#161722" filter="url(#iconShadow)"/>
+    <path d="M354 182H218c-61 0-111 50-111 111v12c0 61 50 111 111 111h102c42 0 76-34 76-76v-38h-112" fill="none" stroke="url(#accent)" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/>
+    <g stroke="#f6d9ff" stroke-width="15" stroke-linecap="round">
+      <path d="M184 272h105"/>
+      <path d="M184 314h78"/>
+      <path d="M184 356h92"/>
+    </g>
+    <path d="M344 272v48" stroke="#ff7fc1" stroke-width="12" stroke-linecap="round"/>
+    <text x="232" y="554" fill="#171827" font-family="Segoe UI, Arial, sans-serif" font-size="17" text-anchor="middle">粗 G + Markdown 横线 + 短光标</text>
+  </g>
+
+  <!-- B：工作区树形符号 -->
+  <g transform="translate(582 196)">
+    <text x="232" y="0" fill="#171827" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">B · 工作区树形</text>
+    <text x="232" y="34" fill="#77788a" font-family="Segoe UI, Arial, sans-serif" font-size="15" text-anchor="middle">项目 / 文件 / 光标</text>
+    <rect x="18" y="76" width="428" height="428" rx="94" fill="#161722" filter="url(#iconShadow)"/>
+    <path d="M144 171v260M144 216h74M144 302h74M144 388h74" stroke="url(#accentSoft)" stroke-width="24" stroke-linecap="round"/>
+    <g fill="url(#accent)">
+      <path d="M218 168h116l42 42v57H218c-22 0-40-18-40-40v-19c0-22 18-40 40-40Z"/>
+      <path d="M218 254h116l42 42v57H218c-22 0-40-18-40-40v-19c0-22 18-40 40-40Z"/>
+      <path d="M218 340h116l42 42v57H218c-22 0-40-18-40-40v-19c0-22 18-40 40-40Z"/>
+    </g>
+    <g fill="#161722">
+      <path d="M334 168v42h42Z"/>
+      <path d="M334 254v42h42Z"/>
+      <path d="M334 340v42h42Z"/>
+    </g>
+    <path d="M393 246v120M378 246h30M378 366h30" stroke="#ff3fa5" stroke-width="14" stroke-linecap="round"/>
+    <text x="232" y="554" fill="#171827" font-family="Segoe UI, Arial, sans-serif" font-size="17" text-anchor="middle">主干 + 三个节点 + 隐藏光标</text>
+  </g>
+
+  <!-- C：折叠页面 + U -->
+  <g transform="translate(1080 196)">
+    <text x="232" y="0" fill="#171827" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">C · 折叠页面 + U</text>
+    <text x="232" y="34" fill="#77788a" font-family="Segoe UI, Arial, sans-serif" font-size="15" text-anchor="middle">Markdown / 轻量 / Ultra</text>
+    <rect x="18" y="76" width="428" height="428" rx="94" fill="#161722" filter="url(#iconShadow)"/>
+    <path d="M128 155c0-22 18-40 40-40h148l58 58v250c0 22-18 40-40 40H168c-22 0-40-18-40-40Z" fill="url(#accent)"/>
+    <path d="M316 115v58c0 22 18 40 40 40h58Z" fill="#f5eaff"/>
+    <g stroke="#161722" stroke-width="16" stroke-linecap="round">
+      <path d="M183 242h155"/>
+      <path d="M183 291h155"/>
+    </g>
+    <path d="M215 422v-39c0-31 25-56 56-56s56 25 56 56v39" fill="#161722"/>
+    <text x="232" y="554" fill="#171827" font-family="Segoe UI, Arial, sans-serif" font-size="17" text-anchor="middle">厚页面 + 前进折角 + U 负形</text>
+  </g>
+
+  <text x="800" y="956" fill="#9293a3" font-family="Segoe UI, Arial, sans-serif" font-size="16" text-anchor="middle">Concept sheet · 仅用于方向选择，不替换正式应用图标</text>
+</svg>
