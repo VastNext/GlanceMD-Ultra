@@ -423,6 +423,13 @@
 
   registerCommands();
 
+  // 语言切换：面板打开时重渲染（render 会按当前 mode 刷新占位符与空态文案）
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('i18n-changed', function () {
+      if (state.open) render();
+    });
+  }
+
   window.QuickOpen = {
     open: open,
     close: close,

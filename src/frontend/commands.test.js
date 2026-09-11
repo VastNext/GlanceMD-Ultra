@@ -192,3 +192,37 @@ test('按钮不存在时优雅跳过且命令表仍可用', () => {
   assert.doesNotThrow(() => commands.run('file.open'));
   assert.equal(messages.length, 1);
 });
+
+// i18n 集成：Commands.get 的 label 经 I18n.commandLabel 按活动语言动态解析
+//（命令面板 Ctrl+3 与快捷键助手 Ctrl+Shift+L 的命令名都走这条路径）
+test('Commands.get 的 label 随界面语言切换（i18n command.* 集中翻译表）', () => {
+  const context = {
+    window: { ipc: { postMessage() {} } },
+    document: { getElementById: () => null },
+  };
+  vm.runInNewContext(fs.readFileSync(__dirname + '/i18n.js', 'utf8'), context);
+  vm.runInNewContext(fs.readFileSync(__dirname + '/commands.js', 'utf8'), context);
+  const i18n = context.window.I18n;
+  const commands = context.window.Commands;
+
+  // 默认 zh-CN：字典值与注册 label 一致
+  assert.equal(commands.get('file.open').label, '打开文件…');
+  assert.equal(commands.get('settings.keybindings').label, '快捷键设置');
+
+  // 切英文：字典收录的命令跟随活动语言
+  assert.equal(i18n.setLanguage('en'), true);
+  assert.equal(commands.get('file.open').label, 'Open File…');
+  assert.equal(commands.get('settings.keybindings').label, 'Keyboard Shortcuts');
+  assert.equal(commands.get('editor.focus').label, 'Focus Editor');
+
+  // 切回中文
+  assert.equal(i18n.setLanguage('zh-CN'), true);
+  assert.equal(commands.get('file.open').label, '打开文件…');
+
+  // 未收录命令回退注册 label；get 返回副本，不污染注册表
+  commands.register('test.unlisted', { label: '元数据命令', run() {} });
+  assert.equal(commands.get('test.unlisted').label, '元数据命令');
+  const entry = commands.get('test.unlisted');
+  entry.label = '污染';
+  assert.equal(commands.get('test.unlisted').label, '元数据命令');
+});

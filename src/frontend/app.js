@@ -1662,8 +1662,8 @@ function requestCloseWindow() {
       window.ConfirmDialog.show({
         title: t('app.unsavedCloseTitle') || '未保存的修改',
         message: t('app.unsavedClose') || '有未保存的修改，确定关闭窗口吗？',
-        confirmText: '放弃并关闭',
-        cancelText: '取消',
+        confirmText: t('app.confirmDiscardClose'),
+        cancelText: t('app.cancel'),
         danger: true
       }).then(function(confirmed) {
         if (confirmed) sendToRust('window_close');

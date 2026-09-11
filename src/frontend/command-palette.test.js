@@ -104,9 +104,17 @@ function load(options = {}) {
     console
   };
   c.window = c;
+  // window 级事件透传到 document stub，供 i18n-changed 联动测试使用
+  c.addEventListener = (type, fn) => doc.addEventListener(type, fn);
+  c.removeEventListener = (type, fn) => doc.removeEventListener(type, fn);
+  c.dispatchEvent = (e) => doc.dispatchEvent(e);
 
   if (options.useOverlayHelper) {
     vm.runInNewContext(fs.readFileSync('src/frontend/overlay-helper.js', 'utf8'), c);
+  }
+
+  if (options.withI18n) {
+    vm.runInNewContext(fs.readFileSync('src/frontend/i18n.js', 'utf8'), c);
   }
 
   const commandsMap = new Map([
@@ -188,4 +196,21 @@ test('palette navigation adjusts selected and invokes scrollIntoView', () => {
 
   c.CommandPalette.selectPrevious();
   assert.equal(c.CommandPalette.getState().selected, 0);
+});
+
+// i18n 集成：占位符在面板打开与语言切换时都随活动语言刷新
+test('palette placeholder follows active UI language', () => {
+  const { c, doc } = load({ useOverlayHelper: true, withI18n: true });
+  c.CommandPalette.open();
+  const paletteEl = doc.getElementById('command-palette');
+  assert.equal(paletteEl.input.placeholder, '输入命令');
+
+  // 面板保持打开时切语言：i18n-changed 监听即时刷新占位符
+  c.I18n.setLanguage('en');
+  assert.equal(paletteEl.input.placeholder, 'Type a command');
+
+  // 关闭重开仍为新语言
+  c.CommandPalette.close();
+  c.CommandPalette.open();
+  assert.equal(paletteEl.input.placeholder, 'Type a command');
 });

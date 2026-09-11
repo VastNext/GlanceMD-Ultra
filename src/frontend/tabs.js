@@ -134,8 +134,8 @@ var TabManager = (function() {
         window.ConfirmDialog.show({
           title: t('app.unsavedCloseTitle') || '未保存的修改',
           message: t('tabs.closeConfirm', { name: tab.filename }),
-          confirmText: '放弃修改并关闭',
-          cancelText: '取消',
+          confirmText: t('app.confirmDiscardClose'),
+          cancelText: t('app.cancel'),
           danger: true
         }).then(function(confirmed) {
           if (confirmed) executeCloseTab(id);
@@ -193,8 +193,8 @@ var TabManager = (function() {
         window.ConfirmDialog.show({
           title: t('app.unsavedCloseTitle') || '未保存的修改',
           message: t('tabs.closeBatchConfirm', { n: dirtyCount }),
-          confirmText: '放弃修改并关闭',
-          cancelText: '取消',
+          confirmText: t('app.confirmDiscardClose'),
+          cancelText: t('app.cancel'),
           danger: true
         }).then(function(confirmed) {
           if (confirmed) executeCloseTabs(ids);

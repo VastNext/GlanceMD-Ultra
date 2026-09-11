@@ -13,6 +13,13 @@
 (function (root) {
   'use strict';
 
+  function t(key, params) {
+    if (window.I18n && typeof window.I18n.t === 'function') {
+      return window.I18n.t(key, params);
+    }
+    return key;
+  }
+
   var state = {
     isOpen: false,
     dom: null,
@@ -111,10 +118,13 @@
     state.previousActiveElement = document.activeElement;
     var dom = ensureDom();
 
-    dom.title.textContent = options.title || '未保存的修改';
-    dom.message.textContent = options.message || '有未保存的修改，确定关闭吗？';
-    dom.btnConfirm.textContent = options.confirmText || '放弃并关闭';
-    dom.btnCancel.textContent = options.cancelText || '取消';
+    // fallback 走 I18n：调用方未传文案时也随界面语言；DOM 首建 innerHTML 的
+    // 中文默认值同样会被这里覆盖
+    dom.title.textContent = options.title || t('app.unsavedCloseTitle');
+    dom.message.textContent = options.message || t('app.unsavedClose');
+    dom.btnConfirm.textContent = options.confirmText || t('app.confirmDiscardClose');
+    dom.btnCancel.textContent = options.cancelText || t('app.cancel');
+    dom.btnClose.setAttribute('aria-label', t('app.close'));
 
     if (options.danger === false) {
       dom.btnConfirm.classList.remove('btn-danger');

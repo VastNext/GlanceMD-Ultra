@@ -297,6 +297,7 @@
       btnClose: dialog.querySelector('#key-assist-btn-close'),
       searchInput: dialog.querySelector('#key-assist-search-input'),
       list: dialog.querySelector('#key-assist-list'),
+      hints: dialog.querySelector('.key-assist-hints'),
       countText: dialog.querySelector('#key-assist-count'),
       liveRegion: dialog.querySelector('#key-assist-live-region')
     };
@@ -322,6 +323,25 @@
 
     state.dom = dom;
     return dom;
+  }
+
+  // 静态 chrome 文案按活动语言刷新：DOM 缓存复用（ensureDom 仅首建时渲染），
+  // 语言切换后重开面板或收到 i18n-changed 时都要重刷，避免残留旧语言。
+  function updateStaticChrome(dom) {
+    if (!dom) return;
+    dom.title.textContent = t('keyAssist.title');
+    dom.btnClose.setAttribute('aria-label', t('keyAssist.closeAria'));
+    dom.searchInput.setAttribute('placeholder', t('keyAssist.searchPlaceholder'));
+    dom.list.setAttribute('aria-label', t('keyAssist.listAria'));
+    if (dom.hints) {
+      dom.hints.innerHTML = [
+        '<span class="key-assist-hint-item"><kbd>↑↓</kbd> ' + escapeHtml(t('keyAssist.hintNavigate')) + '</span>',
+        '<span class="key-assist-hint-item"><kbd>Enter</kbd> ' + escapeHtml(t('keyAssist.hintRun')) + '</span>',
+        '<span class="key-assist-hint-item"><kbd>F2</kbd> ' + escapeHtml(t('keyAssist.hintEdit')) + '</span>',
+        '<span class="key-assist-hint-item"><kbd>Del</kbd> ' + escapeHtml(t('keyAssist.hintDelete')) + '</span>',
+        '<span class="key-assist-hint-item"><kbd>Esc</kbd> ' + escapeHtml(t('keyAssist.hintClose')) + '</span>'
+      ].join('');
+    }
   }
 
   function handleDialogKeyDown(e) {
@@ -587,6 +607,7 @@
     state.searchQuery = '';
 
     var dom = ensureDom();
+    updateStaticChrome(dom);
     dom.overlay.classList.add('open');
     dom.overlay.setAttribute('aria-hidden', 'false');
     dom.overlay.style.display = 'flex';
@@ -672,6 +693,15 @@
         close();
       }
     });
+    // 语言切换：重刷标题/占位符/底部提示等静态文案；面板打开时列表项（命令名
+    // 经 Commands.get 动态取词）一并重渲染
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      window.addEventListener('i18n-changed', function () {
+        if (!state.dom) return;
+        updateStaticChrome(state.dom);
+        if (state.isOpen) render();
+      });
+    }
   } else {
     initCommands();
   }

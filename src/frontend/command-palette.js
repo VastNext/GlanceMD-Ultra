@@ -181,6 +181,8 @@
     var input = p.querySelector('input');
     if (input) {
       input.value = '';
+      // 占位符随活动语言刷新（DOM 只在 ensure 首建时渲染一次文案）
+      input.placeholder = t('palette.placeholder');
       if (typeof input.focus === 'function') input.focus();
     }
 
@@ -234,6 +236,18 @@
   }
 
   registerCommands();
+
+  // 语言切换：面板列表命令名经 Commands.get 动态取词，render 时自动生效；
+  // 这里补刷静态占位符（DOM 缓存复用，文案只在 ensure 首建时写入）。
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('i18n-changed', function () {
+      var p = document.getElementById('command-palette');
+      var input = p && p.querySelector ? p.querySelector('input') : null;
+      if (input) input.placeholder = t('palette.placeholder');
+      if (state.open) render();
+    });
+  }
+
   window.CommandPalette = {
     open: open,
     close: close,

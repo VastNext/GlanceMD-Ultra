@@ -46,8 +46,20 @@
     return Object.prototype.hasOwnProperty.call(registry, id);
   }
 
+  // label/description 按活动语言动态解析：i18n.js 的 command.* 集中翻译表收录的命令
+  // 取当前语言译名，未收录回退注册时的固化 label；返回副本避免调用方改动污染注册表。
   function get(id) {
-    return registry[id] || null;
+    var entry = registry[id];
+    if (!entry) return null;
+    var i18n = (typeof window !== 'undefined') ? window.I18n : null;
+    if (!i18n || typeof i18n.commandLabel !== 'function') return entry;
+    var resolved = Object.assign({}, entry, {
+      label: i18n.commandLabel(id, entry.label)
+    });
+    if (typeof i18n.commandDescription === 'function') {
+      resolved.description = i18n.commandDescription(id, entry.description);
+    }
+    return resolved;
   }
 
   function ids() {

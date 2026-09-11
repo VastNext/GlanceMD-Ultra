@@ -208,3 +208,50 @@ test('设置分类、设置项、枚举与快速大纲在中英双语下均全�
   assert.equal(h.ctx.I18n.t('settings.enum.theme.system'), 'System');
   assert.equal(h.ctx.I18n.t('quickoutline.title'), 'Outline');
 });
+
+test('command.* / commandDesc.* 键在 zh-CN 与 en 字典一一对应（防漏译）', () => {
+  const h = load();
+  const prefix = (map, p) => Object.keys(map).filter((k) => k.startsWith(p)).sort();
+  for (const p of ['command.', 'commandDesc.']) {
+    const zh = prefix(h.ctx.I18n.LOCALES['zh-CN'], p);
+    const en = prefix(h.ctx.I18n.LOCALES['en'], p);
+    assert.ok(zh.length > 0, p + ' 键应存在');
+    assert.deepEqual(en, zh, p + ' 键应对齐');
+  }
+  const commands = prefix(h.ctx.I18n.LOCALES['zh-CN'], 'command.');
+  assert.ok(commands.length > 100, 'zh-CN 字典应收录全量命令');
+});
+
+test('命令面板/快捷键助手/快速打开静态文案双语齐全', () => {
+  const h = load();
+  assert.equal(h.ctx.I18n.t('palette.placeholder'), '输入命令');
+  assert.equal(h.ctx.I18n.t('quickopen.tabPlaceholder'), '快速切换标签页 (↑↓ 导航)...');
+  assert.equal(h.ctx.I18n.t('quickopen.noTabs'), '当前无已打开的标签页');
+
+  h.ctx.I18n.setLanguage('en');
+  assert.equal(h.ctx.I18n.t('palette.placeholder'), 'Type a command');
+  assert.equal(h.ctx.I18n.t('quickopen.tabPlaceholder'), 'Quick switch tabs (↑↓ to navigate)...');
+  assert.equal(h.ctx.I18n.t('quickopen.noTabs'), 'No open tabs');
+});
+
+test('确认框按钮与关闭 aria 双语齐全', () => {
+  const h = load();
+  assert.equal(h.ctx.I18n.t('app.close'), '关闭');
+  assert.equal(h.ctx.I18n.t('app.cancel'), '取消');
+  assert.equal(h.ctx.I18n.t('app.confirmDiscardClose'), '放弃修改并关闭');
+
+  h.ctx.I18n.setLanguage('en');
+  assert.equal(h.ctx.I18n.t('app.close'), 'Close');
+  assert.equal(h.ctx.I18n.t('app.cancel'), 'Cancel');
+  assert.equal(h.ctx.I18n.t('app.confirmDiscardClose'), 'Discard changes and close');
+});
+
+test('commandLabel 按活动语言取词，未收录命令回退注册 label', () => {
+  const h = load();
+  assert.equal(h.ctx.I18n.commandLabel('file.open', '打开文件…'), '打开文件…');
+  h.ctx.I18n.setLanguage('en');
+  assert.equal(h.ctx.I18n.commandLabel('file.open', '打开文件…'), 'Open File…');
+  // 未收录：回退 fallback
+  assert.equal(h.ctx.I18n.commandLabel('some.unlisted', '回退文案'), '回退文案');
+  assert.equal(h.ctx.I18n.commandLabel('some.unlisted'), 'some.unlisted');
+});

@@ -526,3 +526,44 @@ test('KeyAssist closes on backdrop / outside pointerdown', () => {
   assert.equal(ctx.KeyAssist.isOpen(), false);
 });
 
+
+// i18n-changed 联动：语言切换事件到达时重刷标题/占位符等静态 chrome
+test('KeyAssist refreshes static chrome on i18n-changed', () => {
+  let lang = 'zh-CN';
+  const dict = {
+    'zh-CN': {
+      'keyAssist.title': '快捷键助手',
+      'keyAssist.searchPlaceholder': '搜索命令…',
+      'keyAssist.closeAria': '关闭快捷键助手',
+      'keyAssist.listAria': '当前可用命令列表'
+    },
+    'en': {
+      'keyAssist.title': 'Key Assist',
+      'keyAssist.searchPlaceholder': 'Search commands…',
+      'keyAssist.closeAria': 'Close Key Assist',
+      'keyAssist.listAria': 'Available commands list'
+    }
+  };
+  const handlers = {};
+  const ctx = loadKeyAssist({
+    I18n: {
+      getLanguage: () => lang,
+      t: (key) => (dict[lang] && dict[lang][key]) || key
+    },
+    addEventListener(type, fn) { (handlers[type] = handlers[type] || []).push(fn); },
+    removeEventListener() {},
+    dispatchEvent(e) { (handlers[e.type] || []).forEach((fn) => fn(e)); }
+  });
+
+  ctx.KeyAssist.open();
+  const state = ctx.KeyAssist._state;
+  assert.equal(state.dom.title.textContent, '快捷键助手');
+  assert.equal(state.dom.searchInput.getAttribute('placeholder'), '搜索命令…');
+
+  // 模拟 I18n.setLanguage 派发的 i18n-changed
+  lang = 'en';
+  (handlers['i18n-changed'] || []).forEach((fn) => fn({ type: 'i18n-changed', detail: { language: 'en' } }));
+  assert.equal(state.dom.title.textContent, 'Key Assist');
+  assert.equal(state.dom.searchInput.getAttribute('placeholder'), 'Search commands…');
+  assert.equal(state.dom.btnClose.getAttribute('aria-label'), 'Close Key Assist');
+});
