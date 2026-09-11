@@ -48,16 +48,16 @@
     <text x="232" y="0" fill="#171827" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">B · 工作区树形</text>
     <text x="232" y="34" fill="#77788a" font-family="Segoe UI, Arial, sans-serif" font-size="15" text-anchor="middle">项目 / 文件 / 光标</text>
     <rect x="18" y="76" width="428" height="428" rx="94" fill="#161722" filter="url(#iconShadow)"/>
-    <path d="M144 171v260M144 216h74M144 302h74M144 388h74" stroke="url(#accentSoft)" stroke-width="24" stroke-linecap="round"/>
+    <path d="M144 168v292M144 198h74M144 312h74M144 426h74" stroke="url(#accentSoft)" stroke-width="24" stroke-linecap="round"/>
     <g fill="url(#accent)">
-      <path d="M218 168h116l42 42v57H218c-22 0-40-18-40-40v-19c0-22 18-40 40-40Z"/>
-      <path d="M218 254h116l42 42v57H218c-22 0-40-18-40-40v-19c0-22 18-40 40-40Z"/>
-      <path d="M218 340h116l42 42v57H218c-22 0-40-18-40-40v-19c0-22 18-40 40-40Z"/>
+      <path d="M218 160h104l34 34v42c0 17-14 30-30 30h-108c-17 0-30-13-30-30v-46c0-17 13-30 30-30Z"/>
+      <path d="M218 274h104l34 34v42c0 17-14 30-30 30h-108c-17 0-30-13-30-30v-46c0-17 13-30 30-30Z"/>
+      <path d="M218 388h104l34 34v42c0 17-14 30-30 30h-108c-17 0-30-13-30-30v-46c0-17 13-30 30-30Z"/>
     </g>
     <g fill="#161722">
-      <path d="M334 168v42h42Z"/>
-      <path d="M334 254v42h42Z"/>
-      <path d="M334 340v42h42Z"/>
+      <path d="M322 160v34h34Z"/>
+      <path d="M322 274v34h34Z"/>
+      <path d="M322 388v34h34Z"/>
     </g>
     <path d="M393 246v120M378 246h30M378 366h30" stroke="#ff3fa5" stroke-width="14" stroke-linecap="round"/>
     <text x="232" y="554" fill="#171827" font-family="Segoe UI, Arial, sans-serif" font-size="17" text-anchor="middle">主干 + 三个节点 + 隐藏光标</text>
