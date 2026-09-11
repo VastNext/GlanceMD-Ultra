@@ -10,13 +10,17 @@ mod translate;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use translate::{
-    create_batches, normalize_language, order_results, parse_retry_after, parse_translation_response,
-    translate_bing_at, translate_google_at, translate_openai_once, validate_target_language,
-    with_retry_impl, EngineConfig, TranslationResult, TranslationSegment, TranslateError,
+    create_batches, normalize_language, order_results, parse_retry_after,
+    parse_translation_response, translate_bing_at, translate_google_at, translate_openai_once,
+    validate_target_language, with_retry_impl, EngineConfig, TranslateError, TranslationResult,
+    TranslationSegment,
 };
 
 fn segment(id: &str, text: &str) -> TranslationSegment {
-    TranslationSegment { id: id.to_string(), text: text.to_string() }
+    TranslationSegment {
+        id: id.to_string(),
+        text: text.to_string(),
+    }
 }
 
 // ── mock HTTP 服务 ──
@@ -36,7 +40,9 @@ impl MockServer {
             stream.write_all(response.as_bytes()).expect("write mock");
             stream.flush().ok();
         });
-        MockServer { url: format!("http://127.0.0.1:{port}") }
+        MockServer {
+            url: format!("http://127.0.0.1:{port}"),
+        }
     }
 }
 
@@ -54,7 +60,10 @@ fn read_full_request(stream: &mut std::net::TcpStream) -> String {
             let length: usize = String::from_utf8_lossy(&buf[..end])
                 .to_lowercase()
                 .lines()
-                .find_map(|line| line.strip_prefix("content-length:").map(|v| v.trim().parse().ok()))
+                .find_map(|line| {
+                    line.strip_prefix("content-length:")
+                        .map(|v| v.trim().parse().ok())
+                })
                 .flatten()
                 .unwrap_or(0);
             if buf.len() >= end + length {
@@ -120,12 +129,20 @@ fn 分批_按段数与字符上限切分() {
     let segments: Vec<_> = (0..20).map(|i| segment(&format!("s{i}"), "字")).collect();
     // 每段 1 字符：20 段按 8 段/批 → 8+8+4
     let batches = create_batches(&segments, 8, 6000).unwrap();
-    assert_eq!(batches.iter().map(|b| b.len()).collect::<Vec<_>>(), vec![8, 8, 4]);
+    assert_eq!(
+        batches.iter().map(|b| b.len()).collect::<Vec<_>>(),
+        vec![8, 8, 4]
+    );
 
-    let segments: Vec<_> = (0..5).map(|i| segment(&format!("s{i}"), &"x".repeat(2000))).collect();
+    let segments: Vec<_> = (0..5)
+        .map(|i| segment(&format!("s{i}"), &"x".repeat(2000)))
+        .collect();
     // 每段 2000 字符：单批最多容纳 3 段（6000）→ 3+2
     let batches = create_batches(&segments, 8, 6000).unwrap();
-    assert_eq!(batches.iter().map(|b| b.len()).collect::<Vec<_>>(), vec![3, 2]);
+    assert_eq!(
+        batches.iter().map(|b| b.len()).collect::<Vec<_>>(),
+        vec![3, 2]
+    );
 }
 
 #[test]
@@ -145,11 +162,20 @@ fn 分批_空输入返回空() {
 fn 重排_按请求顺序且丢弃缺段() {
     let segments = vec![segment("a", "1"), segment("b", "2"), segment("c", "3")];
     let results = vec![
-        TranslationResult { id: "c".into(), text: "三".into() },
-        TranslationResult { id: "a".into(), text: "一".into() },
+        TranslationResult {
+            id: "c".into(),
+            text: "三".into(),
+        },
+        TranslationResult {
+            id: "a".into(),
+            text: "一".into(),
+        },
     ];
     let ordered = order_results(&segments, &results);
-    assert_eq!(ordered.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(), vec!["a", "c"]);
+    assert_eq!(
+        ordered.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(),
+        vec!["a", "c"]
+    );
 }
 
 // ── 重试 ──
@@ -158,14 +184,18 @@ fn 重排_按请求顺序且丢弃缺段() {
 fn 重试_429按退避重试后成功() {
     let mut calls = 0u32;
     let mut waits: Vec<u64> = Vec::new();
-    let result = with_retry_impl(2, &mut || {
-        calls += 1;
-        if calls < 3 {
-            Err(TranslateError::with_status(429, "限频"))
-        } else {
-            Ok("ok")
-        }
-    }, &mut |ms| waits.push(ms));
+    let result = with_retry_impl(
+        2,
+        &mut || {
+            calls += 1;
+            if calls < 3 {
+                Err(TranslateError::with_status(429, "限频"))
+            } else {
+                Ok("ok")
+            }
+        },
+        &mut |ms| waits.push(ms),
+    );
     assert_eq!(result.unwrap(), "ok");
     assert_eq!(calls, 3);
     assert_eq!(waits, vec![500, 1000]);
@@ -174,19 +204,27 @@ fn 重试_429按退避重试后成功() {
 #[test]
 fn 重试_5xx可重试_400不可重试() {
     let mut calls = 0u32;
-    let error = with_retry_impl(2, &mut || {
-        calls += 1;
-        Err::<(), _>(TranslateError::with_status(400, "请求无效"))
-    }, &mut |_| {})
+    let error = with_retry_impl(
+        2,
+        &mut || {
+            calls += 1;
+            Err::<(), _>(TranslateError::with_status(400, "请求无效"))
+        },
+        &mut |_| {},
+    )
     .unwrap_err();
     assert_eq!(calls, 1);
     assert!(error.contains("请求无效"));
 
     let mut calls = 0u32;
-    let error = with_retry_impl(2, &mut || {
-        calls += 1;
-        Err::<(), _>(TranslateError::with_status(500, "服务端错误"))
-    }, &mut |_| {})
+    let error = with_retry_impl(
+        2,
+        &mut || {
+            calls += 1;
+            Err::<(), _>(TranslateError::with_status(500, "服务端错误"))
+        },
+        &mut |_| {},
+    )
     .unwrap_err();
     assert_eq!(calls, 3);
     assert!(error.contains("服务端错误"));
@@ -195,20 +233,27 @@ fn 重试_5xx可重试_400不可重试() {
 #[test]
 fn 重试_retry_after优先于指数退避() {
     let mut waits: Vec<u64> = Vec::new();
-    let _ = with_retry_impl(1, &mut || {
-        Err::<(), _>(TranslateError {
-            status: Some(429),
-            message: "限频".into(),
-            retry_after_ms: Some(7000),
-        })
-    }, &mut |ms| waits.push(ms));
+    let _ = with_retry_impl(
+        1,
+        &mut || {
+            Err::<(), _>(TranslateError {
+                status: Some(429),
+                message: "限频".into(),
+                retry_after_ms: Some(7000),
+            })
+        },
+        &mut |ms| waits.push(ms),
+    );
     assert_eq!(waits, vec![7000]);
 }
 
 #[test]
 fn retry_after_解析() {
     assert_eq!(parse_retry_after(Some("3"), 0), Some(3000));
-    assert_eq!(parse_retry_after(Some("Wed, 21 Oct 2026 07:28:00 GMT"), 0), Some(1000));
+    assert_eq!(
+        parse_retry_after(Some("Wed, 21 Oct 2026 07:28:00 GMT"), 0),
+        Some(1000)
+    );
     assert_eq!(parse_retry_after(Some(""), 0), None);
     assert_eq!(parse_retry_after(None, 0), None);
 }
@@ -216,7 +261,10 @@ fn retry_after_解析() {
 // ── Google 客户端（mock）──
 
 fn agent() -> ureq::Agent {
-    ureq::Agent::config_builder().timeout_global(Some(std::time::Duration::from_secs(5))).build().into()
+    ureq::Agent::config_builder()
+        .timeout_global(Some(std::time::Duration::from_secs(5)))
+        .build()
+        .into()
 }
 
 #[test]
@@ -225,7 +273,13 @@ fn google_字符串条目响应解析() {
     let batch = vec![segment("a", "hello"), segment("b", "world")];
     let results = translate_google_at(&agent(), &server.url, "auto", "zh-Hans", &batch).unwrap();
     assert_eq!(results.len(), 2);
-    assert_eq!(results[0], TranslationResult { id: "a".into(), text: "你好".into() });
+    assert_eq!(
+        results[0],
+        TranslationResult {
+            id: "a".into(),
+            text: "你好".into()
+        }
+    );
     assert_eq!(results[1].text, "世界");
 }
 
@@ -334,7 +388,13 @@ fn openai_漏翻报id不匹配() {
     let server = MockServer::start(openai_response(content));
     let batch = vec![segment("a", "hello"), segment("b", "world")];
     let error = translate_openai_once(
-        &agent(), &server.url, "test-model", "sk-test", "auto", "zh-Hans", &batch,
+        &agent(),
+        &server.url,
+        "test-model",
+        "sk-test",
+        "auto",
+        "zh-Hans",
+        &batch,
     )
     .unwrap_err();
     assert!(error.message.contains("ID 不匹配"), "{error}");
@@ -346,7 +406,13 @@ fn openai_未知id报错() {
     let server = MockServer::start(openai_response(content));
     let batch = vec![segment("a", "hello")];
     let error = translate_openai_once(
-        &agent(), &server.url, "test-model", "sk-test", "auto", "zh-Hans", &batch,
+        &agent(),
+        &server.url,
+        "test-model",
+        "sk-test",
+        "auto",
+        "zh-Hans",
+        &batch,
     )
     .unwrap_err();
     assert!(error.message.contains("ID 不匹配"), "{error}");
@@ -357,7 +423,13 @@ fn openai_响应非json模式内容报错() {
     let server = MockServer::start(openai_response("抱歉，我直接回答文本"));
     let batch = vec![segment("a", "hello")];
     let error = translate_openai_once(
-        &agent(), &server.url, "test-model", "sk-test", "auto", "zh-Hans", &batch,
+        &agent(),
+        &server.url,
+        "test-model",
+        "sk-test",
+        "auto",
+        "zh-Hans",
+        &batch,
     )
     .unwrap_err();
     assert!(error.message.contains("有效 JSON"), "{error}");
@@ -404,7 +476,10 @@ fn openai_请求携带json_mode与bearer() {
 #[test]
 fn 协议解析_id对齐校验() {
     let expected = vec![segment("a", "hello")];
-    assert!(parse_translation_response(r#"{"translations":[{"id":"a","text":"你"}]}"#, &expected).is_ok());
+    assert!(
+        parse_translation_response(r#"{"translations":[{"id":"a","text":"你"}]}"#, &expected)
+            .is_ok()
+    );
     assert!(parse_translation_response(r#"{"translations":[]}"#, &expected).is_err());
     assert!(parse_translation_response(r#"{"results":[]}"#, &expected).is_err());
     assert!(parse_translation_response(r#"not json"#, &expected).is_err());
@@ -436,7 +511,11 @@ fn 总入口_成功往返与顺序保证() {
     // 分批/重排/完整性校验链路（Google/Bing 端点为常量，已由 *_at 变体覆盖）。
     let content = r#"{"translations":[{"id":"s3","text":"三"},{"id":"s1","text":"一"},{"id":"s2","text":"二"}]}"#;
     let server = MockServer::start(openai_response(content));
-    let segments = vec![segment("s3", "three"), segment("s1", "one"), segment("s2", "two")];
+    let segments = vec![
+        segment("s3", "three"),
+        segment("s1", "one"),
+        segment("s2", "two"),
+    ];
     let results = translate::translate(
         &agent(),
         &EngineConfig::CustomAi {
@@ -449,7 +528,10 @@ fn 总入口_成功往返与顺序保证() {
         &segments,
     )
     .unwrap();
-    assert_eq!(results.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(), vec!["s3", "s1", "s2"]);
+    assert_eq!(
+        results.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(),
+        vec!["s3", "s1", "s2"]
+    );
 }
 
 #[test]
@@ -467,8 +549,8 @@ fn 总入口_空目标语言报错() {
 
 #[test]
 fn 总入口_空分段报错() {
-    let error = translate::translate(&agent(), &EngineConfig::Google, "auto", "zh-Hans", &[])
-        .unwrap_err();
+    let error =
+        translate::translate(&agent(), &EngineConfig::Google, "auto", "zh-Hans", &[]).unwrap_err();
     assert!(error.contains("没有可翻译"), "{error}");
 }
 
@@ -488,12 +570,15 @@ fn 总入口_连接拒绝报中文错误() {
     );
     let _ = port;
     // 不强求失败信息格式，仅要求最终收敛为 Err（重试后仍失败）。
-    assert!(translate::translate(
-        &agent(),
-        &EngineConfig::Google,
-        "auto",
-        "zh-Hans",
-        &[segment("a", "hello")]
-    )
-    .is_err() || error.is_err());
+    assert!(
+        translate::translate(
+            &agent(),
+            &EngineConfig::Google,
+            "auto",
+            "zh-Hans",
+            &[segment("a", "hello")]
+        )
+        .is_err()
+            || error.is_err()
+    );
 }

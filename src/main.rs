@@ -26,10 +26,10 @@ mod ipc;
 mod logger;
 mod net;
 mod platform;
-mod translate;
 #[cfg(target_os = "windows")]
 mod single_instance;
 mod state;
+mod translate;
 mod window_state;
 mod workspace;
 

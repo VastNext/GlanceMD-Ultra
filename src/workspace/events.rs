@@ -97,9 +97,7 @@ pub enum Event {
     },
     /// 翻译结果回执（FEAT-005，`translate.request`/`translate.test` 命令的
     /// 异步结果）：`requestId` + `ok` + `results`/`message`。
-    TranslateResult {
-        payload: serde_json::Value,
-    },
+    TranslateResult { payload: serde_json::Value },
 }
 
 impl Event {

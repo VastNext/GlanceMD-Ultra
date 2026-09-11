@@ -147,7 +147,11 @@ pub fn normalize_language(language: &str) -> String {
         let hant = ["tw", "hk", "mo", "hant"]
             .iter()
             .any(|code| lower == format!("zh-{code}") || lower.starts_with(&format!("zh-{code}-")));
-        return if hant { "zh-Hant".to_string() } else { "zh-Hans".to_string() };
+        return if hant {
+            "zh-Hant".to_string()
+        } else {
+            "zh-Hans".to_string()
+        };
     }
     lower.split('-').next().unwrap_or("en").to_string()
 }
@@ -191,7 +195,8 @@ pub fn create_batches(
             ));
         }
         if !batch.is_empty()
-            && (batch.len() >= max_segments || characters + segment.text.chars().count() > max_characters)
+            && (batch.len() >= max_segments
+                || characters + segment.text.chars().count() > max_characters)
         {
             batches.push(std::mem::take(&mut batch));
             characters = 0;
@@ -210,10 +215,8 @@ pub fn order_results(
     segments: &[TranslationSegment],
     results: &[TranslationResult],
 ) -> Vec<TranslationResult> {
-    let by_id: std::collections::HashMap<&str, &TranslationResult> = results
-        .iter()
-        .map(|r| (r.id.as_str(), r))
-        .collect();
+    let by_id: std::collections::HashMap<&str, &TranslationResult> =
+        results.iter().map(|r| (r.id.as_str(), r)).collect();
     segments
         .iter()
         .filter_map(|segment| by_id.get(segment.id.as_str()).map(|r| (*r).clone()))
@@ -232,11 +235,19 @@ pub struct TranslateError {
 
 impl TranslateError {
     pub fn new(message: impl Into<String>) -> Self {
-        TranslateError { status: None, message: message.into(), retry_after_ms: None }
+        TranslateError {
+            status: None,
+            message: message.into(),
+            retry_after_ms: None,
+        }
     }
 
     pub fn with_status(status: u16, message: impl Into<String>) -> Self {
-        TranslateError { status: Some(status), message: message.into(), retry_after_ms: None }
+        TranslateError {
+            status: Some(status),
+            message: message.into(),
+            retry_after_ms: None,
+        }
     }
 
     /// 429（限频）与 5xx（服务端错误）可重试，对齐插件 `isRetryable`。
@@ -292,11 +303,7 @@ where
 }
 
 /// 探针测试用：显式注入重试次数与 sleep（不真实等待）。
-pub fn with_retry_impl<T, F, S>(
-    retries: u32,
-    op: &mut F,
-    sleep: &mut S,
-) -> Result<T, String>
+pub fn with_retry_impl<T, F, S>(retries: u32, op: &mut F, sleep: &mut S) -> Result<T, String>
 where
     F: FnMut() -> Result<T, TranslateError>,
     S: FnMut(u64),
@@ -315,7 +322,9 @@ where
             }
         }
     }
-    Err(last.map(|e| e.message).unwrap_or_else(|| "翻译请求失败".to_string()))
+    Err(last
+        .map(|e| e.message)
+        .unwrap_or_else(|| "翻译请求失败".to_string()))
 }
 
 // ── HTTP 辅助 ──
@@ -339,13 +348,21 @@ pub fn translate(
     let mut results: Vec<TranslationResult> = Vec::new();
     for batch in &batches {
         let batch_results = with_retry(|| match engine {
-            EngineConfig::Google => {
-                translate_google_once(agent, source_language, &target, batch)
-            }
+            EngineConfig::Google => translate_google_once(agent, source_language, &target, batch),
             EngineConfig::Bing => translate_bing_once(agent, source_language, &target, batch),
-            EngineConfig::CustomAi { base_url, model, api_key } => {
-                translate_openai_once(agent, base_url, model, api_key, source_language, &target, batch)
-            }
+            EngineConfig::CustomAi {
+                base_url,
+                model,
+                api_key,
+            } => translate_openai_once(
+                agent,
+                base_url,
+                model,
+                api_key,
+                source_language,
+                &target,
+                batch,
+            ),
         })?;
         results.extend(batch_results);
     }
@@ -358,17 +375,17 @@ pub fn translate(
 }
 
 /// 引擎连通性测试：单段最小请求，成功返回耗时毫秒。
-pub fn test_connection(
-    agent: &ureq::Agent,
-    engine: &EngineConfig,
-) -> Result<u128, String> {
+pub fn test_connection(agent: &ureq::Agent, engine: &EngineConfig) -> Result<u128, String> {
     let start = std::time::Instant::now();
     translate(
         agent,
         engine,
         "en",
         "zh-Hans",
-        &[TranslationSegment { id: "test".to_string(), text: "Hello, world.".to_string() }],
+        &[TranslationSegment {
+            id: "test".to_string(),
+            text: "Hello, world.".to_string(),
+        }],
     )?;
     Ok(start.elapsed().as_millis())
 }
@@ -445,7 +462,13 @@ pub fn translate_google_once(
     target_language: &str,
     batch: &[TranslationSegment],
 ) -> Result<Vec<TranslationResult>, TranslateError> {
-    translate_google_at(agent, GOOGLE_ENDPOINT, source_language, target_language, batch)
+    translate_google_at(
+        agent,
+        GOOGLE_ENDPOINT,
+        source_language,
+        target_language,
+        batch,
+    )
 }
 
 /// Google 单批翻译（端点可注入，探针测试用 mock 服务）。
@@ -469,7 +492,13 @@ pub fn translate_google_at(
         .collect::<Vec<_>>()
         .join("&");
 
-    let text = post_and_read(agent, "Google ", &url, "application/x-www-form-urlencoded;charset=UTF-8", &body)?;
+    let text = post_and_read(
+        agent,
+        "Google ",
+        &url,
+        "application/x-www-form-urlencoded;charset=UTF-8",
+        &body,
+    )?;
     let payload: serde_json::Value = serde_json::from_str(&text)
         .map_err(|_| TranslateError::new("Google 翻译响应不是有效 JSON"))?;
     let items = payload
@@ -483,7 +512,10 @@ pub fn translate_google_at(
         .map(|(segment, item)| {
             let translated = read_google_text(item)
                 .ok_or_else(|| TranslateError::new("Google 翻译响应格式无效"))?;
-            Ok(TranslationResult { id: segment.id.clone(), text: translated })
+            Ok(TranslationResult {
+                id: segment.id.clone(),
+                text: translated,
+            })
         })
         .collect()
 }
@@ -522,7 +554,13 @@ pub fn translate_bing_once(
     target_language: &str,
     batch: &[TranslationSegment],
 ) -> Result<Vec<TranslationResult>, TranslateError> {
-    translate_bing_at(agent, BING_ENDPOINT, source_language, target_language, batch)
+    translate_bing_at(
+        agent,
+        BING_ENDPOINT,
+        source_language,
+        target_language,
+        batch,
+    )
 }
 
 /// Bing 单批翻译（端点可注入，探针测试用 mock 服务）。
@@ -540,7 +578,9 @@ pub fn translate_bing_at(
     if source_language != "auto" {
         params.push_str(&format!(
             "&from={}",
-            form_urlencode(&map_bing_language(normalize_language(source_language).as_str()))
+            form_urlencode(&map_bing_language(
+                normalize_language(source_language).as_str()
+            ))
         ));
     }
     let url = format!("{endpoint}?{params}");
@@ -549,8 +589,8 @@ pub fn translate_bing_at(
         .map_err(|_| TranslateError::new("Bing 翻译请求体序列化失败"))?;
 
     let text = post_and_read(agent, "Bing ", &url, "application/json", &body)?;
-    let payload: serde_json::Value =
-        serde_json::from_str(&text).map_err(|_| TranslateError::new("Bing 翻译响应不是有效 JSON"))?;
+    let payload: serde_json::Value = serde_json::from_str(&text)
+        .map_err(|_| TranslateError::new("Bing 翻译响应不是有效 JSON"))?;
     let items = payload
         .as_array()
         .filter(|items| items.len() == batch.len())
@@ -566,7 +606,10 @@ pub fn translate_bing_at(
                 .and_then(|t| t.get("text"))
                 .and_then(|t| t.as_str())
                 .ok_or_else(|| TranslateError::new("Bing 翻译响应格式无效"))?;
-            Ok(TranslationResult { id: segment.id.clone(), text: text.to_string() })
+            Ok(TranslationResult {
+                id: segment.id.clone(),
+                text: text.to_string(),
+            })
         })
         .collect()
 }
@@ -584,7 +627,11 @@ fn create_translation_messages(
     user_instruction: Option<&str>,
 ) -> Vec<serde_json::Value> {
     let source = normalize_language(source_language);
-    let source_display = if source == "auto" { "auto".to_string() } else { source };
+    let source_display = if source == "auto" {
+        "auto".to_string()
+    } else {
+        source
+    };
     let mut instruction = format!(
         "将输入从 {source_display} 翻译为 {target_language}。\n保留每个 id，返回 {{\"translations\":[{{\"id\":\"...\",\"text\":\"...\"}}]}}，不得添加其他内容。"
     );
@@ -607,8 +654,8 @@ pub fn parse_translation_response(
     content: &str,
     expected: &[TranslationSegment],
 ) -> Result<Vec<TranslationResult>, TranslateError> {
-    let payload: serde_json::Value = serde_json::from_str(content)
-        .map_err(|_| TranslateError::new("翻译响应不是有效 JSON"))?;
+    let payload: serde_json::Value =
+        serde_json::from_str(content).map_err(|_| TranslateError::new("翻译响应不是有效 JSON"))?;
     let translations = payload
         .get("translations")
         .and_then(|t| t.as_array())
@@ -620,9 +667,10 @@ pub fn parse_translation_response(
             let id = item.get("id").and_then(|v| v.as_str());
             let text = item.get("text").and_then(|v| v.as_str());
             match (id, text) {
-                (Some(id), Some(text)) => {
-                    Ok(TranslationResult { id: id.to_string(), text: text.to_string() })
-                }
+                (Some(id), Some(text)) => Ok(TranslationResult {
+                    id: id.to_string(),
+                    text: text.to_string(),
+                }),
                 _ => Err(TranslateError::new("翻译响应格式无效")),
             }
         })
@@ -630,9 +678,12 @@ pub fn parse_translation_response(
 
     if results.is_empty()
         || results.len() != expected.len()
-        || results.iter().any(|r| !expected.iter().any(|segment| segment.id == r.id))
+        || results
+            .iter()
+            .any(|r| !expected.iter().any(|segment| segment.id == r.id))
         || {
-            let ids: std::collections::HashSet<&str> = results.iter().map(|r| r.id.as_str()).collect();
+            let ids: std::collections::HashSet<&str> =
+                results.iter().map(|r| r.id.as_str()).collect();
             ids.len() != results.len()
         }
     {
@@ -645,7 +696,9 @@ pub fn parse_translation_response(
 /// `isResponseFormatUnsupported`：错误信息中提到 response_format/json）。
 fn is_response_format_unsupported(body: &str) -> bool {
     let lower = body.to_lowercase();
-    lower.contains("response_format") || lower.contains("json_schema") || lower.contains("json_object")
+    lower.contains("response_format")
+        || lower.contains("json_schema")
+        || lower.contains("json_object")
 }
 
 /// 规范化 base_url：去尾部斜杠；对 OpenAI 兼容端点补 /chat/completions。
@@ -680,8 +733,7 @@ pub fn translate_openai_once(
     let send = |json_mode: bool| -> Result<(u16, String), TranslateError> {
         let mut payload = serde_json::json!({ "model": model, "messages": messages });
         if json_mode {
-            payload["response_format"] =
-                serde_json::json!({ "type": "json_object" });
+            payload["response_format"] = serde_json::json!({ "type": "json_object" });
         }
         let body = serde_json::to_string(&payload)
             .map_err(|_| TranslateError::new("翻译请求体序列化失败"))?;
@@ -709,8 +761,8 @@ pub fn translate_openai_once(
         return Err(error);
     }
 
-    let payload: serde_json::Value = serde_json::from_str(&body)
-        .map_err(|_| TranslateError::new("AI 翻译响应不是有效 JSON"))?;
+    let payload: serde_json::Value =
+        serde_json::from_str(&body).map_err(|_| TranslateError::new("AI 翻译响应不是有效 JSON"))?;
     let content = payload
         .get("choices")
         .and_then(|choices| choices.get(0))

@@ -1747,7 +1747,9 @@ fn translate_engine_from_settings(
 ) -> Result<crate::translate::EngineConfig, String> {
     let t = &settings.translation;
     match t.engine_kind {
-        workspace::settings::TranslationEngine::Google => Ok(crate::translate::EngineConfig::Google),
+        workspace::settings::TranslationEngine::Google => {
+            Ok(crate::translate::EngineConfig::Google)
+        }
         workspace::settings::TranslationEngine::Bing => Ok(crate::translate::EngineConfig::Bing),
         workspace::settings::TranslationEngine::CustomAi => {
             if t.base_url.trim().is_empty() {
@@ -1777,19 +1779,20 @@ fn translate_request(_: &CommandContext, p: &CommandPayload) {
         .get("segments")
         .cloned()
         .unwrap_or_else(|| json!([]));
-    let segments: Vec<crate::translate::TranslationSegment> = match serde_json::from_value(segments_val) {
-        Ok(s) => s,
-        Err(e) => {
-            emit(workspace::events::Event::TranslateResult {
-                payload: serde_json::to_value(crate::translate::TranslateOutcome::failure(
-                    request_id,
-                    format!("分段参数解析失败: {e}"),
-                ))
-                .unwrap_or_default(),
-            });
-            return;
-        }
-    };
+    let segments: Vec<crate::translate::TranslationSegment> =
+        match serde_json::from_value(segments_val) {
+            Ok(s) => s,
+            Err(e) => {
+                emit(workspace::events::Event::TranslateResult {
+                    payload: serde_json::to_value(crate::translate::TranslateOutcome::failure(
+                        request_id,
+                        format!("分段参数解析失败: {e}"),
+                    ))
+                    .unwrap_or_default(),
+                });
+                return;
+            }
+        };
 
     crate::log_info!(
         "translate",
@@ -1818,8 +1821,7 @@ fn translate_request(_: &CommandContext, p: &CommandPayload) {
             Err(e) => {
                 emit(workspace::events::Event::TranslateResult {
                     payload: serde_json::to_value(crate::translate::TranslateOutcome::failure(
-                        request_id,
-                        e,
+                        request_id, e,
                     ))
                     .unwrap_or_default(),
                 });
@@ -1837,18 +1839,21 @@ fn translate_request(_: &CommandContext, p: &CommandPayload) {
                 );
                 emit(workspace::events::Event::TranslateResult {
                     payload: serde_json::to_value(crate::translate::TranslateOutcome::success(
-                        request_id,
-                        results,
+                        request_id, results,
                     ))
                     .unwrap_or_default(),
                 });
             }
             Err(e) => {
-                crate::log_warn!("translate", "翻译失败: requestId='{}', error={}", request_id, e);
+                crate::log_warn!(
+                    "translate",
+                    "翻译失败: requestId='{}', error={}",
+                    request_id,
+                    e
+                );
                 emit(workspace::events::Event::TranslateResult {
                     payload: serde_json::to_value(crate::translate::TranslateOutcome::failure(
-                        request_id,
-                        e,
+                        request_id, e,
                     ))
                     .unwrap_or_default(),
                 });
@@ -1861,12 +1866,17 @@ fn translate_request(_: &CommandContext, p: &CommandPayload) {
 ///
 /// 允许前端传入表单草稿值（未保存也能测试）：支持覆盖引擎配置。
 fn translate_test(_: &CommandContext, p: &CommandPayload) {
-    let engine_kind = string(p, &["engineKind", "data.engineKind"]).unwrap_or_else(|| "google".into());
+    let engine_kind =
+        string(p, &["engineKind", "data.engineKind"]).unwrap_or_else(|| "google".into());
     let base_url = string(p, &["baseUrl", "data.baseUrl"]).unwrap_or_default();
     let model = string(p, &["model", "data.model"]).unwrap_or_default();
     let api_key = string(p, &["apiKey", "data.apiKey"]).unwrap_or_default();
 
-    crate::log_info!("translate", "收到翻译引擎测试请求: engineKind='{}'", engine_kind);
+    crate::log_info!(
+        "translate",
+        "收到翻译引擎测试请求: engineKind='{}'",
+        engine_kind
+    );
 
     std::thread::spawn(move || {
         let global = workspace::settings::load_global(&settings_base());
