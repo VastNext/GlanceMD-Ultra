@@ -147,14 +147,16 @@
 - **处理状态**：⏳ 待排期 (`backlog`)
 
 #### FEAT-005: 集成翻译功能——选中文本划词翻译（复用 VastTranslator 引擎层）
-- **立项提案**：详见 `docs/proposals/2026-09-09-翻译功能集成提案.md`（含可行性调研、MVP 范围、体积评估与验收标准）
+- **立项提案**：详见 `docs/proposals/2026-09-09-翻译功能集成提案.md`（2026-09-11 已按 v0.5.2 基线完成精细化复核：T1–T7 工作分解、逐文件估行、6–7.5 人天估算）
 - **需求背景**：用户在编辑/阅读双语文档时需要对选中文本快速翻译。VastTranslator（LexiLayer）Chrome 插件已沉淀成熟的三引擎翻译层（Google 免 key / Bing / 自定义 OpenAI 兼容 API），其核心约 1000 行纯 TS 不依赖 Chrome API，可移植。
 - **方案要点**：
-  1. Rust 端新增 `ureq` 依赖，IPC 新增 `translate_request` 做 HTTP 代理（解决 WebView 自定义协议下前端直连外网的 CORS 限制，且 API key 不出前端进程）。
-  2. 前端新增 `translate.js` / `translate.css`（IIFE 模式），移植三引擎请求构造与分段 id 对齐协议；UI 按紫→粉渐变设计语言重写为划词浮动气泡（译文 + 替换/插入/复制）。
-  3. settings.js 新增「翻译」分节：引擎选择、自定义 AI 端点、目标语言，存 localStorage（`glancemd-ultra-` 前缀）。
-  4. MVP 不含：全文对照翻译、专家提示词、翻译缓存、SSE 流式（后续另行立项）。
-- **协同关系**：FEAT-003（网络代理配置）已于 v0.4.0 完成，`src/net.rs` 的 `build_agent` 可直接复用为翻译请求通道，无新增网络依赖；体积增量仅为业务代码，处于 FEAT-004 放宽后的 2–8 MB 预算内。
+  1. 引擎逻辑全部在 Rust 新模块 `src/translate.rs`（三引擎客户端 + 分批 + 重试 + id 对齐校验），HTTP 复用 FEAT-003 的 `net.rs::build_agent`（代理统一生效，apiKey 不出前端，零新增依赖）。
+  2. IPC 新增 `translate.request` / `translate.test` 命令，照搬 `net.testProxy` 的线程 + 事件回执异步模式；`ipc.rs` 通配清单补 `translate.` 前缀（BUG-001 教训）。
+  3. 前端新增 `translate.js` / `translate.css`（IIFE 模式）：选区监听（定位借用 CustomCaret 测量）、气泡状态机、requestId 关联、替换/插入/复制动作；紫→粉渐变设计语言。
+  4. 配置走**统一设置体系**（Rust schema 新增 `translation` 分类），不用 localStorage；命令面板注册 `translate.selection`，默认键 `Alt+T`。
+  5. v1 明确不做：SSE 流式、上下文消歧、专家提示词、翻译缓存、请求取消（后续另行立项）。
+- **工作量**：约 6–7.5 理想人天（产品代码 ~1540 行 + 测试 ~730 行），建议排期 1.5–2 周；产物增量 ≤ 200 KB，预算内。
+- **协同关系**：FEAT-003 已完成（v0.4.0），`net.rs` 与异步 IPC 模式直接复用；v0.5.2 的 `logger.rs` 供网络诊断日志复用。
 - **处理状态**：⏳ 待排期 (`backlog`)
 
 ---
