@@ -503,3 +503,52 @@ fn read_google_text(value: &serde_json::Value) -> Option<String> {
     Some(out)
 }
 
+// ── Bing 客户端（移植自插件 `bing-translate-client.ts`）──
+
+const BING_ENDPOINT: &str = "https://edge.microsoft.com/translate/translatetext";
+
+/// Bing 单批翻译（不含重试）。
+pub fn translate_bing_once(
+    agent: &ureq::Agent,
+    source_language: &str,
+    target_language: &str,
+    batch: &[TranslationSegment],
+) -> Result<Vec<TranslationResult>, TranslateError> {
+    let mut params = format!(
+        "to={}&isEnterpriseClient=false",
+        form_urlencode(&map_bing_language(target_language))
+    );
+    if source_language != "auto" {
+        params.push_str(&format!(
+            "&from={}",
+            form_urlencode(&map_bing_language(normalize_language(source_language).as_str()))
+        ));
+    }
+    let url = format!("{BING_ENDPOINT}?{params}");
+    let texts: Vec<&str> = batch.iter().map(|segment| segment.text.as_str()).collect();
+    let body = serde_json::to_string(&texts)
+        .map_err(|_| TranslateError::new("Bing 翻译请求体序列化失败"))?;
+
+    let text = post_and_read(agent, "Bing ", &url, "application/json", &body)?;
+    let payload: serde_json::Value =
+        serde_json::from_str(&text).map_err(|_| TranslateError::new("Bing 翻译响应不是有效 JSON"))?;
+    let items = payload
+        .as_array()
+        .filter(|items| items.len() == batch.len())
+        .ok_or_else(|| TranslateError::new("Bing 翻译响应格式无效"))?;
+
+    batch
+        .iter()
+        .zip(items.iter())
+        .map(|(segment, item)| {
+            let text = item
+                .get("translations")
+                .and_then(|t| t.get(0))
+                .and_then(|t| t.get("text"))
+                .and_then(|t| t.as_str())
+                .ok_or_else(|| TranslateError::new("Bing 翻译响应格式无效"))?;
+            Ok(TranslationResult { id: segment.id.clone(), text: text.to_string() })
+        })
+        .collect()
+}
+
