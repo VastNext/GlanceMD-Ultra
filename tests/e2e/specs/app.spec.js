@@ -234,16 +234,17 @@ test('双入口与设置：文件、项目、设置按钮分别触发对应命�
   await expect(page.locator('#settings-panel')).toBeVisible();
 });
 
-test('设置专项：modal 可见、九类真实分类与关闭/Escape', async ({ page }) => {
+test('设置专项：modal 可见、十类真实分类与关闭/Escape', async ({ page }) => {
   await page.click('#btn-settings');
   const panel = page.locator('#settings-panel');
   await expect(panel).toBeVisible();
-  await expect(panel.locator('#settings-categories button')).toHaveCount(9);
+  await expect(panel.locator('#settings-categories button')).toHaveCount(10);
   await expect(panel.locator('#settings-categories')).toContainText('外观');
   await expect(panel.locator('#settings-categories')).toContainText('文件');
   await expect(panel.locator('#settings-categories')).toContainText('监听');
   await expect(panel.locator('#settings-categories')).toContainText('窗口与命令行');
   await expect(panel.locator('#settings-categories')).toContainText('网络');
+  await expect(panel.locator('#settings-categories')).toContainText('翻译');
   await expect(panel.locator('#settings-categories')).toContainText('搜索');
   await expect(panel.locator('#settings-categories')).toContainText('编辑器');
   await expect(panel.locator('#settings-categories')).toContainText('快捷键');
@@ -564,4 +565,90 @@ test('右键菜单专项：切换英文后已打开的项目树菜单立即刷�
   await expect(menu).toContainText('New File');
   await expect(menu).toContainText('Copy Absolute Path');
   await expect(menu).not.toContainText('新建文件');
+});
+
+test('翻译专项：设置页翻译分类字段展示与测试连接交互', async ({ page }) => {
+  await installSettingsMock(page);
+  await page.click('#btn-settings');
+  const panel = page.locator('#settings-panel');
+  await panel.locator('#settings-categories button[data-category="translation"]').click();
+
+  const engineSelect = panel.locator('[data-setting="engineKind"]');
+  const testBtn = panel.locator('#setting-translate-test-btn');
+  const resultBox = panel.locator('#setting-translate-result');
+
+  await expect(engineSelect).toBeVisible();
+  await expect(testBtn).toBeVisible();
+
+  // 点击测试连接
+  await testBtn.click();
+  await expect(resultBox).toHaveText('测试中…');
+
+  const ipcMessages = await page.evaluate(() => (window.__ipcLog || []).map((msg) => JSON.parse(msg)));
+  const testCmd = ipcMessages.find((m) => m.command === 'translate.test');
+  expect(testCmd).toBeTruthy();
+  expect(testCmd.engineKind).toBe('google');
+
+  // 模拟 Rust 返回成功回执
+  await page.evaluate(() => {
+    window.__fromRust('workspace:translate-result', {
+      requestId: 'test',
+      ok: true,
+      message: '连通成功（120ms）',
+      latencyMs: 120
+    });
+  });
+
+  await expect(resultBox).toHaveText('连通成功（120ms）');
+  await expect(resultBox).toHaveClass(/setting-proxy-ok/);
+});
+
+test('划词翻译专项：Alt+T 弹出气泡、模拟回执展示译文并支持替换/插入/复制', async ({ page }) => {
+  await installSettingsMock(page);
+
+  // 聚焦编辑器并输入文本、选中其中一段
+  const editor = page.locator('#editor');
+  await editor.fill('Hello world from GlanceMD Ultra');
+  await page.evaluate(() => {
+    const ed = document.getElementById('editor');
+    ed.focus();
+    ed.setSelectionRange(6, 11); // 'world'
+  });
+
+  // Alt+T 触发翻译命令
+  await page.keyboard.press('Alt+T');
+
+  const bubble = page.locator('#translate-bubble');
+  await expect(bubble).toBeVisible();
+  await expect(bubble.locator('.translate-bubble-title')).toContainText('划词翻译');
+
+  // 模拟 Rust 异步返回翻译回执
+  const st = await page.evaluate(() => window.TranslateUI.getState());
+  expect(st.currentRequestId).toBeTruthy();
+
+  await page.evaluate((reqId) => {
+    window.__fromRust('workspace:translate-result', {
+      requestId: reqId,
+      ok: true,
+      results: [{ id: 's0', text: '世界' }]
+    });
+  }, st.currentRequestId);
+
+  await expect(bubble.locator('#translate-result-text')).toHaveText('世界');
+
+  // 点击替换选区
+  await bubble.locator('#translate-btn-replace').click();
+  await expect(bubble).toBeHidden();
+  await expect(editor).toHaveValue('Hello 世界 from GlanceMD Ultra');
+
+  // Escape 关闭气泡测试
+  await page.evaluate(() => {
+    const ed = document.getElementById('editor');
+    ed.focus();
+    ed.setSelectionRange(0, 5); // 'Hello'
+  });
+  await page.keyboard.press('Alt+T');
+  await expect(bubble).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(bubble).toBeHidden();
 });
