@@ -135,6 +135,23 @@
       'settings.proxyDisabledHint': '将代理模式设为“使用下方指定代理”后可用',
       'settings.proxyRestartHint': '代理设置需重启应用后生效。',
 
+      // 翻译设置（FEAT-005）
+      'settings.translationEngine': '翻译引擎',
+      'settings.translationEngineDesc': '选择翻译服务提供方（Google 与 Bing 免 key）',
+      'settings.translationBaseUrl': 'Base URL',
+      'settings.translationBaseUrlDesc': 'OpenAI 兼容接口基地址，如 https://api.openai.com/v1',
+      'settings.translationModel': '模型名称',
+      'settings.translationModelDesc': '用于翻译的模型 ID，如 gpt-4o-mini',
+      'settings.translationApiKey': 'API Key',
+      'settings.translationApiKeyDesc': '接口访问密钥（仅保存于本地设置文件）',
+      'settings.translationTargetLanguage': '默认目标语言',
+      'settings.translationTargetLanguageDesc': '划词翻译的目标语言',
+      'settings.translationSelectionTrigger': '选中文本时浮现翻译按钮',
+      'settings.translationSelectionTriggerDesc': '关闭后仅可通过快捷键（Alt+T）或命令面板触发翻译',
+      'settings.translationTest': '测试引擎连接',
+      'settings.translationTesting': '测试中…',
+      'settings.translationTestTimeout': '引擎测试超时，未收到响应',
+
       // settings 分类名与描述
       'settings.cat.appearance': '外观',
       'settings.cat.appearanceDesc': '主题与界面配色',
@@ -150,6 +167,8 @@
       'settings.cat.windowDesc': '窗口多开复用与命令行工具集成',
       'settings.cat.http': '网络',
       'settings.cat.httpDesc': 'HTTP/HTTPS/SOCKS5 代理与连接测试',
+      'settings.cat.translation': '翻译',
+      'settings.cat.translationDesc': '划词翻译引擎与目标语言配置',
       'settings.cat.keybindings': '快捷键',
       'settings.cat.keybindingsDesc': '查看并修改命令快捷键',
       'settings.cat.recovery': '恢复',
@@ -303,6 +322,21 @@
 
       // palette：命令面板
       'palette.placeholder': '输入命令',
+
+      // translate：划词翻译气泡与动作（FEAT-005）
+      'translate.triggerBtn': '翻译选区',
+      'translate.dialogTitle': '划词翻译',
+      'translate.sourceAuto': '自动检测',
+      'translate.targetLanguage': '目标语言',
+      'translate.engine': '引擎',
+      'translate.loading': '正在翻译…',
+      'translate.actionReplace': '替换',
+      'translate.actionInsert': '插入',
+      'translate.actionCopy': '复制',
+      'translate.actionRetry': '重试',
+      'translate.actionClose': '关闭',
+      'translate.copied': '已复制到剪贴板',
+      'translate.cmdSelection': '翻译选中文本',
 
       // recovery：冲突横幅 / 崩溃恢复面板 / 恢复内容浮层
       'recovery.bannerModifiedTitle': '文件已在外部被修改',
@@ -490,6 +524,23 @@
       'settings.proxyDisabledHint': 'Select "Use the proxy below" to enable',
       'settings.proxyRestartHint': 'Proxy settings take effect after restarting the app.',
 
+      // translation settings (FEAT-005)
+      'settings.translationEngine': 'Translation Engine',
+      'settings.translationEngineDesc': 'Choose translation service provider (Google & Bing require no key)',
+      'settings.translationBaseUrl': 'Base URL',
+      'settings.translationBaseUrlDesc': 'OpenAI-compatible base URL, e.g. https://api.openai.com/v1',
+      'settings.translationModel': 'Model Name',
+      'settings.translationModelDesc': 'Model ID for translation, e.g. gpt-4o-mini',
+      'settings.translationApiKey': 'API Key',
+      'settings.translationApiKeyDesc': 'Access key (saved in local settings file only)',
+      'settings.translationTargetLanguage': 'Default Target Language',
+      'settings.translationTargetLanguageDesc': 'Target language for selection translation',
+      'settings.translationSelectionTrigger': 'Show Trigger Button on Selection',
+      'settings.translationSelectionTriggerDesc': 'When disabled, translate via shortcut (Alt+T) or Command Palette only',
+      'settings.translationTest': 'Test Connection',
+      'settings.translationTesting': 'Testing…',
+      'settings.translationTestTimeout': 'Engine test timed out, no response received',
+
       // settings categories
       'settings.cat.appearance': 'Appearance',
       'settings.cat.appearanceDesc': 'Theme and UI color schemes',
@@ -505,6 +556,8 @@
       'settings.cat.windowDesc': 'Window reuse and command-line integration',
       'settings.cat.http': 'Network',
       'settings.cat.httpDesc': 'HTTP/HTTPS/SOCKS5 proxy and connectivity test',
+      'settings.cat.translation': 'Translation',
+      'settings.cat.translationDesc': 'Selection translation engine and target language',
       'settings.cat.keybindings': 'Shortcuts',
       'settings.cat.keybindingsDesc': 'View and customize keyboard shortcuts',
       'settings.cat.recovery': 'Recovery',
@@ -657,6 +710,21 @@
 
       // palette
       'palette.placeholder': 'Type a command',
+
+      // translate: bubble & actions (FEAT-005)
+      'translate.triggerBtn': 'Translate Selection',
+      'translate.dialogTitle': 'Translation',
+      'translate.sourceAuto': 'Auto Detect',
+      'translate.targetLanguage': 'Target Language',
+      'translate.engine': 'Engine',
+      'translate.loading': 'Translating…',
+      'translate.actionReplace': 'Replace',
+      'translate.actionInsert': 'Insert',
+      'translate.actionCopy': 'Copy',
+      'translate.actionRetry': 'Retry',
+      'translate.actionClose': 'Close',
+      'translate.copied': 'Copied to clipboard',
+      'translate.cmdSelection': 'Translate Selected Text',
 
       // recovery
       'recovery.bannerModifiedTitle': 'File modified externally',
