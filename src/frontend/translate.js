@@ -1,23 +1,20 @@
 // 划词与全文翻译前端模块（FEAT-005）—— window.TranslateUI
 // 架构角色：
 // 1. 顶栏翻译图标按钮（#btn-translate）与 Popup 浮窗（#translate-popup）：
-//    - 引擎选择（Google 免 key / Bing 免 key / 自定义 OpenAI 兼容接口）；
-//    - 源语言（自动检测、英文、中文等）与目标语言（简体中文、繁體中文、English 等）；
+//    - 引擎选择（Google 翻译 / Bing 翻译 / 自定义 OpenAI 兼容接口），独立存储并自动记忆上次选择；
+//    - 目标语言选择（简体中文、繁體中文、English 等），自动记忆；
 //    - 呈现模式：双语对照（Bilingual，默认）/ 纯译文替换（Translation）；
-//    - 操作：一键翻译预览区全文、一键翻译编辑区、还原预览原文；
-//    - 快速设置跳转（一键进入设置页「翻译」分类）与 AI 接口配置状态提示；
+//    - 操作：单一主操作按钮（按当前 Tab 的翻译状态动态显示「翻译预览区全文」或「还原预览原文」）；
+//    - 右上角设置图标直达设置面板「翻译」分类；
 // 2. 预览区（#preview）段落级全文翻译与双语对照渲染：
 //    - 智能提取 h1-h6/p/li/blockquote/table 文本段落，自动跳过 pre/code/mermaid/复制按钮；
-//    - 分批发送 translate.request，回执后无缝在段落下插入 .preview-trans-block 译文块；
-//    - 提供一键 restorePreview 瞬间还原纯净 Markdown 预览；
+//    - 按 Tab 分离翻译状态，切 Tab / 重新渲染即时同步状态；
+//    - 分批发送 translate.request，回执后在段落下插入 .preview-trans-block 译文块；
 // 3. 划词选区翻译（同时支持编辑区 #editor 与预览区 #preview）：
-//    - 鼠标划词浮现 #translate-trigger-btn，点击展开 #translate-bubble 气泡；
+//    - 划词气泡独立支持切换翻译引擎与目标语言，并记住上次选择；
 //    - 编辑区支持「替换选区」、「插入到选区后」、「复制」；预览区支持「复制」；
 //    - 快捷键 Alt+T 呼出；
-// 4. 请求与状态管理：
-//    - 单调递增 requestId，精准关联与丢弃过期回执；
-//    - 监听 i18n-changed 国际化联动刷新；
-// 5. 模块以 IIFE 组织并挂载 window.TranslateUI 供 Node/e2e 测试调用。
+// 4. 模块以 IIFE 组织并挂载 window.TranslateUI 供 Node/e2e 测试调用。
 
 (function(root, factory) {
   'use strict';
@@ -31,6 +28,9 @@
 })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this), function() {
   'use strict';
 
+  var STORAGE_ENGINE_KEY = 'glancemd-ultra-trans-engine';
+  var STORAGE_TARGET_KEY = 'glancemd-ultra-trans-target';
+
   var state = {
     triggerEl: null,
     bubbleEl: null,
@@ -43,14 +43,12 @@
     isLoading: false,
     isOpen: false, // bubble is open
     isPopupOpen: false, // popup is open
-    targetLanguageOverride: null,
-    sourceLanguageOverride: 'auto',
     displayMode: 'bilingual', // 'bilingual' | 'replace'
-    previewTranslated: false,
     previewLoading: false,
     previewStatusText: '',
     previewPendingReqId: null,
     previewSegmentsMap: null, // Map of id -> element
+    tabTranslationState: {}, // tabId -> { isTranslated, displayMode, segmentsMap }
   };
 
   var requestSeq = 0;
@@ -67,21 +65,65 @@
     { value: 'ru', label: 'Русский' }
   ];
 
-  var SOURCE_LANGUAGES = [
-    { value: 'auto', label: '自动检测' },
-    { value: 'en', label: 'English' },
-    { value: 'zh-Hans', label: '简体中文' },
-    { value: 'zh-Hant', label: '繁體中文' },
-    { value: 'ja', label: '日本語' },
-    { value: 'ko', label: '한국어' },
-    { value: 'fr', label: 'Français' },
-    { value: 'de', label: 'Deutsch' },
-    { value: 'es', label: 'Español' },
-    { value: 'ru', label: 'Русский' }
+  var ENGINES = [
+    { value: 'google', label: 'Google 翻译' },
+    { value: 'bing', label: 'Bing 翻译' },
+    { value: 'customAi', label: '自定义 OpenAI 兼容接口' }
   ];
 
   function t(k, p) {
     return window.I18n && typeof window.I18n.t === 'function' ? window.I18n.t(k, p) : k;
+  }
+
+  function getActiveTabId() {
+    if (window.TabManager && typeof window.TabManager.getActiveTab === 'function') {
+      var tab = window.TabManager.getActiveTab();
+      return (tab && tab.id) || '__default__';
+    }
+    return '__default__';
+  }
+
+  function isCurrentTabTranslated() {
+    var tabId = getActiveTabId();
+    return !!(state.tabTranslationState[tabId] && state.tabTranslationState[tabId].isTranslated);
+  }
+
+  function getSavedEngine() {
+    try {
+      var s = localStorage.getItem(STORAGE_ENGINE_KEY);
+      if (s) return s;
+    } catch (e) {}
+    if (window.SettingsApply && typeof window.SettingsApply.get === 'function') {
+      var conf = window.SettingsApply.get().translation || {};
+      return conf.engineKind || 'google';
+    }
+    return 'google';
+  }
+
+  function saveEngine(val) {
+    try { localStorage.setItem(STORAGE_ENGINE_KEY, val); } catch (e) {}
+    if (window.SettingsApply && typeof window.SettingsApply.patch === 'function') {
+      window.SettingsApply.patch({ translation: { engineKind: val } });
+    }
+  }
+
+  function getSavedTargetLang() {
+    try {
+      var s = localStorage.getItem(STORAGE_TARGET_KEY);
+      if (s) return s;
+    } catch (e) {}
+    if (window.SettingsApply && typeof window.SettingsApply.get === 'function') {
+      var conf = window.SettingsApply.get().translation || {};
+      return conf.targetLanguage || 'zh-Hans';
+    }
+    return 'zh-Hans';
+  }
+
+  function saveTargetLang(val) {
+    try { localStorage.setItem(STORAGE_TARGET_KEY, val); } catch (e) {}
+    if (window.SettingsApply && typeof window.SettingsApply.patch === 'function') {
+      window.SettingsApply.patch({ translation: { targetLanguage: val } });
+    }
   }
 
   function getSettings() {
@@ -92,13 +134,8 @@
     return {};
   }
 
-  function getEditor() {
-    return document.getElementById('editor');
-  }
-
-  function getPreview() {
-    return document.getElementById('preview');
-  }
+  function getEditor() { return document.getElementById('editor'); }
+  function getPreview() { return document.getElementById('preview'); }
 
   function esc(s) {
     return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -181,7 +218,6 @@
   /* ── 选区检测（同时支持 Editor 与 Preview） ── */
 
   function getSelectionInfo() {
-    // 1. 优先检查编辑区
     var ed = getEditor();
     if (ed) {
       var start = ed.selectionStart;
@@ -193,7 +229,6 @@
         }
       }
     }
-    // 2. 检查预览区
     if (typeof window !== 'undefined' && window.getSelection) {
       var sel = window.getSelection();
       if (sel && !sel.isCollapsed) {
@@ -220,9 +255,7 @@
   }
 
   function hideTrigger() {
-    if (state.triggerEl) {
-      state.triggerEl.hidden = true;
-    }
+    if (state.triggerEl) state.triggerEl.hidden = true;
   }
 
   function onSelectionChange(e) {
@@ -257,14 +290,17 @@
 
   function renderBubbleContent() {
     var bubble = ensureBubble();
-    var conf = getSettings();
-    var targetLang = state.targetLanguageOverride || conf.targetLanguage || 'zh-Hans';
-    var engineKind = conf.engineKind || 'google';
-    var engineLabel = engineKind === 'bing' ? 'Bing' : (engineKind === 'customAi' ? 'AI' : 'Google');
+    var curEngine = getSavedEngine();
+    var curTarget = getSavedTargetLang();
     var isPreviewSource = state.activeSelection && state.activeSelection.source === 'preview';
 
-    var optionsHtml = TARGET_LANGUAGES.map(function(item) {
-      var sel = item.value === targetLang ? ' selected' : '';
+    var engineOptionsHtml = ENGINES.map(function(item) {
+      var sel = item.value === curEngine ? ' selected' : '';
+      return '<option value="' + esc(item.value) + '"' + sel + '>' + esc(item.label) + '</option>';
+    }).join('');
+
+    var targetOptionsHtml = TARGET_LANGUAGES.map(function(item) {
+      var sel = item.value === curTarget ? ' selected' : '';
       return '<option value="' + esc(item.value) + '"' + sel + '>' + esc(item.label) + '</option>';
     }).join('');
 
@@ -287,12 +323,10 @@
     var footerHtml = '';
     if (state.isLoading) {
       footerHtml = '<div class="translate-bubble-footer">'
-        + '<span class="translate-bubble-engine-badge">' + esc(engineLabel) + '</span>'
         + '<button type="button" class="translate-btn" id="translate-btn-cancel">' + esc(t('translate.actionClose')) + '</button>'
         + '</div>';
     } else if (state.currentError) {
       footerHtml = '<div class="translate-bubble-footer">'
-        + '<span class="translate-bubble-engine-badge">' + esc(engineLabel) + '</span>'
         + '<button type="button" class="translate-btn translate-btn-primary" id="translate-btn-retry">' + esc(t('translate.actionRetry')) + '</button>'
         + '<button type="button" class="translate-btn" id="translate-btn-close">' + esc(t('translate.actionClose')) + '</button>'
         + '</div>';
@@ -304,7 +338,6 @@
           + '<button type="button" class="translate-btn" id="translate-btn-copy">' + esc(t('translate.actionCopy')) + '</button>';
 
       footerHtml = '<div class="translate-bubble-footer">'
-        + '<span class="translate-bubble-engine-badge">' + esc(engineLabel) + '</span>'
         + actionButtons
         + '</div>';
     }
@@ -314,7 +347,10 @@
       + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"></path></svg>'
       + esc(t('translate.dialogTitle'))
       + '</span>'
-      + '<select class="translate-bubble-target-select" id="translate-target-select">' + optionsHtml + '</select>'
+      + '<div class="translate-bubble-controls">'
+      + '<select class="translate-bubble-select" id="translate-bubble-engine-select">' + engineOptionsHtml + '</select>'
+      + '<select class="translate-bubble-select" id="translate-target-select">' + targetOptionsHtml + '</select>'
+      + '</div>'
       + '<button type="button" class="translate-bubble-close" id="translate-close-btn" aria-label="' + esc(t('translate.actionClose')) + '">&times;</button>'
       + '</div>'
       + bodyHtml
@@ -332,10 +368,18 @@
     var cancelBtn = bubble.querySelector('#translate-btn-cancel');
     if (cancelBtn) cancelBtn.onclick = closeBubble;
 
-    var select = bubble.querySelector('#translate-target-select');
-    if (select) {
-      select.onchange = function() {
-        state.targetLanguageOverride = select.value;
+    var engineSel = bubble.querySelector('#translate-bubble-engine-select');
+    if (engineSel) {
+      engineSel.onchange = function() {
+        saveEngine(engineSel.value);
+        startTranslate();
+      };
+    }
+
+    var targetSel = bubble.querySelector('#translate-target-select');
+    if (targetSel) {
+      targetSel.onchange = function() {
+        saveTargetLang(targetSel.value);
         startTranslate();
       };
     }
@@ -440,6 +484,8 @@
     send({
       command: 'translate.request',
       requestId: reqId,
+      engineKind: getSavedEngine(),
+      targetLanguage: getSavedTargetLang(),
       segments: [segment]
     });
   }
@@ -454,7 +500,7 @@
     var rect = state.triggerEl && !state.triggerEl.hidden ? state.triggerEl.getBoundingClientRect() : null;
     var x = rect ? rect.left : 120;
     var y = rect ? rect.bottom + 8 : 120;
-    var pos = clampPosition(x, y, 380, 240);
+    var pos = clampPosition(x, y, 420, 240);
     bubble.style.left = pos.x + 'px';
     bubble.style.top = pos.y + 'px';
     bubble.hidden = false;
@@ -464,13 +510,10 @@
   }
 
   function closeBubble() {
-    if (state.bubbleEl) {
-      state.bubbleEl.hidden = true;
-    }
+    if (state.bubbleEl) state.bubbleEl.hidden = true;
     state.isOpen = false;
     state.isLoading = false;
     state.currentRequestId = null;
-    state.targetLanguageOverride = null;
     hideTrigger();
   }
 
@@ -479,26 +522,18 @@
   function renderPopupContent() {
     var popup = ensurePopup();
     var conf = getSettings();
-    var targetLang = state.targetLanguageOverride || conf.targetLanguage || 'zh-Hans';
-    var sourceLang = state.sourceLanguageOverride || 'auto';
-    var engineKind = conf.engineKind || 'google';
-    var isCustom = engineKind === 'customAi';
+    var curEngine = getSavedEngine();
+    var curTarget = getSavedTargetLang();
+    var isCustom = curEngine === 'customAi';
     var hasCustomConfig = Boolean(conf.baseUrl && conf.apiKey);
+    var isTranslated = isCurrentTabTranslated();
 
-    var engineOptions = [
-      { value: 'google', label: 'Google 翻译 (免 key)' },
-      { value: 'bing', label: 'Bing 翻译 (免 key)' },
-      { value: 'customAi', label: '自定义 OpenAI 兼容接口' }
-    ].map(function(item) {
-      return '<option value="' + esc(item.value) + '"' + (item.value === engineKind ? ' selected' : '') + '>' + esc(item.label) + '</option>';
-    }).join('');
-
-    var sourceOptions = SOURCE_LANGUAGES.map(function(item) {
-      return '<option value="' + esc(item.value) + '"' + (item.value === sourceLang ? ' selected' : '') + '>' + esc(item.label) + '</option>';
+    var engineOptions = ENGINES.map(function(item) {
+      return '<option value="' + esc(item.value) + '"' + (item.value === curEngine ? ' selected' : '') + '>' + esc(item.label) + '</option>';
     }).join('');
 
     var targetOptions = TARGET_LANGUAGES.map(function(item) {
-      return '<option value="' + esc(item.value) + '"' + (item.value === targetLang ? ' selected' : '') + '>' + esc(item.label) + '</option>';
+      return '<option value="' + esc(item.value) + '"' + (item.value === curTarget ? ' selected' : '') + '>' + esc(item.label) + '</option>';
     }).join('');
 
     var aiAlertHtml = (isCustom && !hasCustomConfig)
@@ -512,6 +547,16 @@
       ? '<div class="translate-popup-status">' + esc(state.previewStatusText) + '</div>'
       : '';
 
+    var mainActionBtnHtml = isTranslated
+      ? '<button type="button" class="translate-btn translate-btn-block translate-btn-restore" id="popup-btn-toggle-preview">'
+        + '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>'
+        + esc(t('translate.btnRestorePreview'))
+        + '</button>'
+      : '<button type="button" class="translate-btn translate-btn-primary translate-btn-block" id="popup-btn-toggle-preview"' + (state.previewLoading ? ' disabled' : '') + '>'
+        + (state.previewLoading ? '<svg class="svg-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="12"></circle></svg>' : '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4h7M6 2.5v1.5M3.5 6.5c.7 1.4 1.7 2.6 3 3.3M7 4c-.6 1.7-1.6 3.1-3 4.1M8.5 13.5l3.2-7 3.3 7M9.8 11.2h4.4"/></svg>')
+        + esc(t('translate.btnTranslatePreview'))
+        + '</button>';
+
     popup.innerHTML = '<div class="translate-popup-header">'
       + '<span class="translate-popup-title">'
       + '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">'
@@ -519,26 +564,18 @@
       + '</svg>'
       + esc(t('translate.popupTitle'))
       + '</span>'
-      + '<button type="button" class="translate-popup-icon-btn" id="translate-popup-btn-settings" title="' + esc(t('translate.quickSettings')) + '">'
+      + '<button type="button" class="translate-popup-icon-btn" id="translate-popup-btn-settings" title="' + esc(t('translate.quickSettings')) + '" aria-label="' + esc(t('translate.quickSettings')) + '">'
       + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>'
       + '</button>'
-      + '<button type="button" class="translate-popup-icon-btn" id="translate-popup-btn-close" aria-label="' + esc(t('translate.actionClose')) + '">&times;</button>'
       + '</div>'
       + '<div class="translate-popup-body">'
       + '<div class="translate-popup-field">'
       + '<label class="translate-popup-label">' + esc(t('translate.engine')) + '</label>'
       + '<select class="translate-popup-select" id="translate-popup-engine">' + engineOptions + '</select>'
       + '</div>'
-      + '<div class="translate-popup-row-lang">'
-      + '<div class="translate-popup-field">'
-      + '<label class="translate-popup-label">' + esc(t('translate.sourceLanguage')) + '</label>'
-      + '<select class="translate-popup-select" id="translate-popup-source-lang">' + sourceOptions + '</select>'
-      + '</div>'
-      + '<div class="translate-popup-lang-arrow">→</div>'
       + '<div class="translate-popup-field">'
       + '<label class="translate-popup-label">' + esc(t('translate.targetLanguage')) + '</label>'
       + '<select class="translate-popup-select" id="translate-popup-target-lang">' + targetOptions + '</select>'
-      + '</div>'
       + '</div>'
       + '<div class="translate-popup-field">'
       + '<label class="translate-popup-label">' + esc(t('translate.displayMode')) + '</label>'
@@ -549,14 +586,7 @@
       + '</div>'
       + aiAlertHtml
       + '<div class="translate-popup-actions">'
-      + '<button type="button" class="translate-btn translate-btn-primary translate-btn-block" id="popup-btn-translate-preview"' + (state.previewLoading ? ' disabled' : '') + '>'
-      + (state.previewLoading ? '<svg class="svg-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="12"></circle></svg>' : '')
-      + esc(t('translate.btnTranslatePreview'))
-      + '</button>'
-      + '<div class="translate-popup-action-row">'
-      + '<button type="button" class="translate-btn" id="popup-btn-translate-editor">' + esc(t('translate.btnTranslateEditor')) + '</button>'
-      + '<button type="button" class="translate-btn" id="popup-btn-restore-preview"' + (!state.previewTranslated ? ' disabled' : '') + '>' + esc(t('translate.btnRestorePreview')) + '</button>'
-      + '</div>'
+      + mainActionBtnHtml
       + '</div>'
       + statusHtml
       + '</div>';
@@ -564,60 +594,37 @@
     wirePopupEvents(popup);
   }
 
-  function wirePopupEvents(popup) {
-    var closeBtn = popup.querySelector('#translate-popup-btn-close');
-    if (closeBtn) closeBtn.onclick = closePopup;
-
-    var settingsBtn = popup.querySelector('#translate-popup-btn-settings');
-    if (settingsBtn) {
-      settingsBtn.onclick = function() {
-        closePopup();
-        if (window.Commands && typeof window.Commands.run === 'function') {
-          window.Commands.run('settings.toggle');
-        }
-        if (window.SettingsUI && typeof window.SettingsUI.openCategory === 'function') {
-          window.SettingsUI.openCategory('translation');
-        }
-      };
+  function goToSettingsTranslation() {
+    closePopup();
+    if (window.SettingsUI && typeof window.SettingsUI.open === 'function') {
+      window.SettingsUI.open();
+      if (typeof window.SettingsUI.setCategory === 'function') {
+        window.SettingsUI.setCategory('translation');
+      }
+    } else if (window.Commands && typeof window.Commands.run === 'function') {
+      window.Commands.run('settings.toggle');
     }
+  }
+
+  function wirePopupEvents(popup) {
+    var settingsBtn = popup.querySelector('#translate-popup-btn-settings');
+    if (settingsBtn) settingsBtn.onclick = goToSettingsTranslation;
 
     var aiAlert = popup.querySelector('#translate-popup-ai-alert');
-    if (aiAlert) {
-      aiAlert.onclick = function() {
-        closePopup();
-        if (window.Commands && typeof window.Commands.run === 'function') {
-          window.Commands.run('settings.toggle');
-        }
-        if (window.SettingsUI && typeof window.SettingsUI.openCategory === 'function') {
-          window.SettingsUI.openCategory('translation');
-        }
-      };
-    }
+    if (aiAlert) aiAlert.onclick = goToSettingsTranslation;
 
     var engineSelect = popup.querySelector('#translate-popup-engine');
     if (engineSelect) {
       engineSelect.onchange = function() {
-        if (window.SettingsApply && typeof window.SettingsApply.patch === 'function') {
-          window.SettingsApply.patch({ translation: { engineKind: engineSelect.value } });
-        }
+        saveEngine(engineSelect.value);
         renderPopupContent();
-      };
-    }
-
-    var sourceSelect = popup.querySelector('#translate-popup-source-lang');
-    if (sourceSelect) {
-      sourceSelect.onchange = function() {
-        state.sourceLanguageOverride = sourceSelect.value;
       };
     }
 
     var targetSelect = popup.querySelector('#translate-popup-target-lang');
     if (targetSelect) {
       targetSelect.onchange = function() {
-        state.targetLanguageOverride = targetSelect.value;
-        if (window.SettingsApply && typeof window.SettingsApply.patch === 'function') {
-          window.SettingsApply.patch({ translation: { targetLanguage: targetSelect.value } });
-        }
+        saveTargetLang(targetSelect.value);
       };
     }
 
@@ -629,38 +636,20 @@
       };
     });
 
-    var transPreviewBtn = popup.querySelector('#popup-btn-translate-preview');
-    if (transPreviewBtn) transPreviewBtn.onclick = translatePreview;
-
-    var transEditorBtn = popup.querySelector('#popup-btn-translate-editor');
-    if (transEditorBtn) {
-      transEditorBtn.onclick = function() {
-        closePopup();
-        var sel = getEditorSelection();
-        if (sel) {
-          openBubble();
+    var togglePreviewBtn = popup.querySelector('#popup-btn-toggle-preview');
+    if (togglePreviewBtn) {
+      togglePreviewBtn.onclick = function() {
+        if (isCurrentTabTranslated()) {
+          restorePreview();
         } else {
-          // 无选区：全选编辑器并翻译
-          var ed = getEditor();
-          if (ed && ed.value.trim()) {
-            ed.focus();
-            ed.setSelectionRange(0, ed.value.length);
-            openBubble();
-          }
+          translatePreview();
         }
       };
     }
-
-    var restorePreviewBtn = popup.querySelector('#popup-btn-restore-preview');
-    if (restorePreviewBtn) restorePreviewBtn.onclick = restorePreview;
   }
 
   function togglePopup() {
-    if (state.isPopupOpen) {
-      closePopup();
-    } else {
-      openPopup();
-    }
+    if (state.isPopupOpen) closePopup(); else openPopup();
   }
 
   function openPopup() {
@@ -669,7 +658,7 @@
     var rect = btn ? btn.getBoundingClientRect() : null;
     var x = rect ? rect.left - 240 : 200;
     var y = rect ? rect.bottom + 6 : 50;
-    var pos = clampPosition(x, y, 300, 360);
+    var pos = clampPosition(x, y, 290, 320);
     popup.style.left = pos.x + 'px';
     popup.style.top = pos.y + 'px';
     popup.hidden = false;
@@ -678,9 +667,7 @@
   }
 
   function closePopup() {
-    if (state.popupEl) {
-      state.popupEl.hidden = true;
-    }
+    if (state.popupEl) state.popupEl.hidden = true;
     state.isPopupOpen = false;
   }
 
@@ -695,7 +682,6 @@
     var count = 0;
 
     Array.prototype.forEach.call(nodes, function(node) {
-      // 跳过代码块与 mermaid
       if (node.closest('pre') || node.closest('.mermaid-block') || node.classList.contains('preview-trans-block')) {
         return;
       }
@@ -729,6 +715,8 @@
     send({
       command: 'translate.request',
       requestId: reqId,
+      engineKind: getSavedEngine(),
+      targetLanguage: getSavedTargetLang(),
       segments: collected.segments
     });
   }
@@ -736,18 +724,19 @@
   function restorePreview() {
     var prev = getPreview();
     if (!prev) return;
-    // 移除所有双语译文块
     var transBlocks = prev.querySelectorAll('.preview-trans-block');
     Array.prototype.forEach.call(transBlocks, function(el) {
       if (el.parentNode) el.parentNode.removeChild(el);
     });
-    // 恢复替换模式下的原 HTML
     var replacedEls = prev.querySelectorAll('[data-orig-html]');
     Array.prototype.forEach.call(replacedEls, function(el) {
       el.innerHTML = el.getAttribute('data-orig-html');
       el.removeAttribute('data-orig-html');
     });
-    state.previewTranslated = false;
+
+    var tabId = getActiveTabId();
+    delete state.tabTranslationState[tabId];
+
     state.previewStatusText = t('translate.previewRestored');
     renderPopupContent();
   }
@@ -757,7 +746,6 @@
     if (!map) return;
     var isBilingual = state.displayMode === 'bilingual';
 
-    // 先清除旧翻译
     restorePreview();
 
     results.forEach(function(res) {
@@ -769,7 +757,6 @@
         transDiv.className = 'preview-trans-block';
         transDiv.setAttribute('data-trans-for', res.id);
         transDiv.textContent = res.text;
-        // 插入在原文元素之后
         elem.parentNode.insertBefore(transDiv, elem.nextSibling);
       } else {
         elem.setAttribute('data-orig-html', elem.innerHTML);
@@ -777,7 +764,11 @@
       }
     });
 
-    state.previewTranslated = true;
+    var tabId = getActiveTabId();
+    state.tabTranslationState[tabId] = {
+      isTranslated: true,
+      displayMode: state.displayMode,
+    };
   }
 
   /* ── IPC 事件与生命周期 ── */
@@ -786,7 +777,6 @@
     if (!d || !d.requestId) return;
     if (d.requestId === 'test') return;
 
-    // 1. 预览区全文回执
     if (d.requestId === state.previewPendingReqId) {
       state.previewLoading = false;
       if (d.ok && d.results && d.results.length) {
@@ -799,7 +789,6 @@
       return;
     }
 
-    // 2. 划词气泡回执
     if (d.requestId !== state.currentRequestId) return;
     state.isLoading = false;
     if (d.ok && d.results && d.results.length > 0) {
@@ -816,30 +805,19 @@
 
   function onGlobalKeyDown(e) {
     if (e.key === 'Escape') {
-      if (state.isOpen) {
-        e.preventDefault();
-        e.stopPropagation();
-        closeBubble();
-      }
-      if (state.isPopupOpen) {
-        e.preventDefault();
-        e.stopPropagation();
-        closePopup();
-      }
+      if (state.isOpen) { e.preventDefault(); e.stopPropagation(); closeBubble(); }
+      if (state.isPopupOpen) { e.preventDefault(); e.stopPropagation(); closePopup(); }
     }
   }
 
   function onGlobalClick(e) {
-    // 关闭气泡
     if (!state.isOpen) {
       if (state.triggerEl && !state.triggerEl.contains(e.target)) {
         var ed = getEditor();
         var prev = getPreview();
         var inEd = ed && ed.contains(e.target);
         var inPrev = prev && prev.contains(e.target);
-        if (!inEd && !inPrev) {
-          hideTrigger();
-        }
+        if (!inEd && !inPrev) hideTrigger();
       }
     } else {
       if (state.bubbleEl && !state.bubbleEl.contains(e.target) && (!state.triggerEl || !state.triggerEl.contains(e.target))) {
@@ -847,7 +825,6 @@
       }
     }
 
-    // 关闭 Popup
     if (state.isPopupOpen) {
       var btnTrans = document.getElementById('btn-translate');
       if (state.popupEl && !state.popupEl.contains(e.target) && (!btnTrans || !btnTrans.contains(e.target))) {
@@ -961,5 +938,10 @@
     getSelectionInfo: getSelectionInfo,
     clampPosition: clampPosition,
     onTranslateResult: onTranslateResult,
+    getSavedEngine: getSavedEngine,
+    saveEngine: saveEngine,
+    getSavedTargetLang: getSavedTargetLang,
+    saveTargetLang: saveTargetLang,
+    isCurrentTabTranslated: isCurrentTabTranslated,
   };
 });

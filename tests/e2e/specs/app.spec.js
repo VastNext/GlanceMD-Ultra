@@ -721,10 +721,11 @@ test('顶栏翻译图标与 Popup 浮窗：点击展开 Popup、一键双语翻�
   await expect(popup).toBeVisible();
   await expect(popup.locator('.translate-popup-title')).toContainText('语层翻译');
 
-  // 点击「翻译预览区全文」
-  const translatePreviewBtn = popup.locator('#popup-btn-translate-preview');
-  await expect(translatePreviewBtn).toBeVisible();
-  await translatePreviewBtn.click();
+  // 点击单一主操作按钮「翻译预览区全文」
+  const togglePreviewBtn = popup.locator('#popup-btn-toggle-preview');
+  await expect(togglePreviewBtn).toBeVisible();
+  await expect(togglePreviewBtn).toContainText('翻译预览区全文');
+  await togglePreviewBtn.click();
 
   // 获取 pending requestId 并模拟返回双语译文
   const st = await page.evaluate(() => window.TranslateUI.getState());
@@ -747,10 +748,9 @@ test('顶栏翻译图标与 Popup 浮窗：点击展开 Popup、一键双语翻�
   await expect(transBlocks.first()).toHaveText('欢迎使用 GlanceMD');
   await expect(transBlocks.last()).toHaveText('GlanceMD Ultra 是一个轻量级 Markdown 工作区。');
 
-  // 点击「还原预览原文」
-  const restoreBtn = popup.locator('#popup-btn-restore-preview');
-  await expect(restoreBtn).toBeEnabled();
-  await restoreBtn.click();
+  // 验证主操作按钮已动态变为「还原预览原文」
+  await expect(togglePreviewBtn).toContainText('还原预览原文');
+  await togglePreviewBtn.click();
 
   // 验证双语译文块已被清除，还原纯净渲染
   await expect(preview.locator('.preview-trans-block')).toHaveCount(0);

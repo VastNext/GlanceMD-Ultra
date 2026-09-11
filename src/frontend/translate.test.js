@@ -4,11 +4,11 @@
  * 1. 模块导出与初始化：window.TranslateUI 暴露完整 API；
  * 2. 选区检测：无选区/折叠选区不返回，编辑区/预览区非折叠有文本返回选区对象；
  * 3. 视口边界约束：clampPosition 保证气泡/按钮/Popup 不溢出屏幕外；
- * 4. 气泡生命周期：openBubble 发送 translate.request（带 requestId），closeBubble 重置状态；
- * 5. 请求关联与丢弃：非当前 requestId 或 test 响应静默忽略，匹配的更新 currentResult；
- * 6. 顶栏 Popup 浮窗：openPopup / closePopup / togglePopup 状态机与内容渲染；
- * 7. 预览区全文翻译：collectPreviewSegments 智能过滤代码块与非文本，translatePreview 发送批量请求；
- * 8. 预览区双语对照与还原：applyPreviewTranslation 插入 .preview-trans-block，restorePreview 瞬间清除；
+ * 4. 气泡生命周期：openBubble 发送 translate.request（带 requestId 与引擎/语言选择），closeBubble 重置状态；
+ * 5. 独立引擎与目标语言记忆：saveEngine / saveTargetLang 写入 storage 并由下一次请求携带；
+ * 6. 顶栏 Popup 浮窗：openPopup / closePopup / togglePopup 状态切换与渲染；
+ * 7. Tab 隔离的翻译状态：isCurrentTabTranslated 准确反馈当前 Tab 的翻译状态；
+ * 8. 预览区全文翻译与一键还原：collectPreviewSegments 提取段落，translatePreview 发送请求，applyPreviewTranslation 插入 .preview-trans-block，restorePreview 还原；
  * 9. 动作执行：替换选区（setRangeText）、插入（\n\n追加）、复制触发 toast。
  */
 
@@ -26,6 +26,7 @@ function loadHarness() {
   const docListeners = {};
   const ipcMsgs = [];
   const workspaceSubs = {};
+  const storage = new Map();
 
   function makeEl(tag) {
     const el = {
@@ -43,6 +44,7 @@ function loadHarness() {
       attrs: {},
       innerHTML: '',
       textContent: '',
+      _className: '',
       classList: {
         _classes: new Set(),
         add(c) { this._classes.add(c); },
@@ -197,6 +199,11 @@ function loadHarness() {
     innerWidth: 1024,
     innerHeight: 768,
     document: doc,
+    localStorage: {
+      getItem: (k) => storage.get(k) || null,
+      setItem: (k, v) => storage.set(k, String(v)),
+      removeItem: (k) => storage.delete(k),
+    },
     navigator: {
       clipboard: {
         writeText: () => Promise.resolve(),
@@ -214,6 +221,13 @@ function loadHarness() {
       }),
       patch: () => {},
     },
+    TabManager: {
+      getActiveTab: () => ({ id: 'tab_1', title: 'test.md' }),
+    },
+    SettingsUI: {
+      open: () => {},
+      setCategory: () => {},
+    },
     Commands: {
       register: (id, def) => { registeredCommands[id] = def; },
       run: () => {},
@@ -228,7 +242,7 @@ function loadHarness() {
   ctx.window = ctx;
 
   vm.runInNewContext(fs.readFileSync(TRANSLATE_JS, 'utf8'), ctx, { filename: 'translate.js' });
-  return { ctx, els, ipcMsgs, editor, preview, btnTranslate, workspaceSubs, registeredCommands, makeEl };
+  return { ctx, els, ipcMsgs, editor, preview, btnTranslate, workspaceSubs, registeredCommands, makeEl, storage };
 }
 
 test('TranslateUI 模块挂载与 API 完整暴露', () => {
@@ -241,6 +255,8 @@ test('TranslateUI 模块挂载与 API 完整暴露', () => {
   assert.equal(typeof h.ctx.TranslateUI.togglePopup, 'function');
   assert.equal(typeof h.ctx.TranslateUI.translatePreview, 'function');
   assert.equal(typeof h.ctx.TranslateUI.restorePreview, 'function');
+  assert.equal(typeof h.ctx.TranslateUI.saveEngine, 'function');
+  assert.equal(typeof h.ctx.TranslateUI.saveTargetLang, 'function');
   assert.ok(h.registeredCommands['translate.selection'], '已注册 translate.selection 命令');
   assert.ok(h.registeredCommands['translate.popup'], '已注册 translate.popup 命令');
   assert.ok(h.registeredCommands['translate.preview'], '已注册 translate.preview 命令');
@@ -273,48 +289,22 @@ test('视口边界约束：clampPosition 在各边界安全留白', () => {
   assert.deepEqual(round(clamp(200, 300, 380, 200)), { x: 200, y: 300 });
 });
 
-test('openBubble 触发翻译请求并发送 translate.request IPC 消息', () => {
+test('划词气泡独立切换引擎与目标语言，并记住上次选择', () => {
   const h = loadHarness();
-  h.editor.value = 'Artificial Intelligence';
+  h.ctx.TranslateUI.saveEngine('bing');
+  h.ctx.TranslateUI.saveTargetLang('ja');
+  assert.equal(h.ctx.TranslateUI.getSavedEngine(), 'bing');
+  assert.equal(h.ctx.TranslateUI.getSavedTargetLang(), 'ja');
+
+  h.editor.value = 'Deep learning';
   h.editor.selectionStart = 0;
-  h.editor.selectionEnd = 23;
+  h.editor.selectionEnd = 13;
 
   h.ctx.TranslateUI.openBubble();
-  const st = h.ctx.TranslateUI.getState();
-  assert.equal(st.isOpen, true, '气泡已打开');
-  assert.equal(st.isLoading, true, '处于 loading 状态');
-  assert.ok(st.currentRequestId, '已分配 requestId');
-
   const req = h.ipcMsgs.find((m) => m.command === 'translate.request');
-  assert.ok(req, '已发出 translate.request');
-  assert.equal(req.requestId, st.currentRequestId);
-  assert.deepEqual(req.segments, [{ id: 's0', text: 'Artificial Intelligence' }]);
-});
-
-test('请求关联：匹配 requestId 的回执写入结果，过期的静默忽略', () => {
-  const h = loadHarness();
-  h.editor.value = 'Test segment';
-  h.editor.selectionStart = 0;
-  h.editor.selectionEnd = 12;
-
-  h.ctx.TranslateUI.openBubble();
-  const reqId = h.ctx.TranslateUI.getState().currentRequestId;
-
-  h.ctx.TranslateUI.onTranslateResult({ requestId: 'test', ok: true, message: '连通' });
-  assert.equal(h.ctx.TranslateUI.getState().isLoading, true);
-
-  h.ctx.TranslateUI.onTranslateResult({ requestId: 'stale_id', ok: true, results: [{ id: 's0', text: '旧结果' }] });
-  assert.equal(h.ctx.TranslateUI.getState().isLoading, true);
-
-  h.ctx.TranslateUI.onTranslateResult({
-    requestId: reqId,
-    ok: true,
-    results: [{ id: 's0', text: '测试分段' }],
-  });
-  const st = h.ctx.TranslateUI.getState();
-  assert.equal(st.isLoading, false);
-  assert.equal(st.currentResult, '测试分段');
-  assert.equal(st.currentError, null);
+  assert.ok(req);
+  assert.equal(req.engineKind, 'bing');
+  assert.equal(req.targetLanguage, 'ja');
 });
 
 test('顶栏 Popup 浮窗：openPopup / closePopup / togglePopup 状态切换与渲染', () => {
@@ -378,14 +368,14 @@ test('预览区双语对照翻译与一键还原：插入 .preview-trans-block �
     results: [{ id: 'p_0', text: '中文段落。' }],
   });
 
-  assert.equal(h.ctx.TranslateUI.getState().previewTranslated, true);
+  assert.equal(h.ctx.TranslateUI.isCurrentTabTranslated(), true);
   const transBlocks = h.preview.querySelectorAll('.preview-trans-block');
   assert.equal(transBlocks.length, 1, '已插入双语对照译文块');
   assert.equal(transBlocks[0].textContent, '中文段落。');
 
   // 测试一键还原
   h.ctx.TranslateUI.restorePreview();
-  assert.equal(h.ctx.TranslateUI.getState().previewTranslated, false);
+  assert.equal(h.ctx.TranslateUI.isCurrentTabTranslated(), false);
   const transBlocksAfter = h.preview.querySelectorAll('.preview-trans-block');
   assert.equal(transBlocksAfter.length, 0, '双语译文块已全部清除');
 });

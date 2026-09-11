@@ -1767,13 +1767,15 @@ fn translate_engine_from_settings(
     }
 }
 
-/// `translate.request`（FEAT-005）：执行划词翻译。
+/// `translate.request`（FEAT-005）：执行划词与全文翻译。
 ///
-/// 前端传 `requestId` 与 `segments`（分段列表）；目标语言与引擎配置读已保存
-/// 全局设置（保持统一设置权威性）。网络请求在后台线程异步执行，结果经
+/// 前端传 `requestId` 与 `segments`（分段列表）；可选传 `engineKind` 与 `targetLanguage`
+/// （未传时回退全局设置）。网络请求在后台线程异步执行，结果经
 /// `workspace:translate-result` 下行事件原样回带 `requestId`。
 fn translate_request(_: &CommandContext, p: &CommandPayload) {
     let request_id = string(p, &["requestId", "data.requestId"]).unwrap_or_else(|| "anon".into());
+    let opt_engine_kind = string(p, &["engineKind", "data.engineKind"]);
+    let opt_target_lang = string(p, &["targetLanguage", "data.targetLanguage"]);
     let segments_val = p
         .extra
         .get("segments")
@@ -1816,7 +1818,15 @@ fn translate_request(_: &CommandContext, p: &CommandPayload) {
                 return;
             }
         };
-        let engine = match translate_engine_from_settings(&global) {
+        let mut target_settings = global.clone();
+        if let Some(ek) = opt_engine_kind {
+            target_settings.translation.engine_kind = match ek.as_str() {
+                "bing" => workspace::settings::TranslationEngine::Bing,
+                "customAi" => workspace::settings::TranslationEngine::CustomAi,
+                _ => workspace::settings::TranslationEngine::Google,
+            };
+        }
+        let engine = match translate_engine_from_settings(&target_settings) {
             Ok(e) => e,
             Err(e) => {
                 emit(workspace::events::Event::TranslateResult {
@@ -1828,7 +1838,9 @@ fn translate_request(_: &CommandContext, p: &CommandPayload) {
                 return;
             }
         };
-        let target = &global.translation.target_language;
+        let target = opt_target_lang
+            .as_deref()
+            .unwrap_or(&global.translation.target_language);
         match crate::translate::translate(&agent, &engine, "auto", target, &segments) {
             Ok(results) => {
                 crate::log_info!(
