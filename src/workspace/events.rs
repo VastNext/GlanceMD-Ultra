@@ -95,6 +95,11 @@ pub enum Event {
         /// 失败时为中文错误原因）。
         payload: serde_json::Value,
     },
+    /// 翻译结果回执（FEAT-005，`translate.request`/`translate.test` 命令的
+    /// 异步结果）：`requestId` + `ok` + `results`/`message`。
+    TranslateResult {
+        payload: serde_json::Value,
+    },
 }
 
 impl Event {
@@ -120,6 +125,7 @@ impl Event {
             Event::RecoveryOpened { .. } => "workspace:recovery-opened",
             Event::CliShimStatus { .. } => "workspace:cli-shim-status",
             Event::ProxyTestResult { .. } => "workspace:proxy-test-result",
+            Event::TranslateResult { .. } => "workspace:translate-result",
         }
     }
 
@@ -185,6 +191,7 @@ impl Event {
                 json!({ "installed": installed, "dir": dir, "message": message })
             }
             Event::ProxyTestResult { payload } => payload.clone(),
+            Event::TranslateResult { payload } => payload.clone(),
         }
     }
 }
