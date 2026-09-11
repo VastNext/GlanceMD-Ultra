@@ -176,6 +176,8 @@ pub fn register_builtin() {
         ("workspace.settings.save-global", settings_set),
         ("workspace.settings.open-settings-json", settings_open),
         ("net.testProxy", net_test_proxy),
+        ("translate.request", translate_request),
+        ("translate.test", translate_test),
         ("workspace.recovery.snapshot", recovery_snapshot),
         ("workspace.recovery.list", recovery_list),
         ("workspace.recovery.restore", recovery_restore),
@@ -1712,6 +1714,227 @@ fn net_test_proxy(_: &CommandContext, p: &CommandPayload) {
                 crate::log_warn!("net", "代理探测失败: {}", e);
                 emit(workspace::events::Event::ProxyTestResult {
                     payload: serde_json::json!({ "ok": false, "message": e }),
+                });
+            }
+        }
+    });
+}
+
+// ── 翻译命令（FEAT-005）──
+
+/// 从全局设置构建 ureq Agent（统一加载 `http.*` 代理与 SSL 配置，30s 超时）。
+fn translate_agent(settings: &workspace::settings::Settings) -> Result<ureq::Agent, String> {
+    let proxy_uri = match settings.http.proxy_support {
+        workspace::settings::ProxySupport::Override => {
+            if settings.http.proxy.trim().is_empty() {
+                None
+            } else {
+                Some(crate::net::parse_proxy_url(&settings.http.proxy)?.to_uri())
+            }
+        }
+        _ => None,
+    };
+    crate::net::build_agent(
+        proxy_uri.as_deref(),
+        settings.http.proxy_strict_ssl,
+        std::time::Duration::from_secs(30),
+    )
+}
+
+/// 从全局设置的 `translation` 分类提取引擎配置。
+fn translate_engine_from_settings(
+    settings: &workspace::settings::Settings,
+) -> Result<crate::translate::EngineConfig, String> {
+    let t = &settings.translation;
+    match t.engine_kind {
+        workspace::settings::TranslationEngine::Google => Ok(crate::translate::EngineConfig::Google),
+        workspace::settings::TranslationEngine::Bing => Ok(crate::translate::EngineConfig::Bing),
+        workspace::settings::TranslationEngine::CustomAi => {
+            if t.base_url.trim().is_empty() {
+                return Err("自定义 AI 引擎缺少 Base URL，请在设置中配置".to_string());
+            }
+            if t.model.trim().is_empty() {
+                return Err("自定义 AI 引擎缺少模型名，请在设置中配置".to_string());
+            }
+            Ok(crate::translate::EngineConfig::CustomAi {
+                base_url: t.base_url.clone(),
+                model: t.model.clone(),
+                api_key: t.api_key.clone(),
+            })
+        }
+    }
+}
+
+/// `translate.request`（FEAT-005）：执行划词翻译。
+///
+/// 前端传 `requestId` 与 `segments`（分段列表）；目标语言与引擎配置读已保存
+/// 全局设置（保持统一设置权威性）。网络请求在后台线程异步执行，结果经
+/// `workspace:translate-result` 下行事件原样回带 `requestId`。
+fn translate_request(_: &CommandContext, p: &CommandPayload) {
+    let request_id = string(p, &["requestId", "data.requestId"]).unwrap_or_else(|| "anon".into());
+    let segments_val = p
+        .extra
+        .get("segments")
+        .cloned()
+        .unwrap_or_else(|| json!([]));
+    let segments: Vec<crate::translate::TranslationSegment> = match serde_json::from_value(segments_val) {
+        Ok(s) => s,
+        Err(e) => {
+            emit(workspace::events::Event::TranslateResult {
+                payload: serde_json::to_value(crate::translate::TranslateOutcome::failure(
+                    request_id,
+                    format!("分段参数解析失败: {e}"),
+                ))
+                .unwrap_or_default(),
+            });
+            return;
+        }
+    };
+
+    crate::log_info!(
+        "translate",
+        "收到划词翻译请求: requestId='{}', 分段数={}",
+        request_id,
+        segments.len()
+    );
+
+    std::thread::spawn(move || {
+        let global = workspace::settings::load_global(&settings_base());
+        let agent = match translate_agent(&global) {
+            Ok(a) => a,
+            Err(e) => {
+                emit(workspace::events::Event::TranslateResult {
+                    payload: serde_json::to_value(crate::translate::TranslateOutcome::failure(
+                        request_id,
+                        format!("网络客户端构造失败: {e}"),
+                    ))
+                    .unwrap_or_default(),
+                });
+                return;
+            }
+        };
+        let engine = match translate_engine_from_settings(&global) {
+            Ok(e) => e,
+            Err(e) => {
+                emit(workspace::events::Event::TranslateResult {
+                    payload: serde_json::to_value(crate::translate::TranslateOutcome::failure(
+                        request_id,
+                        e,
+                    ))
+                    .unwrap_or_default(),
+                });
+                return;
+            }
+        };
+        let target = &global.translation.target_language;
+        match crate::translate::translate(&agent, &engine, "auto", target, &segments) {
+            Ok(results) => {
+                crate::log_info!(
+                    "translate",
+                    "翻译成功: requestId='{}', 结果段数={}",
+                    request_id,
+                    results.len()
+                );
+                emit(workspace::events::Event::TranslateResult {
+                    payload: serde_json::to_value(crate::translate::TranslateOutcome::success(
+                        request_id,
+                        results,
+                    ))
+                    .unwrap_or_default(),
+                });
+            }
+            Err(e) => {
+                crate::log_warn!("translate", "翻译失败: requestId='{}', error={}", request_id, e);
+                emit(workspace::events::Event::TranslateResult {
+                    payload: serde_json::to_value(crate::translate::TranslateOutcome::failure(
+                        request_id,
+                        e,
+                    ))
+                    .unwrap_or_default(),
+                });
+            }
+        }
+    });
+}
+
+/// `translate.test`（FEAT-005）：设置页测试翻译引擎连通性。
+///
+/// 允许前端传入表单草稿值（未保存也能测试）：支持覆盖引擎配置。
+fn translate_test(_: &CommandContext, p: &CommandPayload) {
+    let engine_kind = string(p, &["engineKind", "data.engineKind"]).unwrap_or_else(|| "google".into());
+    let base_url = string(p, &["baseUrl", "data.baseUrl"]).unwrap_or_default();
+    let model = string(p, &["model", "data.model"]).unwrap_or_default();
+    let api_key = string(p, &["apiKey", "data.apiKey"]).unwrap_or_default();
+
+    crate::log_info!("translate", "收到翻译引擎测试请求: engineKind='{}'", engine_kind);
+
+    std::thread::spawn(move || {
+        let global = workspace::settings::load_global(&settings_base());
+        let agent = match translate_agent(&global) {
+            Ok(a) => a,
+            Err(e) => {
+                emit(workspace::events::Event::TranslateResult {
+                    payload: serde_json::json!({
+                        "requestId": "test",
+                        "ok": false,
+                        "message": format!("网络客户端构造失败: {e}"),
+                    }),
+                });
+                return;
+            }
+        };
+        let engine = match engine_kind.as_str() {
+            "bing" => crate::translate::EngineConfig::Bing,
+            "customAi" => {
+                if base_url.trim().is_empty() {
+                    emit(workspace::events::Event::TranslateResult {
+                        payload: serde_json::json!({
+                            "requestId": "test",
+                            "ok": false,
+                            "message": "请先填写 Base URL",
+                        }),
+                    });
+                    return;
+                }
+                if model.trim().is_empty() {
+                    emit(workspace::events::Event::TranslateResult {
+                        payload: serde_json::json!({
+                            "requestId": "test",
+                            "ok": false,
+                            "message": "请先填写模型名",
+                        }),
+                    });
+                    return;
+                }
+                crate::translate::EngineConfig::CustomAi {
+                    base_url,
+                    model,
+                    api_key,
+                }
+            }
+            _ => crate::translate::EngineConfig::Google,
+        };
+
+        match crate::translate::test_connection(&agent, &engine) {
+            Ok(latency_ms) => {
+                crate::log_info!("translate", "引擎测试连通成功 ({}ms)", latency_ms);
+                emit(workspace::events::Event::TranslateResult {
+                    payload: serde_json::json!({
+                        "requestId": "test",
+                        "ok": true,
+                        "message": format!("连通成功（{}ms）", latency_ms),
+                        "latencyMs": latency_ms,
+                    }),
+                });
+            }
+            Err(e) => {
+                crate::log_warn!("translate", "引擎测试连通失败: {}", e);
+                emit(workspace::events::Event::TranslateResult {
+                    payload: serde_json::json!({
+                        "requestId": "test",
+                        "ok": false,
+                        "message": e,
+                    }),
                 });
             }
         }
