@@ -561,24 +561,21 @@ fn 总入口_连接拒绝报中文错误() {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         listener.local_addr().unwrap().port()
     };
+    // 必须用可指定 base_url 的 CustomAi 变体把请求钉在本地拒绝端口：
+    // Google/Bing 变体连真实外网端点，CI 出口可达外网时请求可能成功，
+    // "连接被拒绝"的前提不成立（2026-09-12 main CI 偶发失败）。
+    let engine = EngineConfig::CustomAi {
+        base_url: format!("http://127.0.0.1:{port}"),
+        model: "test-model".to_string(),
+        api_key: "test-key".to_string(),
+    };
+    // 不强求失败信息格式，仅要求最终收敛为 Err（重试后仍失败）。
     let error = translate::translate(
         &agent(),
-        &EngineConfig::Google,
+        &engine,
         "auto",
         "zh-Hans",
         &[segment("a", "hello")],
     );
-    let _ = port;
-    // 不强求失败信息格式，仅要求最终收敛为 Err（重试后仍失败）。
-    assert!(
-        translate::translate(
-            &agent(),
-            &EngineConfig::Google,
-            "auto",
-            "zh-Hans",
-            &[segment("a", "hello")]
-        )
-        .is_err()
-            || error.is_err()
-    );
+    assert!(error.is_err(), "连接拒绝应返回 Err，实际: {error:?}");
 }
