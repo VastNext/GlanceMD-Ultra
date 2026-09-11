@@ -9,6 +9,6 @@
 | --- | --- | --- |
 | G 形视口 | `g-viewfinder-baoyu.png` | `g-viewfinder-baoyu.svg`（PNG 内嵌保真版） |
 | 工作区树形 | `workspace-tree-baoyu.png` | `workspace-tree-baoyu.svg`（PNG 内嵌保真版） |
-| 折叠页面 + U | `folded-page-u-baoyu.png` | `folded-page-u.svg` |
+| 折叠页面 + U | `folded-page-u-baoyu.png`、`folded-page-u-svg.png` | `folded-page-u.svg` |
 
 当前文件仅用于概念评审，不会替换正式的 `assets/icon.png` 与 `assets/icon.ico`。
