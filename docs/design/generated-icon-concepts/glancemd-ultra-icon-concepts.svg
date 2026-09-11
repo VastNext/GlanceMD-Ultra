@@ -33,7 +33,7 @@
     <text x="232" y="0" fill="#171827" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">A · G 形视口</text>
     <text x="232" y="34" fill="#77788a" font-family="Segoe UI, Arial, sans-serif" font-size="15" text-anchor="middle">Glance / 浏览 / 窗口</text>
     <rect x="18" y="76" width="428" height="428" rx="94" fill="#161722" filter="url(#iconShadow)"/>
-    <path d="M317 205A120 120 0 1 0 317 375q33-20 33-63h-82" fill="none" stroke="url(#accent)" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M321 210A120 120 0 1 0 341 344L341 312H296" fill="none" stroke="url(#accent)" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/>
     <g stroke="#f6d9ff" stroke-width="15" stroke-linecap="round">
       <path d="M182 246h62"/>
       <path d="M182 286h48"/>
@@ -47,7 +47,7 @@
     <text x="232" y="0" fill="#171827" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">B · 工作区树形</text>
     <text x="232" y="34" fill="#77788a" font-family="Segoe UI, Arial, sans-serif" font-size="15" text-anchor="middle">项目 / 文件 / 光标</text>
     <rect x="18" y="76" width="428" height="428" rx="94" fill="#161722" filter="url(#iconShadow)"/>
-    <g transform="translate(-6 0)">
+    <g transform="translate(8 0)">
       <path d="M131 142v296M131 176h30M131 291h30M131 406h30" stroke="url(#accentSoft)" stroke-width="22" stroke-linecap="round"/>
       <g fill="url(#accent)" transform="translate(8 0)">
         <path d="M161 126h42l18 18h65v48c0 18-14 32-32 32h-61c-18 0-32-14-32-32Z"/>
