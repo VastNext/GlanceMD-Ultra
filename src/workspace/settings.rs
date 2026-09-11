@@ -82,6 +82,8 @@ pub struct Settings {
     pub window: Window,
     /// 网络代理（FEAT-003：HTTP/HTTPS/SOCKS5 代理配置）。
     pub http: Http,
+    /// 翻译（FEAT-005：划词翻译引擎配置）。
+    pub translation: Translation,
 }
 
 impl Default for Settings {
@@ -97,6 +99,7 @@ impl Default for Settings {
             recovery: Recovery::default(),
             window: Window::default(),
             http: Http::default(),
+            translation: Translation::default(),
         }
     }
 }
@@ -165,6 +168,59 @@ pub enum ProxySupport {
 impl Default for ProxySupport {
     fn default() -> Self {
         ProxySupport::Off
+    }
+}
+
+/// 翻译（FEAT-005：划词翻译引擎配置）。
+///
+/// 为**全局限定**分类（与 `http` 同处理）：翻译引擎与密钥是本机全局概念，
+/// 打开工作区文件不得静默切换网络出口或密钥；项目补丁中的 translation 段
+/// 一律忽略并告警。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Translation {
+    /// 翻译引擎：`google`（免 key，默认）/ `bing`（免 key）/ `customAi`。
+    pub engine_kind: TranslationEngine,
+    /// 自定义 AI 引擎的 OpenAI 兼容 base_url（仅 `customAi` 生效）。
+    pub base_url: String,
+    /// 自定义 AI 引擎的模型名（仅 `customAi` 生效）。
+    pub model: String,
+    /// 自定义 AI 引擎的 API Key（仅 `customAi` 生效；明文落盘，与设置体系一致）。
+    pub api_key: String,
+    /// 划词翻译目标语言（BCP-47；默认简体中文）。
+    pub target_language: String,
+    /// 选中编辑器文本时是否浮现翻译触发按钮（`Alt+T` 命令始终可用）。
+    pub selection_trigger_enabled: bool,
+}
+
+impl Default for Translation {
+    fn default() -> Self {
+        Translation {
+            engine_kind: TranslationEngine::Google,
+            base_url: String::new(),
+            model: String::new(),
+            api_key: String::new(),
+            target_language: "zh-Hans".to_string(),
+            selection_trigger_enabled: true,
+        }
+    }
+}
+
+/// 翻译引擎取值。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TranslationEngine {
+    /// Google 公开翻译接口（免 key）。
+    Google,
+    /// Bing（Edge）公开翻译接口（免 key）。
+    Bing,
+    /// 自定义 OpenAI 兼容接口。
+    CustomAi,
+}
+
+impl Default for TranslationEngine {
+    fn default() -> Self {
+        TranslationEngine::Google
     }
 }
 
@@ -703,6 +759,8 @@ pub fn effective(global: &Settings, project: &SettingsPatch) -> Settings {
         // 网络代理为全局限定分类（与 window 同处理）：打开工作区不得静默改变
         // 网络出口，项目 http 段在 load_project_checked 即被忽略并告警。
         http: global.http.clone(),
+        // 翻译引擎为全局限定分类（与 http 同处理）：引擎与密钥不随项目切换。
+        translation: global.translation.clone(),
     }
 }
 
@@ -994,6 +1052,9 @@ pub fn load_project_checked(root: &Path) -> Option<LoadedPatch> {
     }
     if raw.get("http").is_some() {
         warnings.push("项目设置不支持 http 分类，已忽略；网络代理仅为全局设置".into());
+    }
+    if raw.get("translation").is_some() {
+        warnings.push("项目设置不支持 translation 分类，已忽略；翻译引擎仅为全局设置".into());
     }
     match serde_json::from_value::<SettingsPatch>(raw) {
         Ok(mut patch) => {
@@ -1314,6 +1375,7 @@ const KNOWN_TOP_LEVEL: &[&str] = &[
     "recovery",
     "window",
     "http",
+    "translation",
 ];
 
 /// 已知类内字段（JSON 键名）。快捷键 schemes 内层为方案 ID，命令记录字段另行校验。
@@ -1360,6 +1422,17 @@ const KNOWN_CATEGORY_FIELDS: &[(&str, &[&str])] = &[
     ),
     ("window", &["reuseWindowForFolder"]),
     ("http", &["proxySupport", "proxy", "proxyStrictSSL"]),
+    (
+        "translation",
+        &[
+            "engineKind",
+            "baseUrl",
+            "model",
+            "apiKey",
+            "targetLanguage",
+            "selectionTriggerEnabled",
+        ],
+    ),
 ];
 
 /// 收集未知键告警（向后兼容优先：不拒绝、不删除，serde 默认忽略之）。

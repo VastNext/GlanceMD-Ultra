@@ -421,6 +421,7 @@ fn 全字段v1文档_迁移无告警且逐字段相等_守护已知键表不失�
             },
             window: settings::Window::default(),
             http: settings::Http::default(),
+            translation: settings::Translation::default(),
         }
     );
 }
@@ -688,6 +689,14 @@ fn v1_roundtrip_自定义设置_保存加载零漂移() {
             proxy_support: settings::ProxySupport::Override,
             proxy: "http://127.0.0.1:7890".to_string(),
             proxy_strict_ssl: true,
+        },
+        translation: settings::Translation {
+            engine_kind: settings::TranslationEngine::CustomAi,
+            base_url: "https://api.example.com/v1".to_string(),
+            model: "test-model".to_string(),
+            api_key: "sk-test".to_string(),
+            target_language: "en".to_string(),
+            selection_trigger_enabled: false,
         },
     };
     save(&dir, &original).unwrap();
