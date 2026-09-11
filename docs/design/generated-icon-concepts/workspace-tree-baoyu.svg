@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">GlanceMD Ultra 工作区树形图标</title>
+  <desc id="desc">匹配 gpt-image-2 草案的项目树、三枚折角文件节点和文本光标。</desc>
+  <defs>
+    <linearGradient id="accent" x1="151" y1="112" x2="341" y2="400" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#a855f7"/>
+      <stop offset="1" stop-color="#ec4899"/>
+    </linearGradient>
+    <linearGradient id="cursor" x1="337" y1="220" x2="337" y2="307" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f43ca0"/>
+      <stop offset="1" stop-color="#ff2090"/>
+    </linearGradient>
+  </defs>
+
+  <!-- PNG 草案使用透明画布，图标底的实际边界约为 x=23..488、y=25..502。 -->
+  <rect x="23" y="25" width="465" height="477" rx="78" fill="#151821"/>
+
+  <!-- 左侧工作区主干与三条连接分支。 -->
+  <path d="M151 126v272M151 163h74M151 253h74M151 344h74" fill="none" stroke="url(#accent)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- 三枚与 PNG 草案一致的折角文件节点。 -->
+  <g fill="url(#accent)">
+    <path d="M253 118h89l29 29v49c0 16-13 29-29 29h-89c-16 0-29-13-29-29v-49c0-16 13-29 29-29Z"/>
+    <path d="M342 118v30h29Z" fill="#b35af2" opacity=".72"/>
+
+    <path d="M253 218h89l29 29v49c0 16-13 29-29 29h-89c-16 0-29-13-29-29v-49c0-16 13-29 29-29Z"/>
+    <path d="M342 218v30h29Z" fill="#d04fdf" opacity=".72"/>
+
+    <path d="M253 318h89l29 29v49c0 16-13 29-29 29h-89c-16 0-29-13-29-29v-49c0-16 13-29 29-29Z"/>
+    <path d="M342 318v30h29Z" fill="#e844c5" opacity=".72"/>
+  </g>
+
+  <!-- PNG 草案右侧的粉色文本光标。 -->
+  <path d="M337 220v87M329 220h16M329 307h16" fill="none" stroke="url(#cursor)" stroke-width="14" stroke-linecap="round"/>
+</svg>

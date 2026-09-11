@@ -8,7 +8,7 @@
 | 方向 | PNG | SVG |
 | --- | --- | --- |
 | G 形视口 | `g-viewfinder-baoyu.png` | `g-viewfinder.svg` |
-| 工作区树形 | `workspace-tree-baoyu.png` | `workspace-tree.svg` |
+| 工作区树形 | `workspace-tree-baoyu.png` | `workspace-tree-baoyu.svg` |
 | 折叠页面 + U | `folded-page-u-baoyu.png` | `folded-page-u.svg` |
 
 当前文件仅用于概念评审，不会替换正式的 `assets/icon.png` 与 `assets/icon.ico`。
