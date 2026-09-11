@@ -68,7 +68,8 @@
     record('editor.removeBlockComment', 'Ctrl+Shift+\\', 'editorTextFocus'),
     record('editor.toggleWrap', 'Alt+Shift+Y', 'editorTextFocus'),
     record('editor.togglePreview', 'Ctrl+Shift+V'),
-    record('editor.toggleSplit', 'Ctrl+\\')
+    record('editor.toggleSplit', 'Ctrl+\\'),
+    record('translate.selection', 'Alt+T', 'editorTextFocus')
   ];
 
   var vscode = [
@@ -82,7 +83,8 @@
     record('editor.togglePreview', 'Ctrl+Shift+V'),
     record('editor.toggleSplit', 'Ctrl+\\'),
     record('editor.toggleSplit', 'Ctrl+K V'),
-    record('editor.focus', 'F12')
+    record('editor.focus', 'F12'),
+    record('translate.selection', 'Alt+T', 'editorTextFocus')
   ];
 
   var schemes = {
