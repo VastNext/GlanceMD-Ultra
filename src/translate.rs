@@ -552,3 +552,153 @@ pub fn translate_bing_once(
         .collect()
 }
 
+// ── OpenAI 兼容客户端（移植自插件 `openai-client.ts` 与 `messages.ts`）──
+
+/// 组装 AI 翻译消息：system 提示词 + user JSON 分段载荷。
+///
+/// 对齐插件 `createTranslationMessages`：要求模型保留每个 id 并返回
+/// `{"translations":[{"id":"...","text":"..."}]}`。
+fn create_translation_messages(
+    source_language: &str,
+    target_language: &str,
+    batch: &[TranslationSegment],
+    user_instruction: Option<&str>,
+) -> Vec<serde_json::Value> {
+    let source = normalize_language(source_language);
+    let source_display = if source == "auto" { "auto".to_string() } else { source };
+    let mut instruction = format!(
+        "将输入从 {source_display} 翻译为 {target_language}。\n保留每个 id，返回 {{\"translations\":[{{\"id\":\"...\",\"text\":\"...\"}}]}}，不得添加其他内容。"
+    );
+    if let Some(extra) = user_instruction.map(str::trim).filter(|s| !s.is_empty()) {
+        instruction.push('\n');
+        instruction.push_str(extra);
+    }
+    let segments_payload = serde_json::json!({ "segments": batch });
+    vec![
+        serde_json::json!({ "role": "system", "content": instruction }),
+        serde_json::json!({ "role": "user", "content": segments_payload.to_string() }),
+    ]
+}
+
+/// 校验 AI 响应与期望 id 集合对齐（漏翻/错位/重复 id 一律报错）。
+///
+/// 对齐插件 `parseTranslationResponse`：JSON 结构、逐段 id/text 类型、
+/// 数量一致、无未知 id。
+fn parse_translation_response(
+    content: &str,
+    expected: &[TranslationSegment],
+) -> Result<Vec<TranslationResult>, TranslateError> {
+    let payload: serde_json::Value = serde_json::from_str(content)
+        .map_err(|_| TranslateError::new("翻译响应不是有效 JSON"))?;
+    let translations = payload
+        .get("translations")
+        .and_then(|t| t.as_array())
+        .ok_or_else(|| TranslateError::new("翻译响应格式无效"))?;
+
+    let results: Vec<TranslationResult> = translations
+        .iter()
+        .map(|item| {
+            let id = item.get("id").and_then(|v| v.as_str());
+            let text = item.get("text").and_then(|v| v.as_str());
+            match (id, text) {
+                (Some(id), Some(text)) => {
+                    Ok(TranslationResult { id: id.to_string(), text: text.to_string() })
+                }
+                _ => Err(TranslateError::new("翻译响应格式无效")),
+            }
+        })
+        .collect::<Result<_, _>>()?;
+
+    if results.is_empty()
+        || results.len() != expected.len()
+        || results.iter().any(|r| !expected.iter().any(|segment| segment.id == r.id))
+        || {
+            let ids: std::collections::HashSet<&str> = results.iter().map(|r| r.id.as_str()).collect();
+            ids.len() != results.len()
+        }
+    {
+        return Err(TranslateError::new("翻译响应 ID 不匹配"));
+    }
+    Ok(results)
+}
+
+/// 从 400 响应体判断是否 response_format 不受支持（对齐插件
+/// `isResponseFormatUnsupported`：错误信息中提到 response_format/json）。
+fn is_response_format_unsupported(body: &str) -> bool {
+    let lower = body.to_lowercase();
+    lower.contains("response_format") || lower.contains("json_schema") || lower.contains("json_object")
+}
+
+/// 规范化 base_url：去尾部斜杠；对 OpenAI 兼容端点补 /chat/completions。
+///
+/// 用户可填 `https://api.openai.com/v1` 或 `https://api.openai.com/v1/chat/completions`。
+fn build_chat_completions_url(base_url: &str) -> String {
+    let trimmed = base_url.trim().trim_end_matches('/');
+    if trimmed.ends_with("/chat/completions") {
+        trimmed.to_string()
+    } else if trimmed.ends_with("/v1") {
+        format!("{trimmed}/chat/completions")
+    } else {
+        format!("{trimmed}/v1/chat/completions")
+    }
+}
+
+/// OpenAI 兼容单批翻译（不含重试）：优先 JSON mode，400 且提示不支持时
+/// 降级为纯文本模式重发一次。
+#[allow(clippy::too_many_arguments)]
+pub fn translate_openai_once(
+    agent: &ureq::Agent,
+    base_url: &str,
+    model: &str,
+    api_key: &str,
+    source_language: &str,
+    target_language: &str,
+    batch: &[TranslationSegment],
+) -> Result<Vec<TranslationResult>, TranslateError> {
+    let url = build_chat_completions_url(base_url);
+    let messages = create_translation_messages(source_language, target_language, batch, None);
+
+    let send = |json_mode: bool| -> Result<(u16, String), TranslateError> {
+        let mut payload = serde_json::json!({ "model": model, "messages": messages });
+        if json_mode {
+            payload["response_format"] =
+                serde_json::json!({ "type": "json_object" });
+        }
+        let body = serde_json::to_string(&payload)
+            .map_err(|_| TranslateError::new("翻译请求体序列化失败"))?;
+        let mut response = agent
+            .post(&url)
+            .header("Content-Type", "application/json")
+            .header("Authorization", &format!("Bearer {api_key}"))
+            .send(&body)
+            .map_err(|e| status_error_from_ureq("AI ", e))?;
+        let status = response.status().as_u16();
+        let text = response
+            .body_mut()
+            .read_to_string()
+            .map_err(|e| TranslateError::new(format!("AI 翻译响应读取失败：{e}")))?;
+        Ok((status, text))
+    };
+
+    let (status, body) = send(true)?;
+    let (status, body) = if status == 400 && is_response_format_unsupported(&body) {
+        send(false)?
+    } else {
+        (status, body)
+    };
+    if let Some(error) = status_error_from_response("AI ", status) {
+        return Err(error);
+    }
+
+    let payload: serde_json::Value = serde_json::from_str(&body)
+        .map_err(|_| TranslateError::new("AI 翻译响应不是有效 JSON"))?;
+    let content = payload
+        .get("choices")
+        .and_then(|choices| choices.get(0))
+        .and_then(|choice| choice.get("message"))
+        .and_then(|message| message.get("content"))
+        .and_then(|content| content.as_str())
+        .ok_or_else(|| TranslateError::new("AI 翻译响应格式无效"))?;
+
+    parse_translation_response(content, batch)
+}
