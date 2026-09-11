@@ -223,3 +223,100 @@ pub fn order_results(
         .filter_map(|segment| by_id.get(segment.id.as_str()).map(|r| (*r).clone()))
         .collect()
 }
+
+// ── 可重试请求（移植自插件 `retry.ts`）──
+
+/// 翻译引擎错误：可选 HTTP 状态码（重试判定）与可选 `Retry-After` 提示。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TranslateError {
+    pub status: Option<u16>,
+    pub message: String,
+    pub retry_after_ms: Option<u64>,
+}
+
+impl TranslateError {
+    pub fn new(message: impl Into<String>) -> Self {
+        TranslateError { status: None, message: message.into(), retry_after_ms: None }
+    }
+
+    pub fn with_status(status: u16, message: impl Into<String>) -> Self {
+        TranslateError { status: Some(status), message: message.into(), retry_after_ms: None }
+    }
+
+    /// 429（限频）与 5xx（服务端错误）可重试，对齐插件 `isRetryable`。
+    pub fn is_retryable(&self) -> bool {
+        matches!(self.status, Some(429) | Some(500..=599))
+    }
+}
+
+impl std::fmt::Display for TranslateError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+/// 解析 `Retry-After` 头：秒数或 HTTP 日期，返回相对当前时刻的毫秒数。
+pub fn parse_retry_after(value: Option<&str>, now_ms: u64) -> Option<u64> {
+    let value = value?.trim();
+    if value.is_empty() {
+        return None;
+    }
+    if let Ok(seconds) = value.parse::<u64>() {
+        return Some(seconds.saturating_mul(1000));
+    }
+    // HTTP 日期格式：仅识别常见 GMT 形态，解析失败返回 None。
+    // 简化处理：不引入时间解析依赖，日期形态退回固定 1s 退避。
+    if value.to_lowercase().ends_with("gmt") {
+        return Some(1000);
+    }
+    let _ = now_ms;
+    None
+}
+
+/// 默认重试参数：最多 2 次重试（共 3 次尝试），退避 500ms×2^n 封顶 30s。
+pub const MAX_RETRIES: u32 = 2;
+const RETRY_BASE_MS: u64 = 500;
+const RETRY_CAP_MS: u64 = 30_000;
+
+fn backoff_ms(error: &TranslateError, attempt: u32) -> u64 {
+    error
+        .retry_after_ms
+        .unwrap_or_else(|| RETRY_BASE_MS.saturating_mul(1u64 << attempt.min(6)))
+        .min(RETRY_CAP_MS)
+}
+
+/// 带重试执行引擎请求。可重试错误按指数退避重试，其余立即失败；
+/// 最终失败时把最后一次错误转为面向用户的中文消息。
+pub fn with_retry<T, F>(mut op: F) -> Result<T, String>
+where
+    F: FnMut() -> Result<T, TranslateError>,
+{
+    with_retry_impl(MAX_RETRIES, &mut op, &|ms| std::thread::sleep(std::time::Duration::from_millis(ms)))
+}
+
+/// 探针测试用：显式注入重试次数与 sleep（不真实等待）。
+pub fn with_retry_impl<T, F, S>(
+    retries: u32,
+    op: &mut F,
+    sleep: &S,
+) -> Result<T, String>
+where
+    F: FnMut() -> Result<T, TranslateError>,
+    S: Fn(u64),
+{
+    let mut last: Option<TranslateError> = None;
+    for attempt in 0..=retries {
+        match op() {
+            Ok(value) => return Ok(value),
+            Err(error) => {
+                if !error.is_retryable() || attempt == retries {
+                    return Err(error.message);
+                }
+                let wait = backoff_ms(&error, attempt);
+                sleep(wait);
+                last = Some(error);
+            }
+        }
+    }
+    Err(last.map(|e| e.message).unwrap_or_else(|| "翻译请求失败".to_string()))
+}
