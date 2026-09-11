@@ -164,6 +164,15 @@ test('get() 未收到事件时返回内置默认值（与 Rust schema v2 Default
     },
     editor: { fontSize: 14, tabSize: 4, wordWrap: true, lineNumbers: true, largeFileMB: 5 },
     window: { reuseWindowForFolder: false },
+    http: { proxySupport: 'off', proxy: '', proxyStrictSSL: true },
+    translation: {
+      engineKind: 'google',
+      baseUrl: '',
+      model: '',
+      apiKey: '',
+      targetLanguage: 'zh-Hans',
+      selectionTriggerEnabled: true,
+    },
     keybindings: { activeScheme: 'ultra.eclipse', schemes: {} },
     recovery: { confirmCloseDirty: true, crashRecovery: true, createProjectSettings: false },
   });

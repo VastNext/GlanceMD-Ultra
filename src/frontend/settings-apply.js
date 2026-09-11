@@ -49,7 +49,16 @@
     editor: { fontSize: 14, tabSize: 4, wordWrap: true, lineNumbers: true, largeFileMB: 5 },
     keybindings: { activeScheme: 'ultra.eclipse', schemes: {} },
     window: { reuseWindowForFolder: false },
-    recovery: { confirmCloseDirty: true, crashRecovery: true, createProjectSettings: false }
+    recovery: { confirmCloseDirty: true, crashRecovery: true, createProjectSettings: false },
+    http: { proxySupport: 'off', proxy: '', proxyStrictSSL: true },
+    translation: {
+      engineKind: 'google',
+      baseUrl: '',
+      model: '',
+      apiKey: '',
+      targetLanguage: 'zh-Hans',
+      selectionTriggerEnabled: true
+    }
   };
 
   // 最近一次 effective 设置（null = 尚未收到事件）。
@@ -366,6 +375,8 @@
       search: Object.assign({}, DEFAULTS.search, s.search),
       editor: Object.assign({}, DEFAULTS.editor, s.editor),
       window: Object.assign({}, DEFAULTS.window, s.window),
+      http: Object.assign({}, DEFAULTS.http, s.http),
+      translation: Object.assign({}, DEFAULTS.translation, s.translation),
       keybindings: Object.assign({}, DEFAULTS.keybindings, s.keybindings),
       recovery: Object.assign({}, DEFAULTS.recovery, s.recovery)
     };
