@@ -320,3 +320,186 @@ where
     }
     Err(last.map(|e| e.message).unwrap_or_else(|| "翻译请求失败".to_string()))
 }
+
+// ── HTTP 辅助 ──
+
+/// 引擎请求总入口：按引擎分发并应用重试。
+///
+/// `agent` 由调用方经 `net::build_agent` 构造（代理/SSL/30s 全局超时统一生效）；
+/// 本函数只做引擎分发、分批与结果完整性校验。
+pub fn translate(
+    agent: &ureq::Agent,
+    engine: &EngineConfig,
+    source_language: &str,
+    target_language: &str,
+    segments: &[TranslationSegment],
+) -> Result<Vec<TranslationResult>, String> {
+    if segments.is_empty() {
+        return Err("没有可翻译的内容".to_string());
+    }
+    let target = validate_target_language(target_language)?;
+    let batches = create_batches(segments, MAX_SEGMENTS_PER_BATCH, MAX_CHARACTERS_PER_BATCH)?;
+    let mut results: Vec<TranslationResult> = Vec::new();
+    for batch in &batches {
+        let batch_results = with_retry(|| match engine {
+            EngineConfig::Google => {
+                translate_google_once(agent, source_language, &target, batch)
+            }
+            EngineConfig::Bing => translate_bing_once(agent, source_language, &target, batch),
+            EngineConfig::CustomAi { base_url, model, api_key } => {
+                translate_openai_once(agent, base_url, model, api_key, source_language, &target, batch)
+            }
+        })?;
+        results.extend(batch_results);
+    }
+    // 完整性校验：逐批已对齐，这里兜底确认无缺段（防引擎层回归）。
+    let ordered = order_results(segments, &results);
+    if ordered.len() != segments.len() {
+        return Err("翻译结果不完整：部分分段未返回译文".to_string());
+    }
+    Ok(ordered)
+}
+
+/// 引擎连通性测试：单段最小请求，成功返回耗时毫秒。
+pub fn test_connection(
+    agent: &ureq::Agent,
+    engine: &EngineConfig,
+) -> Result<u128, String> {
+    let start = std::time::Instant::now();
+    translate(
+        agent,
+        engine,
+        "en",
+        "zh-Hans",
+        &[TranslationSegment { id: "test".to_string(), text: "Hello, world.".to_string() }],
+    )?;
+    Ok(start.elapsed().as_millis())
+}
+
+/// 发送 POST 并读取响应体文本；非 2xx 转换为带状态码的 [`TranslateError`]，
+/// `Retry-After` 头透传给重试层。`name` 用于中文错误消息前缀。
+fn post_and_read(
+    agent: &ureq::Agent,
+    name: &str,
+    url: &str,
+    content_type: &str,
+    body: &str,
+) -> Result<String, TranslateError> {
+    let mut response = agent
+        .post(url)
+        .header("Content-Type", content_type)
+        .send(body)
+        .map_err(|e| status_error_from_ureq(name, e))?;
+    let retry_after = response
+        .headers()
+        .get("Retry-After")
+        .and_then(|v| v.to_str().ok())
+        .map(|v| v.to_string());
+    let mut error = status_error_from_response(name, response.status().as_u16());
+    if error.is_none() {
+        return response
+            .body_mut()
+            .read_to_string()
+            .map_err(|e| TranslateError::new(format!("{name}翻译响应读取失败：{e}")));
+    }
+    let mut e = error.take().unwrap();
+    if let Some(raw) = retry_after {
+        e.retry_after_ms = parse_retry_after(Some(&raw), 0);
+    }
+    Err(e)
+}
+
+/// 把 `ureq::Error` 归一为 [`TranslateError`]。
+fn status_error_from_ureq(name: &str, error: ureq::Error) -> TranslateError {
+    match error {
+        ureq::Error::StatusCode(code) => {
+            TranslateError::with_status(code, format!("{name}翻译请求失败（{code}）"))
+        }
+        other => TranslateError::new(format!("{name}翻译请求失败：{other}")),
+    }
+}
+
+/// 按状态码生成错误；2xx 返回 None。
+fn status_error_from_response(name: &str, status: u16) -> Option<TranslateError> {
+    if (200..300).contains(&status) {
+        return None;
+    }
+    let message = if status == 429 {
+        format!("{name}翻译请求过于频繁（429）")
+    } else {
+        format!("{name}翻译请求失败（{status}）")
+    };
+    Some(TranslateError::with_status(status, message))
+}
+
+/// application/x-www-form-urlencoded 值编码（全量百分号编码，Google 兼容）。
+fn form_urlencode(value: &str) -> String {
+    percent_encoding::utf8_percent_encode(value, percent_encoding::NON_ALPHANUMERIC).to_string()
+}
+
+// ── Google 客户端（移植自插件 `google-translate-client.ts`）──
+
+const GOOGLE_ENDPOINT: &str = "https://translate.googleapis.com/translate_a/t";
+
+/// Google 单批翻译（不含重试；重试由 [`with_retry`] 包裹）。
+pub fn translate_google_once(
+    agent: &ureq::Agent,
+    source_language: &str,
+    target_language: &str,
+    batch: &[TranslationSegment],
+) -> Result<Vec<TranslationResult>, TranslateError> {
+    let sl = if source_language == "auto" {
+        "auto".to_string()
+    } else {
+        map_google_language(normalize_language(source_language).as_str())
+    };
+    let tl = map_google_language(target_language);
+    let url = format!("{GOOGLE_ENDPOINT}?client=gtx&dt=t&sl={sl}&tl={tl}");
+    let body: String = batch
+        .iter()
+        .map(|segment| format!("q={}", form_urlencode(&segment.text)))
+        .collect::<Vec<_>>()
+        .join("&");
+
+    let text = post_and_read(agent, "Google ", &url, "application/x-www-form-urlencoded;charset=UTF-8", &body)?;
+    let payload: serde_json::Value = serde_json::from_str(&text)
+        .map_err(|_| TranslateError::new("Google 翻译响应不是有效 JSON"))?;
+    let items = payload
+        .as_array()
+        .filter(|items| items.len() == batch.len())
+        .ok_or_else(|| TranslateError::new("Google 翻译响应格式无效"))?;
+
+    batch
+        .iter()
+        .zip(items.iter())
+        .map(|(segment, item)| {
+            let translated = read_google_text(item)
+                .ok_or_else(|| TranslateError::new("Google 翻译响应格式无效"))?;
+            Ok(TranslationResult { id: segment.id.clone(), text: translated })
+        })
+        .collect()
+}
+
+/// Google `translate_a/t` 响应条目两种形态：字符串或嵌套片段数组。
+fn read_google_text(value: &serde_json::Value) -> Option<String> {
+    if let Some(text) = value.as_str() {
+        return Some(text.to_string());
+    }
+    let array = value.as_array()?;
+    // 形态一：[["片段","片段"]]；形态二：[["片段"],["片段"]]
+    if array.iter().all(|item| item.is_array()) {
+        let mut out = String::new();
+        for fragment in array {
+            let inner = fragment.as_array()?;
+            let text = inner.first()?.as_str()?;
+            out.push_str(text);
+        }
+        return Some(out);
+    }
+    let mut out = String::new();
+    for fragment in array {
+        out.push_str(fragment.as_str()?);
+    }
+    Some(out)
+}
+
