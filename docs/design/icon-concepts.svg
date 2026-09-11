@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1536" height="620" viewBox="0 0 1536 620" role="img" aria-labelledby="title desc">
+  <title id="title">GlanceMD Ultra 三套图标概念</title>
+  <desc id="desc">G 形视口、工作区树形和折叠页面加 U 形负形三套图标概念。</desc>
+  <defs>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a855f7"/>
+      <stop offset="1" stop-color="#ec4899"/>
+    </linearGradient>
+    <linearGradient id="softAccent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#c084fc"/>
+      <stop offset="1" stop-color="#f472b6"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#050509" flood-opacity=".35"/>
+    </filter>
+  </defs>
+
+  <rect width="1536" height="620" fill="#11131d"/>
+  <g font-family="Segoe UI, sans-serif" fill="#e8e8f0">
+    <text x="56" y="55" font-size="24" font-weight="700">GlanceMD Ultra · Icon concepts</text>
+    <text x="56" y="84" font-size="15" fill="#898b9b">Concept exploration — not final production assets</text>
+  </g>
+
+  <g transform="translate(56 120)">
+    <rect width="440" height="440" rx="72" fill="#1d2030" stroke="#303449" filter="url(#shadow)"/>
+    <rect x="42" y="42" width="356" height="356" rx="54" fill="#11131d"/>
+    <path d="M317 143H167c-45 0-81 36-81 81v32c0 45 36 81 81 81h112c31 0 56-25 56-56v-34h-88" fill="none" stroke="url(#accent)" stroke-width="42" stroke-linecap="round" stroke-linejoin="round"/>
+    <g stroke="#c4b5fd" stroke-width="12" stroke-linecap="round" opacity=".9">
+      <path d="M151 202h112"/><path d="M151 246h84"/><path d="M151 290h98"/>
+    </g>
+    <text x="220" y="424" text-anchor="middle" font-size="16" fill="#c4b5fd">G 形视口</text>
+  </g>
+
+  <g transform="translate(548 120)">
+    <rect width="440" height="440" rx="72" fill="#1d2030" stroke="#303449" filter="url(#shadow)"/>
+    <rect x="42" y="42" width="356" height="356" rx="54" fill="#11131d"/>
+    <path d="M126 142v176M126 142h49M126 230h49M126 318h49" fill="none" stroke="url(#softAccent)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+    <g fill="url(#accent)">
+      <rect x="165" y="112" width="143" height="58" rx="29"/>
+      <rect x="165" y="200" width="119" height="58" rx="29"/>
+      <rect x="165" y="288" width="143" height="58" rx="29"/>
+    </g>
+    <path d="M336 185v112" stroke="#ec4899" stroke-width="16" stroke-linecap="round"/>
+    <text x="220" y="424" text-anchor="middle" font-size="16" fill="#f0abfc">工作区树形</text>
+  </g>
+
+  <g transform="translate(1040 120)">
+    <rect width="440" height="440" rx="72" fill="#1d2030" stroke="#303449" filter="url(#shadow)"/>
+    <rect x="42" y="42" width="356" height="356" rx="54" fill="#11131d"/>
+    <path d="M123 112c0-18 14-32 32-32h139l49 49v196c0 18-14 32-32 32H155c-18 0-32-14-32-32z" fill="url(#accent)"/>
+    <path d="M294 80v50c0 18 14 32 32 32h49" fill="#f7f3ff" opacity=".95"/>
+    <g stroke="#fff7ff" stroke-width="14" stroke-linecap="round" opacity=".92">
+      <path d="M171 185h126"/><path d="M171 229h145"/><path d="M171 273h96"/>
+    </g>
+    <path d="M222 324v-28c0-20 16-36 36-36s36 16 36 36v28" fill="#11131d"/>
+    <text x="220" y="424" text-anchor="middle" font-size="16" fill="#f0abfc">折叠页面 + U</text>
+  </g>
+</svg>
