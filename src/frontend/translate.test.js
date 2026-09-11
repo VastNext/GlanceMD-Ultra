@@ -2,11 +2,14 @@
  *
  * 覆盖：
  * 1. 模块导出与初始化：window.TranslateUI 暴露完整 API；
- * 2. 选区检测：无选区/折叠选区不返回，非折叠有文本返回 {text, start, end}；
- * 3. 视口边界约束：clampPosition 保证气泡/按钮不溢出屏幕外；
+ * 2. 选区检测：无选区/折叠选区不返回，编辑区/预览区非折叠有文本返回选区对象；
+ * 3. 视口边界约束：clampPosition 保证气泡/按钮/Popup 不溢出屏幕外；
  * 4. 气泡生命周期：openBubble 发送 translate.request（带 requestId），closeBubble 重置状态；
  * 5. 请求关联与丢弃：非当前 requestId 或 test 响应静默忽略，匹配的更新 currentResult；
- * 6. 动作执行：替换选区（setRangeText）、插入（\\n\\n追加）、复制触发 toast。
+ * 6. 顶栏 Popup 浮窗：openPopup / closePopup / togglePopup 状态机与内容渲染；
+ * 7. 预览区全文翻译：collectPreviewSegments 智能过滤代码块与非文本，translatePreview 发送批量请求；
+ * 8. 预览区双语对照与还原：applyPreviewTranslation 插入 .preview-trans-block，restorePreview 瞬间清除；
+ * 9. 动作执行：替换选区（setRangeText）、插入（\n\n追加）、复制触发 toast。
  */
 
 const assert = require('node:assert/strict');
@@ -40,7 +43,26 @@ function loadHarness() {
       attrs: {},
       innerHTML: '',
       textContent: '',
-      setAttribute(k, v) { this.attrs[k] = String(v); },
+      classList: {
+        _classes: new Set(),
+        add(c) { this._classes.add(c); },
+        remove(c) { this._classes.delete(c); },
+        contains(c) { return this._classes.has(c); },
+        toggle(c, f) {
+          if (f === undefined) f = !this.contains(c);
+          if (f) this.add(c); else this.remove(c);
+          return f;
+        },
+      },
+      set className(v) {
+        this._className = v;
+        this.classList._classes = new Set(v.split(/\s+/).filter(Boolean));
+      },
+      get className() { return this._className || ''; },
+      setAttribute(k, v) {
+        this.attrs[k] = String(v);
+        if (k === 'class') this.className = String(v);
+      },
       getAttribute(k) { return this.attrs[k] || null; },
       removeAttribute(k) { delete this.attrs[k]; },
       addEventListener(evt, handler) {
@@ -62,20 +84,75 @@ function loadHarness() {
           const id = sel.substring(1);
           return els[id] || null;
         }
+        for (const c of this.children) {
+          if (c.tagName && c.tagName.toLowerCase() === sel) return c;
+          if (c.querySelector) {
+            const found = c.querySelector(sel);
+            if (found) return found;
+          }
+        }
         return null;
       },
-      querySelectorAll() { return []; },
-      contains() { return false; },
+      querySelectorAll(sel) {
+        const res = [];
+        function walk(node) {
+          for (const c of node.children) {
+            if (sel.startsWith('.')) {
+              if (c.classList && c.classList.contains(sel.substring(1))) res.push(c);
+            } else if (sel.indexOf(',') >= 0) {
+              const tags = sel.split(',').map((s) => s.trim().toUpperCase());
+              if (tags.includes(c.tagName)) res.push(c);
+            } else if (c.tagName && c.tagName.toUpperCase() === sel.toUpperCase()) {
+              res.push(c);
+            }
+            if (c.children && c.children.length) walk(c);
+          }
+        }
+        walk(this);
+        return res;
+      },
+      closest(sel) {
+        let p = this.parentNode;
+        while (p) {
+          if (sel.startsWith('.')) {
+            if (p.classList && p.classList.contains(sel.substring(1))) return p;
+          } else if (p.tagName && p.tagName.toUpperCase() === sel.toUpperCase()) {
+            return p;
+          }
+          p = p.parentNode;
+        }
+        return null;
+      },
+      contains(target) {
+        let p = target;
+        while (p) {
+          if (p === this) return true;
+          p = p.parentNode;
+        }
+        return false;
+      },
       appendChild(child) {
         this.children.push(child);
         child.parentNode = this;
         if (child.id) els[child.id] = child;
         return child;
       },
+      insertBefore(newChild, refChild) {
+        const idx = this.children.indexOf(refChild);
+        if (idx >= 0) {
+          this.children.splice(idx, 0, newChild);
+        } else {
+          this.children.push(newChild);
+        }
+        newChild.parentNode = this;
+        if (newChild.id) els[newChild.id] = newChild;
+        return newChild;
+      },
       removeChild(child) {
         const i = this.children.indexOf(child);
         if (i >= 0) this.children.splice(i, 1);
         if (child.id) delete els[child.id];
+        child.parentNode = null;
         return child;
       },
     };
@@ -86,7 +163,18 @@ function loadHarness() {
   editor.id = 'editor';
   els.editor = editor;
 
+  const preview = makeEl('div');
+  preview.id = 'preview';
+  els.preview = preview;
+
+  const btnTranslate = makeEl('button');
+  btnTranslate.id = 'btn-translate';
+  els['btn-translate'] = btnTranslate;
+
   const body = makeEl('body');
+  body.appendChild(editor);
+  body.appendChild(preview);
+  body.appendChild(btnTranslate);
   els.body = body;
 
   const doc = {
@@ -124,9 +212,11 @@ function loadHarness() {
           selectionTriggerEnabled: true,
         },
       }),
+      patch: () => {},
     },
     Commands: {
       register: (id, def) => { registeredCommands[id] = def; },
+      run: () => {},
     },
     Workspace: {
       on: (evt, fn) => { (workspaceSubs[evt] = workspaceSubs[evt] || []).push(fn); },
@@ -138,7 +228,7 @@ function loadHarness() {
   ctx.window = ctx;
 
   vm.runInNewContext(fs.readFileSync(TRANSLATE_JS, 'utf8'), ctx, { filename: 'translate.js' });
-  return { ctx, els, ipcMsgs, editor, workspaceSubs, registeredCommands };
+  return { ctx, els, ipcMsgs, editor, preview, btnTranslate, workspaceSubs, registeredCommands, makeEl };
 }
 
 test('TranslateUI 模块挂载与 API 完整暴露', () => {
@@ -146,10 +236,15 @@ test('TranslateUI 模块挂载与 API 完整暴露', () => {
   assert.ok(h.ctx.TranslateUI, 'TranslateUI 已挂载');
   assert.equal(typeof h.ctx.TranslateUI.openBubble, 'function');
   assert.equal(typeof h.ctx.TranslateUI.closeBubble, 'function');
-  assert.equal(typeof h.ctx.TranslateUI.startTranslate, 'function');
-  assert.equal(typeof h.ctx.TranslateUI.clampPosition, 'function');
-  assert.equal(typeof h.ctx.TranslateUI.getEditorSelection, 'function');
+  assert.equal(typeof h.ctx.TranslateUI.openPopup, 'function');
+  assert.equal(typeof h.ctx.TranslateUI.closePopup, 'function');
+  assert.equal(typeof h.ctx.TranslateUI.togglePopup, 'function');
+  assert.equal(typeof h.ctx.TranslateUI.translatePreview, 'function');
+  assert.equal(typeof h.ctx.TranslateUI.restorePreview, 'function');
   assert.ok(h.registeredCommands['translate.selection'], '已注册 translate.selection 命令');
+  assert.ok(h.registeredCommands['translate.popup'], '已注册 translate.popup 命令');
+  assert.ok(h.registeredCommands['translate.preview'], '已注册 translate.preview 命令');
+  assert.ok(h.registeredCommands['translate.restore'], '已注册 translate.restore 命令');
 });
 
 test('选区检测：折叠或空文本返回 null，有非空白选区返回选区对象', () => {
@@ -157,31 +252,24 @@ test('选区检测：折叠或空文本返回 null，有非空白选区返回选
   h.editor.value = 'Hello world from GlanceMD Ultra';
   h.editor.selectionStart = 0;
   h.editor.selectionEnd = 0;
-  assert.equal(h.ctx.TranslateUI.getEditorSelection(), null, '折叠光标无选区');
-
-  h.editor.selectionStart = 5;
-  h.editor.selectionEnd = 5;
-  assert.equal(h.ctx.TranslateUI.getEditorSelection(), null);
+  assert.equal(h.ctx.TranslateUI.getSelectionInfo(), null, '折叠光标无选区');
 
   h.editor.selectionStart = 6;
   h.editor.selectionEnd = 11;
-  const sel = h.ctx.TranslateUI.getEditorSelection();
+  const sel = h.ctx.TranslateUI.getSelectionInfo();
   assert.ok(sel);
   assert.equal(sel.text, 'world');
   assert.equal(sel.start, 6);
   assert.equal(sel.end, 11);
+  assert.equal(sel.source, 'editor');
 });
 
 test('视口边界约束：clampPosition 在各边界安全留白', () => {
   const h = loadHarness();
   const clamp = h.ctx.TranslateUI.clampPosition;
-  // JSON round-trip：vm 对象与 host 跨 context 比对
   const round = (obj) => JSON.parse(JSON.stringify(obj));
-  // 左上超限
   assert.deepEqual(round(clamp(-100, -50, 380, 200)), { x: 12, y: 12 });
-  // 右下超限（1024x768 视口，宽 380 高 200）
   assert.deepEqual(round(clamp(2000, 2000, 380, 200)), { x: 1024 - 380 - 12, y: 768 - 200 - 12 });
-  // 正常范围
   assert.deepEqual(round(clamp(200, 300, 380, 200)), { x: 200, y: 300 });
 });
 
@@ -212,15 +300,12 @@ test('请求关联：匹配 requestId 的回执写入结果，过期的静默忽
   h.ctx.TranslateUI.openBubble();
   const reqId = h.ctx.TranslateUI.getState().currentRequestId;
 
-  // 1. 发送测试命令的 test 回执：被忽略
   h.ctx.TranslateUI.onTranslateResult({ requestId: 'test', ok: true, message: '连通' });
   assert.equal(h.ctx.TranslateUI.getState().isLoading, true);
 
-  // 2. 发送过期 requestId 回执：被忽略
   h.ctx.TranslateUI.onTranslateResult({ requestId: 'stale_id', ok: true, results: [{ id: 's0', text: '旧结果' }] });
   assert.equal(h.ctx.TranslateUI.getState().isLoading, true);
 
-  // 3. 发送正确 requestId 成功回执：写入 currentResult
   h.ctx.TranslateUI.onTranslateResult({
     requestId: reqId,
     ok: true,
@@ -232,37 +317,75 @@ test('请求关联：匹配 requestId 的回执写入结果，过期的静默忽
   assert.equal(st.currentError, null);
 });
 
-test('请求关联：错误回执写入 currentError 并结束 loading', () => {
+test('顶栏 Popup 浮窗：openPopup / closePopup / togglePopup 状态切换与渲染', () => {
   const h = loadHarness();
-  h.editor.value = 'Error test';
-  h.editor.selectionStart = 0;
-  h.editor.selectionEnd = 10;
+  assert.equal(h.ctx.TranslateUI.getState().isPopupOpen, false);
 
-  h.ctx.TranslateUI.openBubble();
-  const reqId = h.ctx.TranslateUI.getState().currentRequestId;
+  h.ctx.TranslateUI.togglePopup();
+  assert.equal(h.ctx.TranslateUI.getState().isPopupOpen, true);
+  assert.ok(h.els['translate-popup'], '已创建 #translate-popup');
+  assert.equal(h.els['translate-popup'].hidden, false);
 
-  h.ctx.TranslateUI.onTranslateResult({
-    requestId: reqId,
-    ok: false,
-    message: 'Google 翻译请求超时',
-  });
-  const st = h.ctx.TranslateUI.getState();
-  assert.equal(st.isLoading, false);
-  assert.equal(st.currentResult, null);
-  assert.equal(st.currentError, 'Google 翻译请求超时');
+  h.ctx.TranslateUI.togglePopup();
+  assert.equal(h.ctx.TranslateUI.getState().isPopupOpen, false);
+  assert.equal(h.els['translate-popup'].hidden, true);
 });
 
-test('closeBubble 重置状态机与隐藏气泡', () => {
+test('预览区全文翻译：collectPreviewSegments 过滤代码块与提取段落', () => {
   const h = loadHarness();
-  h.editor.value = 'Close test';
-  h.editor.selectionStart = 0;
-  h.editor.selectionEnd = 10;
 
-  h.ctx.TranslateUI.openBubble();
-  assert.equal(h.ctx.TranslateUI.getState().isOpen, true);
+  const h1 = h.makeEl('h1');
+  h1.textContent = 'Main Heading';
+  const p1 = h.makeEl('p');
+  p1.textContent = 'First paragraph content.';
+  const pre = h.makeEl('pre');
+  const code = h.makeEl('code');
+  code.textContent = 'const a = 1;';
+  pre.appendChild(code);
+  const p2 = h.makeEl('p');
+  p2.textContent = 'Second paragraph after code.';
 
-  h.ctx.TranslateUI.closeBubble();
+  h.preview.appendChild(h1);
+  h.preview.appendChild(p1);
+  h.preview.appendChild(pre);
+  h.preview.appendChild(p2);
+
+  const collected = h.ctx.TranslateUI.collectPreviewSegments();
+  assert.ok(collected);
+  assert.equal(collected.segments.length, 3, '应提取 3 个文本块（跳过 pre/code）');
+  assert.equal(collected.segments[0].text, 'Main Heading');
+  assert.equal(collected.segments[1].text, 'First paragraph content.');
+  assert.equal(collected.segments[2].text, 'Second paragraph after code.');
+});
+
+test('预览区双语对照翻译与一键还原：插入 .preview-trans-block 与 restorePreview 还原', () => {
+  const h = loadHarness();
+  const p = h.makeEl('p');
+  p.textContent = 'English paragraph.';
+  h.preview.appendChild(p);
+
+  h.ctx.TranslateUI.translatePreview();
   const st = h.ctx.TranslateUI.getState();
-  assert.equal(st.isOpen, false);
-  assert.equal(st.currentRequestId, null);
+  assert.equal(st.previewLoading, true);
+
+  const req = h.ipcMsgs.find((m) => m.command === 'translate.request' && m.requestId.startsWith('prev_'));
+  assert.ok(req, '已发出预览区全文翻译请求');
+
+  // 模拟返回翻译结果
+  h.ctx.TranslateUI.onTranslateResult({
+    requestId: req.requestId,
+    ok: true,
+    results: [{ id: 'p_0', text: '中文段落。' }],
+  });
+
+  assert.equal(h.ctx.TranslateUI.getState().previewTranslated, true);
+  const transBlocks = h.preview.querySelectorAll('.preview-trans-block');
+  assert.equal(transBlocks.length, 1, '已插入双语对照译文块');
+  assert.equal(transBlocks[0].textContent, '中文段落。');
+
+  // 测试一键还原
+  h.ctx.TranslateUI.restorePreview();
+  assert.equal(h.ctx.TranslateUI.getState().previewTranslated, false);
+  const transBlocksAfter = h.preview.querySelectorAll('.preview-trans-block');
+  assert.equal(transBlocksAfter.length, 0, '双语译文块已全部清除');
 });

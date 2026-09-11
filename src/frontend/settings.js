@@ -582,6 +582,15 @@
     }
     if (Array.isArray(v)) return '<input type="text"' + attr + ' value="' + esc(v.join(', ')) + '">';
     if (v !== null && typeof v === 'object') return '<input type="text"' + attr + ' value="' + esc(JSON.stringify(v)) + '">';
+    if (cat === 'translation' && key === 'apiKey') {
+      return '<input type="password"' + attr + ' value="' + esc(v || '') + '" placeholder="sk-...">';
+    }
+    if (cat === 'translation' && key === 'baseUrl') {
+      return '<input type="text"' + attr + ' value="' + esc(v || '') + '" placeholder="https://api.openai.com/v1">';
+    }
+    if (cat === 'translation' && key === 'model') {
+      return '<input type="text"' + attr + ' value="' + esc(v || '') + '" placeholder="gpt-4o-mini / deepseek-chat">';
+    }
     return '<input type="text"' + attr + ' value="' + esc(v) + '">';
   }
 
@@ -1444,6 +1453,7 @@
       commit(cat, key, v);
       if (cat === 'appearance' && key === 'theme') applyTheme(v);
       if (cat === 'appearance' && key === 'language' && window.I18n) window.I18n.setLanguage(v);
+      if (cat === 'translation' && key === 'engineKind') render();
     };
   }
 

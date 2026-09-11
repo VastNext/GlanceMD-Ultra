@@ -1,8 +1,253 @@
-/* translate.css —— 划词翻译气泡与触发按钮样式（FEAT-005）
+/* translate.css —— 划词与全文翻译样式（FEAT-005）
  *
  * 继承 style.css 的紫→粉核心高亮色系（--mk-heading → --mk-heading-end，
  * 即 #a855f7 → #ec4899）；明暗双主题通过 [data-theme="light"] 覆盖。
  */
+
+/* ── 顶栏右上角翻译按钮 ── */
+#btn-translate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #9ca3af);
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+}
+
+#btn-translate:hover {
+  color: var(--mk-heading, #a855f7);
+  background: var(--bg-hover, rgba(255, 255, 255, 0.08));
+}
+
+#btn-translate:active {
+  transform: scale(0.95);
+}
+
+#btn-translate svg {
+  width: 15px;
+  height: 15px;
+  pointer-events: none;
+}
+
+/* ── 顶栏翻译 Popup 浮窗 ── */
+#translate-popup {
+  position: fixed;
+  z-index: 2010;
+  width: 320px;
+  padding: 14px;
+  border: 1px solid var(--border-soft, #333);
+  border-radius: 12px;
+  background: var(--bg-surface, #1e1e1e);
+  color: var(--text-primary, #e5e7eb);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(168, 85, 247, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+#translate-popup[hidden] {
+  display: none !important;
+}
+
+.translate-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle, #2a2a2a);
+}
+
+.translate-popup-title {
+  font-weight: 600;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-primary, #e5e7eb);
+}
+
+.translate-popup-title svg {
+  width: 15px;
+  height: 15px;
+  color: var(--mk-heading, #a855f7);
+}
+
+.translate-popup-icon-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #9ca3af);
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 16px;
+  transition: color 0.12s, background-color 0.12s;
+}
+
+.translate-popup-icon-btn:hover {
+  color: var(--text-primary, #fff);
+  background: var(--bg-hover, #2a2a2a);
+}
+
+.translate-popup-icon-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.translate-popup-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.translate-popup-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.translate-popup-label {
+  font-size: 11px;
+  color: var(--text-secondary, #9ca3af);
+  font-weight: 500;
+}
+
+.translate-popup-select {
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-soft, #333);
+  background: var(--bg-input, #252525);
+  color: var(--text-primary, #e5e7eb);
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.translate-popup-select:focus-visible {
+  border-color: var(--mk-heading, #a855f7);
+}
+
+.translate-popup-row-lang {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.translate-popup-lang-arrow {
+  color: var(--text-muted, #6b7280);
+  font-weight: bold;
+  padding-bottom: 6px;
+}
+
+.translate-popup-segment-group {
+  display: flex;
+  border-radius: 6px;
+  background: var(--bg-input, #252525);
+  padding: 2px;
+  border: 1px solid var(--border-soft, #333);
+}
+
+.translate-popup-seg-btn {
+  flex: 1;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #9ca3af);
+  font-size: 11px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.translate-popup-seg-btn.active {
+  background: var(--bg-surface, #1e1e1e);
+  color: var(--mk-heading, #a855f7);
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.translate-popup-alert {
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(234, 179, 8, 0.1);
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  color: #eab308;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.translate-popup-alert svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+.translate-popup-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 4px;
+}
+
+.translate-btn-block {
+  width: 100%;
+  justify-content: center;
+  height: 28px;
+  font-size: 12px;
+}
+
+.translate-popup-action-row {
+  display: flex;
+  gap: 6px;
+}
+
+.translate-popup-action-row .translate-btn {
+  flex: 1;
+  justify-content: center;
+}
+
+.translate-popup-status {
+  font-size: 11px;
+  color: var(--text-secondary, #9ca3af);
+  background: var(--bg-input, #181818);
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle, #2a2a2a);
+}
+
+/* ── 预览区双语对照译文块 ── */
+.preview-trans-block {
+  margin: 4px 0 12px 0;
+  padding: 6px 12px;
+  border-left: 3px solid var(--mk-heading, #a855f7);
+  border-radius: 0 6px 6px 0;
+  background: rgba(168, 85, 247, 0.07);
+  color: var(--text-primary, #e5e7eb);
+  font-size: 0.95em;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  animation: translate-fade 0.25s ease;
+}
 
 /* ── 划词浮动触发按钮 ── */
 #translate-trigger-btn {
@@ -65,7 +310,6 @@
   display: none !important;
 }
 
-/* 气泡顶栏：标题 + 目标语言切换 + 引擎指示 + 关闭 */
 .translate-bubble-header {
   display: flex;
   align-items: center;
@@ -128,7 +372,6 @@
   color: var(--text-primary, #e5e7eb);
 }
 
-/* 气泡主体：译文展示区 / 错误 / loading */
 .translate-bubble-body {
   flex: 1 1 auto;
   min-height: 64px;
@@ -160,7 +403,6 @@
   border-color: rgba(239, 68, 68, 0.25);
 }
 
-/* 气泡底栏：动作按钮（替换、插入、复制、重试）+ 引擎标签 */
 .translate-bubble-footer {
   display: flex;
   align-items: center;
@@ -216,7 +458,6 @@
   color: #fff;
 }
 
-/* 复制成功提示小气泡 */
 .translate-toast {
   position: absolute;
   top: 10px;
@@ -241,6 +482,50 @@
 }
 
 /* ── Light 主题覆盖 ── */
+[data-theme="light"] #btn-translate:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #9333ea;
+}
+
+[data-theme="light"] #translate-popup {
+  background: #ffffff;
+  border-color: #e5e7eb;
+  color: #1f2937;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(147, 51, 234, 0.15);
+}
+
+[data-theme="light"] .translate-popup-header {
+  border-bottom-color: #f3f4f6;
+}
+
+[data-theme="light"] .translate-popup-select {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  color: #1f2937;
+}
+
+[data-theme="light"] .translate-popup-segment-group {
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+}
+
+[data-theme="light"] .translate-popup-seg-btn.active {
+  background: #ffffff;
+  color: #9333ea;
+}
+
+[data-theme="light"] .translate-popup-status {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+  color: #4b5563;
+}
+
+[data-theme="light"] .preview-trans-block {
+  background: rgba(147, 51, 234, 0.05);
+  border-left-color: #9333ea;
+  color: #111827;
+}
+
 [data-theme="light"] #translate-trigger-btn {
   background: #ffffff;
   border-color: #d1d5db;

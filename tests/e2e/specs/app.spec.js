@@ -696,3 +696,63 @@ test('划词翻译专项：选中文本浮现翻译按钮、点击按钮弹出�
   await expect(bubble).toBeHidden();
   await expect(editor).toHaveValue('早上好 and welcome to GlanceMD Ultra');
 });
+
+test('顶栏翻译图标与 Popup 浮窗：点击展开 Popup、一键双语翻译预览区并支持还原', async ({ page }) => {
+  await installSettingsMock(page);
+
+  // 验证顶栏右侧 #btn-translate 存在且位于 #btn-theme 左侧
+  const btnTranslate = page.locator('#btn-translate');
+  const btnTheme = page.locator('#btn-theme');
+  await expect(btnTranslate).toBeVisible();
+  await expect(btnTheme).toBeVisible();
+
+  // 切换到分屏或预览模式并输入内容
+  const editor = page.locator('#editor');
+  await editor.fill('# Welcome to GlanceMD\n\nGlanceMD Ultra is a lightweight markdown workspace.');
+  await page.click('#btn-split'); // 分屏开启预览区
+
+  const preview = page.locator('#preview');
+  await expect(preview.locator('h1')).toContainText('Welcome to GlanceMD');
+  await expect(preview.locator('p')).toContainText('GlanceMD Ultra is a lightweight markdown workspace.');
+
+  // 点击顶栏翻译按钮，展开 Popup 浮窗
+  await btnTranslate.click();
+  const popup = page.locator('#translate-popup');
+  await expect(popup).toBeVisible();
+  await expect(popup.locator('.translate-popup-title')).toContainText('语层翻译');
+
+  // 点击「翻译预览区全文」
+  const translatePreviewBtn = popup.locator('#popup-btn-translate-preview');
+  await expect(translatePreviewBtn).toBeVisible();
+  await translatePreviewBtn.click();
+
+  // 获取 pending requestId 并模拟返回双语译文
+  const st = await page.evaluate(() => window.TranslateUI.getState());
+  expect(st.previewPendingReqId).toBeTruthy();
+
+  await page.evaluate((reqId) => {
+    window.__fromRust('workspace:translate-result', {
+      requestId: reqId,
+      ok: true,
+      results: [
+        { id: 'p_0', text: '欢迎使用 GlanceMD' },
+        { id: 'p_1', text: 'GlanceMD Ultra 是一个轻量级 Markdown 工作区。' }
+      ]
+    });
+  }, st.previewPendingReqId);
+
+  // 验证预览区中已插入双语对照译文块（.preview-trans-block）
+  const transBlocks = preview.locator('.preview-trans-block');
+  await expect(transBlocks).toHaveCount(2);
+  await expect(transBlocks.first()).toHaveText('欢迎使用 GlanceMD');
+  await expect(transBlocks.last()).toHaveText('GlanceMD Ultra 是一个轻量级 Markdown 工作区。');
+
+  // 点击「还原预览原文」
+  const restoreBtn = popup.locator('#popup-btn-restore-preview');
+  await expect(restoreBtn).toBeEnabled();
+  await restoreBtn.click();
+
+  // 验证双语译文块已被清除，还原纯净渲染
+  await expect(preview.locator('.preview-trans-block')).toHaveCount(0);
+  await expect(preview.locator('h1')).toHaveText('Welcome to GlanceMD');
+});
