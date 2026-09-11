@@ -721,10 +721,10 @@ test('顶栏翻译图标与 Popup 浮窗：点击展开 Popup、一键双语翻�
   await expect(popup).toBeVisible();
   await expect(popup.locator('.translate-popup-title')).toContainText('语层翻译');
 
-  // 点击单一主操作按钮「翻译预览区全文」
+  // 点击单一主操作按钮「翻译当前预览」
   const togglePreviewBtn = popup.locator('#popup-btn-toggle-preview');
   await expect(togglePreviewBtn).toBeVisible();
-  await expect(togglePreviewBtn).toContainText('翻译预览区全文');
+  await expect(togglePreviewBtn).toContainText('翻译当前预览');
   await togglePreviewBtn.click();
 
   // 获取 pending requestId 并模拟返回双语译文
@@ -755,4 +755,151 @@ test('顶栏翻译图标与 Popup 浮窗：点击展开 Popup、一键双语翻�
   // 验证双语译文块已被清除，还原纯净渲染
   await expect(preview.locator('.preview-trans-block')).toHaveCount(0);
   await expect(preview.locator('h1')).toHaveText('Welcome to GlanceMD');
+});
+
+test('划词翻译专项：预览区选中文字 Alt+T 呼出气泡（无需编辑器聚焦）', async ({ page }) => {
+  await installSettingsMock(page);
+
+  const editor = page.locator('#editor');
+  await editor.fill('# Title\n\nThe quick brown fox jumps over the lazy dog.');
+  await page.click('#btn-split');
+  const preview = page.locator('#preview');
+  await expect(preview.locator('p')).toContainText('The quick brown fox');
+
+  // 在预览区用 Range API 选中段落文本（焦点不在编辑器），并派发 mouseup
+  await page.evaluate(() => {
+    const p = document.querySelector('#preview p');
+    const range = document.createRange();
+    range.selectNodeContents(p);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    p.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, clientX: 400, clientY: 300 }));
+  });
+
+  // Alt+T：绑定已无 editorTextFocus 限制，预览区选区同样生效
+  await page.keyboard.press('Alt+T');
+  const bubble = page.locator('#translate-bubble');
+  await expect(bubble).toBeVisible();
+  await expect(bubble.locator('.translate-bubble-title')).toContainText('划词翻译');
+
+  // 预览区来源：回执后仅提供复制，无替换/插入按钮
+  const st = await page.evaluate(() => window.TranslateUI.getState());
+  await page.evaluate((reqId) => {
+    window.__fromRust('workspace:translate-result', {
+      requestId: reqId,
+      ok: true,
+      results: [{ id: 's0', text: '敏捷的棕色狐狸跳过了懒狗。' }]
+    });
+  }, st.currentRequestId);
+  await expect(bubble.locator('#translate-result-text')).toHaveText('敏捷的棕色狐狸跳过了懒狗。');
+  await expect(bubble.locator('#translate-btn-replace')).toHaveCount(0);
+  await expect(bubble.locator('#translate-btn-copy')).toBeVisible();
+});
+
+test('划词翻译专项：Alt+Shift+T 直达替换选区（不弹气泡）', async ({ page }) => {
+  await installSettingsMock(page);
+
+  const editor = page.locator('#editor');
+  await editor.fill('Hello world from Ultra');
+  await page.evaluate(() => {
+    const ed = document.getElementById('editor');
+    ed.focus();
+    ed.setSelectionRange(6, 11); // 'world'
+  });
+
+  await page.keyboard.press('Alt+Shift+T');
+  const bubble = page.locator('#translate-bubble');
+  await expect(bubble).toBeHidden();
+
+  const st = await page.evaluate(() => window.TranslateUI.getState());
+  expect(st.currentRequestId).toBeTruthy();
+  expect(st.pendingAutoReplace).toBe(true);
+
+  await page.evaluate((reqId) => {
+    window.__fromRust('workspace:translate-result', {
+      requestId: reqId,
+      ok: true,
+      results: [{ id: 's0', text: '世界' }]
+    });
+  }, st.currentRequestId);
+
+  await expect(editor).toHaveValue('Hello 世界 from Ultra');
+  await expect(bubble).toBeHidden();
+});
+
+test('划词翻译专项：气泡替换后 Ctrl+Z 恢复原文（应用级撤销栈）', async ({ page }) => {
+  await installSettingsMock(page);
+
+  const editor = page.locator('#editor');
+  await editor.fill('Hello world from Ultra');
+  await page.evaluate(() => {
+    const ed = document.getElementById('editor');
+    ed.focus();
+    ed.setSelectionRange(6, 11); // 'world'
+    ed.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, clientX: 300, clientY: 200 }));
+  });
+
+  await page.locator('#translate-trigger-btn').click();
+  const bubble = page.locator('#translate-bubble');
+  await expect(bubble).toBeVisible();
+
+  const st = await page.evaluate(() => window.TranslateUI.getState());
+  await page.evaluate((reqId) => {
+    window.__fromRust('workspace:translate-result', {
+      requestId: reqId,
+      ok: true,
+      results: [{ id: 's0', text: '世界' }]
+    });
+  }, st.currentRequestId);
+  await expect(bubble.locator('#translate-result-text')).toHaveText('世界');
+
+  await bubble.locator('#translate-btn-replace').click();
+  await expect(editor).toHaveValue('Hello 世界 from Ultra');
+
+  // 撤销必须精确回退本次替换（而非启动时的空文档）
+  await page.keyboard.press('Control+z');
+  await expect(editor).toHaveValue('Hello world from Ultra');
+});
+
+test('划词翻译专项：气泡出现在划词位置旁且标题栏可拖动', async ({ page }) => {
+  await installSettingsMock(page);
+
+  const editor = page.locator('#editor');
+  await editor.fill('Hello world from Ultra');
+  // 在编辑器中部划词：触发按钮应出现在鼠标附近，气泡应紧随其下
+  await page.evaluate(() => {
+    const ed = document.getElementById('editor');
+    ed.focus();
+    ed.setSelectionRange(6, 11);
+    const rect = ed.getBoundingClientRect();
+    ed.dispatchEvent(new MouseEvent('mouseup', {
+      bubbles: true,
+      clientX: rect.left + 120,
+      clientY: rect.top + 80,
+    }));
+  });
+
+  const trigger = page.locator('#translate-trigger-btn');
+  await expect(trigger).toBeVisible();
+  // 先记录触发按钮位置（气泡打开后触发按钮会隐藏）
+  const triggerBox = await trigger.boundingBox();
+  await trigger.click();
+
+  const bubble = page.locator('#translate-bubble');
+  await expect(bubble).toBeVisible();
+
+  // 气泡锚定在触发按钮附近（同一区域，而非视口固定 (120,120) 回退值）
+  const before = await bubble.boundingBox();
+  expect(Math.abs(before.x - triggerBox.x)).toBeLessThan(24);
+  expect(Math.abs(before.y - (triggerBox.y + triggerBox.height + 8))).toBeLessThan(24);
+
+  // 标题栏拖拽：按住头部移动，气泡整体跟随（按压点落在标题栏文字区）
+  await page.mouse.move(before.x + 60, before.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(before.x + 160, before.y + 100, { steps: 6 });
+  await page.mouse.up();
+  const after = await bubble.boundingBox();
+  expect(Math.round(after.x - before.x)).toBe(100);
+  expect(Math.round(after.y - before.y)).toBe(80);
 });

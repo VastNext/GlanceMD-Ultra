@@ -69,7 +69,10 @@
     record('editor.toggleWrap', 'Alt+Shift+Y', 'editorTextFocus'),
     record('editor.togglePreview', 'Ctrl+Shift+V'),
     record('editor.toggleSplit', 'Ctrl+\\'),
-    record('translate.selection', 'Alt+T', 'editorTextFocus')
+    // translate.selection 不设 when：编辑区与预览区选中的文本都要能呼出划词气泡
+    // （无选区时命令自身空转）；直接替换写入编辑区，保留 editorTextFocus。
+    record('translate.selection', 'Alt+T'),
+    record('translate.selectionReplace', 'Alt+Shift+T', 'editorTextFocus')
   ];
 
   var vscode = [
@@ -84,7 +87,8 @@
     record('editor.toggleSplit', 'Ctrl+\\'),
     record('editor.toggleSplit', 'Ctrl+K V'),
     record('editor.focus', 'F12'),
-    record('translate.selection', 'Alt+T', 'editorTextFocus')
+    record('translate.selection', 'Alt+T'),
+    record('translate.selectionReplace', 'Alt+Shift+T', 'editorTextFocus')
   ];
 
   var schemes = {

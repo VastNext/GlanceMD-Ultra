@@ -36,3 +36,17 @@ test('scroll line keeps selection unchanged',()=>{const h=load('a\nb');h.editor.
 test('delete to line end, insert above/below and outdent',()=>{const h=load('    abc\ndef');h.editor.setSelectionRange(5,5);run(h,'editor.deleteToLineEnd');assert.equal(h.editor.value,'    a\ndef');h.editor.setSelectionRange(0,0);run(h,'editor.insertLineBelow');assert.equal(h.editor.value,'    a\n\ndef');run(h,'editor.insertLineAbove');assert.equal(h.editor.value,'    a\n\n\ndef');h.editor.setSelectionRange(0,5);run(h,'editor.outdent');assert.equal(h.editor.value,'a\n\n\ndef');});
 test('go to line and toggle wrap',()=>{const h=load('a\nb\nc');h.c.EditorNavigation={scrollToLine:n=>{h.line=n;return true;}};h.registry['editor.goToLine'].run({line:3});assert.equal(h.line,2);run(h,'editor.toggleWrap');assert.equal(h.editor.getAttribute('wrap'),'off');run(h,'editor.toggleWrap');assert.equal(h.editor.getAttribute('wrap'),'soft');});
 test('ordinary beforeinput/input changes enter application undo history',()=>{const h=load('a');h.editor.setSelectionRange(1,1);h.editor.dispatchEvent({type:'beforeinput'});h.editor.value='ab';h.editor.setSelectionRange(2,2);h.editor.dispatchEvent({type:'input'});run(h,'editor.undo');assert.equal(h.editor.value,'a');run(h,'editor.redo');assert.equal(h.editor.value,'ab');});
+test('transact after programmatic load undoes to pre-edit text, not stale blank',()=>{
+  // 复现：启动后文件经 tabs.js 程序化写入 editor.value（无 input 事件，
+  // lastObserved 停留在空文档快照）；随后划词替换走 transact。修复前 Ctrl+Z
+  // 会把这份过期空快照弹回，编辑器直接变空白。
+  const h=load('');
+  h.editor.value='Hello world';
+  h.editor.setSelectionRange(6,11);
+  h.c.EditorCommands.transact(el=>{el.value=el.value.slice(0,6)+'世界'+el.value.slice(11);el.setSelectionRange(8,8);});
+  assert.equal(h.editor.value,'Hello 世界');
+  run(h,'editor.undo');
+  assert.equal(h.editor.value,'Hello world');
+  run(h,'editor.redo');
+  assert.equal(h.editor.value,'Hello 世界');
+});

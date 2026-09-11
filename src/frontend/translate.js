@@ -12,8 +12,10 @@
 //    - 分批发送 translate.request，回执后在段落下插入 .preview-trans-block 译文块；
 // 3. 划词选区翻译（同时支持编辑区 #editor 与预览区 #preview）：
 //    - 划词气泡独立支持切换翻译引擎与目标语言，并记住上次选择；
+//    - 气泡锚定在选区旁，标题栏可拖动、右下角可 resize；
 //    - 编辑区支持「替换选区」、「插入到选区后」、「复制」；预览区支持「复制」；
-//    - 快捷键 Alt+T 呼出；
+//    - 替换/插入经 EditorCommands.transact 落应用级撤销栈（Ctrl+Z 可回退）；
+//    - 快捷键 Alt+T 呼出气泡；Alt+Shift+T 跳过气泡直接"翻译选区并替换"。
 // 4. 模块以 IIFE 组织并挂载 window.TranslateUI 供 Node/e2e 测试调用。
 
 (function(root, factory) {
@@ -37,12 +39,14 @@
     popupEl: null,
     toastTimer: null,
     activeSelection: null, // { text, start, end, source: 'editor' | 'preview' }
+    lastMouse: null, // { x, y } 最近一次划词鼠标位置（气泡定位兜底）
     currentRequestId: null,
     currentResult: null, // String
     currentError: null,  // String
     isLoading: false,
     isOpen: false, // bubble is open
     isPopupOpen: false, // popup is open
+    pendingAutoReplace: false, // 直达替换流程：回执后跳过气泡直接替换选区
     displayMode: 'bilingual', // 'bilingual' | 'replace'
     previewLoading: false,
     previewStatusText: '',
@@ -195,7 +199,39 @@
 
     bubble.addEventListener('click', function(e) { e.stopPropagation(); });
     bubble.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+    // 标题栏拖拽（事件委托：header 随 renderBubbleContent 重建）
+    bubble.addEventListener('mousedown', function(e) {
+      if (e.button !== 0 || !state.isOpen) return;
+      var header = bubble.querySelector('.translate-bubble-header');
+      if (!header || !header.contains(e.target)) return;
+      if (e.target.closest && e.target.closest('select, button, input, option')) return;
+      beginBubbleDrag(e);
+    });
     return bubble;
+  }
+
+  function beginBubbleDrag(e) {
+    var bubble = state.bubbleEl;
+    if (!bubble) return;
+    var rect = bubble.getBoundingClientRect();
+    var offsetX = e.clientX - rect.left;
+    var offsetY = e.clientY - rect.top;
+    bubble.classList.add('is-dragging');
+
+    function onMove(ev) {
+      var pos = clampPosition(ev.clientX - offsetX, ev.clientY - offsetY, bubble.offsetWidth, bubble.offsetHeight);
+      bubble.style.left = pos.x + 'px';
+      bubble.style.top = pos.y + 'px';
+      ev.preventDefault();
+    }
+    function onUp() {
+      bubble.classList.remove('is-dragging');
+      document.removeEventListener('mousemove', onMove, true);
+      document.removeEventListener('mouseup', onUp, true);
+    }
+    document.addEventListener('mousemove', onMove, true);
+    document.addEventListener('mouseup', onUp, true);
+    e.preventDefault();
   }
 
   /* ── DOM 构造：顶栏 Popup 浮窗 ── */
@@ -275,6 +311,9 @@
     state.activeSelection = sel;
     var x = e && typeof e.clientX === 'number' ? e.clientX : undefined;
     var y = e && typeof e.clientY === 'number' ? e.clientY : undefined;
+    if (x !== undefined && y !== undefined) {
+      state.lastMouse = { x: x, y: y };
+    }
     if (x === undefined || y === undefined) {
       var ed = getEditor();
       if (ed) {
@@ -397,41 +436,53 @@
     if (copyBtn) copyBtn.onclick = onActionCopy;
   }
 
-  function onActionReplace() {
-    if (!state.currentResult || !state.activeSelection) return;
-    var ed = getEditor();
-    if (!ed) return;
-    var sel = state.activeSelection;
-    ed.focus();
-    ed.setSelectionRange(sel.start, sel.end);
-    if (typeof ed.setRangeText === 'function') {
-      ed.setRangeText(state.currentResult, sel.start, sel.end, 'end');
-    } else {
-      var val = ed.value;
-      ed.value = val.substring(0, sel.start) + state.currentResult + val.substring(sel.end);
-      ed.selectionStart = ed.selectionEnd = sel.start + state.currentResult.length;
+  /* ── 编辑区写入（统一走应用级撤销栈）── */
+
+  // 经 EditorCommands.transact 写入，保证 Ctrl+Z 能精确回退本次替换/插入；
+  // EditorCommands 缺席时（最小测试环境）退回 setRangeText + input 事件。
+  function editSelection(ed, sel, text, insertAfter) {
+    // 替换：[sel.start, sel.end)；插入：在 sel.end 处插入"空行 + 译文"
+    var at = insertAfter ? sel.end : sel.start;
+    var to = sel.end;
+    var insertText = insertAfter ? '\n\n' + text : text;
+
+    function mutate(el) {
+      if (typeof el.setRangeText === 'function') {
+        el.setRangeText(insertText, at, to, 'end');
+      } else {
+        var val = el.value;
+        el.value = val.substring(0, at) + insertText + val.substring(to);
+        el.selectionStart = el.selectionEnd = at + insertText.length;
+      }
     }
-    ed.dispatchEvent(new Event('input', { bubbles: true }));
+
+    ed.focus();
+    if (window.EditorCommands && typeof window.EditorCommands.transact === 'function') {
+      ed.setSelectionRange(at, to);
+      window.EditorCommands.transact(mutate);
+    } else {
+      mutate(ed);
+      ed.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }
+
+  function applyResultToSelection(mode) {
+    if (!state.currentResult || !state.activeSelection) return false;
+    var ed = getEditor();
+    if (!ed) return false;
+    var sel = state.activeSelection;
+    if (sel.source !== 'editor') return false;
+    editSelection(ed, sel, state.currentResult, mode === 'insert');
     closeBubble();
+    return true;
+  }
+
+  function onActionReplace() {
+    applyResultToSelection('replace');
   }
 
   function onActionInsert() {
-    if (!state.currentResult || !state.activeSelection) return;
-    var ed = getEditor();
-    if (!ed) return;
-    var sel = state.activeSelection;
-    ed.focus();
-    var insertText = '\n\n' + state.currentResult;
-    ed.setSelectionRange(sel.end, sel.end);
-    if (typeof ed.setRangeText === 'function') {
-      ed.setRangeText(insertText, sel.end, sel.end, 'end');
-    } else {
-      var val = ed.value;
-      ed.value = val.substring(0, sel.end) + insertText + val.substring(sel.end);
-      ed.selectionStart = ed.selectionEnd = sel.end + insertText.length;
-    }
-    ed.dispatchEvent(new Event('input', { bubbles: true }));
-    closeBubble();
+    applyResultToSelection('insert');
   }
 
   function onActionCopy() {
@@ -490,22 +541,46 @@
     });
   }
 
-  function openBubble() {
-    var sel = getSelectionInfo() || state.activeSelection;
-    if (!sel || !sel.text) return;
-    state.activeSelection = sel;
-    hideTrigger();
+  /* ── 气泡锚定：贴着选区弹出 ── */
 
+  // 选区旁的锚点：预览区用 DOM 选区真实几何；编辑区用浮动触发按钮位置
+  // （即划词时的鼠标位置）；都不可用时退回最近鼠标位置。
+  function getBubbleAnchor() {
+    var sel = state.activeSelection;
+    if (sel && sel.source === 'preview' && typeof window.getSelection === 'function') {
+      try {
+        var range = window.getSelection().getRangeAt(0);
+        var r = range.getBoundingClientRect();
+        if (r && (r.width || r.height)) return { x: r.left, y: r.bottom + 8 };
+      } catch (err) {}
+    }
+    if (state.triggerEl && !state.triggerEl.hidden) {
+      var rect = state.triggerEl.getBoundingClientRect();
+      return { x: rect.left, y: rect.bottom + 8 };
+    }
+    if (state.lastMouse && typeof state.lastMouse.x === 'number') {
+      return { x: state.lastMouse.x + 8, y: state.lastMouse.y - 32 };
+    }
+    return { x: 120, y: 120 };
+  }
+
+  function showBubble() {
     var bubble = ensureBubble();
-    var rect = state.triggerEl && !state.triggerEl.hidden ? state.triggerEl.getBoundingClientRect() : null;
-    var x = rect ? rect.left : 120;
-    var y = rect ? rect.bottom + 8 : 120;
-    var pos = clampPosition(x, y, 420, 240);
+    var anchor = getBubbleAnchor();
+    var pos = clampPosition(anchor.x, anchor.y, 420, 240);
     bubble.style.left = pos.x + 'px';
     bubble.style.top = pos.y + 'px';
     bubble.hidden = false;
     state.isOpen = true;
+    hideTrigger();
+  }
 
+  function openBubble() {
+    var sel = getSelectionInfo() || state.activeSelection;
+    if (!sel || !sel.text) return;
+    state.activeSelection = sel;
+    state.pendingAutoReplace = false;
+    showBubble();
     startTranslate();
   }
 
@@ -514,7 +589,20 @@
     state.isOpen = false;
     state.isLoading = false;
     state.currentRequestId = null;
+    state.pendingAutoReplace = false;
     hideTrigger();
+  }
+
+  /* ── 直达替换：跳过气泡，翻译选区并直接写回编辑区 ── */
+
+  function translateSelectionReplace() {
+    var sel = getSelectionInfo();
+    if (!sel || !sel.text) return;
+    if (sel.source !== 'editor') return; // 替换写入编辑区，预览区选区不适用
+    state.activeSelection = sel;
+    state.pendingAutoReplace = true;
+    hideTrigger();
+    startTranslate();
   }
 
   /* ── 顶栏 Popup 浮窗渲染与交互 ── */
@@ -798,6 +886,17 @@
       state.currentError = d.message || t('translate.actionRetry');
       state.currentResult = null;
     }
+    if (state.pendingAutoReplace && !state.isOpen) {
+      state.pendingAutoReplace = false;
+      // 选区自请求发出后未被改动才允许直接写回，否则退回气泡让用户确认
+      var sel = state.activeSelection;
+      var ed = getEditor();
+      var unchanged = !!(sel && ed && ed.value.substring(sel.start, sel.end) === sel.text);
+      if (state.currentResult && unchanged && applyResultToSelection('replace')) return;
+      showBubble();
+      renderBubbleContent();
+      return;
+    }
     if (state.isOpen) {
       renderBubbleContent();
     }
@@ -899,6 +998,16 @@
           },
           run: openBubble
         });
+        window.Commands.register('translate.selectionReplace', {
+          label: t('translate.cmdSelectionReplace'),
+          category: 'Edit',
+          description: t('translate.cmdSelectionReplace'),
+          isEnabled: function() {
+            var s = getSelectionInfo();
+            return !!(s && s.text && s.source === 'editor');
+          },
+          run: translateSelectionReplace
+        });
         window.Commands.register('translate.preview', {
           label: t('translate.btnTranslatePreview'),
           category: 'View',
@@ -934,6 +1043,7 @@
     restorePreview: restorePreview,
     collectPreviewSegments: collectPreviewSegments,
     startTranslate: startTranslate,
+    translateSelectionReplace: translateSelectionReplace,
     getState: function() { return Object.assign({}, state); },
     getSelectionInfo: getSelectionInfo,
     clampPosition: clampPosition,

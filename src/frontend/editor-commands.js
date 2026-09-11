@@ -5,6 +5,7 @@
   var redoStack = [];
   var applyingHistory = false;
   var composing = false;
+  var inTransact = false;
   var lastObserved = null;
 
   function editor() { return document.getElementById('editor'); }
@@ -26,14 +27,19 @@
     var el = editor();
     if (!el || composing) return false;
     var before = snapshot(el);
-    mutator(el);
+    // 同步观测基线并抑制 mutator 期间的 input 入栈：程序化写入（如划词替换）
+    // 触发的 input 若照常入栈，会把过期的 lastObserved（例如启动后从未有过
+    // 用户改动的旧快照）压进撤销栈——Ctrl+Z 会因此把编辑器"撤"回空白。
+    lastObserved = before;
+    inTransact = true;
+    try { mutator(el); } finally { inTransact = false; }
     var after = snapshot(el);
-    if (same(before, after)) return false;
+    if (same(before, after)) { lastObserved = after; return false; }
     undoStack.push(before);
     if (undoStack.length > 200) undoStack.shift();
     redoStack = [];
+    lastObserved = after;
     el.dispatchEvent(new Event('input', { bubbles: true }));
-    lastObserved = snapshot(el);
     el.focus();
     return true;
   }
@@ -153,7 +159,7 @@
     el.addEventListener('compositionend',function(){composing=false;lastObserved=snapshot(el);});
     el.addEventListener('beforeinput',function(){ if(!applyingHistory&&!composing) lastObserved=snapshot(el); });
     el.addEventListener('input',function(){
-      if(!applyingHistory&&!composing&&lastObserved&&!same(lastObserved,snapshot(el))){undoStack.push(lastObserved);if(undoStack.length>200)undoStack.shift();redoStack=[];}
+      if(!applyingHistory&&!composing&&!inTransact&&lastObserved&&!same(lastObserved,snapshot(el))){undoStack.push(lastObserved);if(undoStack.length>200)undoStack.shift();redoStack=[];}
       lastObserved=snapshot(el);
     });
   }

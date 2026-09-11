@@ -328,7 +328,7 @@
       'translate.triggerBtn': '翻译选区',
       'translate.dialogTitle': '划词翻译',
       'translate.popupTitle': '语层翻译',
-      'translate.btnTranslatePreview': '翻译预览区全文',
+      'translate.btnTranslatePreview': '翻译当前预览',
       'translate.btnTranslateEditor': '翻译编辑区',
       'translate.btnRestorePreview': '还原预览原文',
       'translate.displayMode': '呈现模式',
@@ -352,6 +352,7 @@
       'translate.actionClose': '关闭',
       'translate.copied': '已复制到剪贴板',
       'translate.cmdSelection': '翻译选中文本',
+      'translate.cmdSelectionReplace': '划词翻译并替换选区',
       'translate.cmdPopup': '打开翻译面板',
 
       // recovery：冲突横幅 / 崩溃恢复面板 / 恢复内容浮层
@@ -732,7 +733,7 @@
       'translate.triggerBtn': 'Translate Selection',
       'translate.dialogTitle': 'Translation',
       'translate.popupTitle': 'LexiLayer Translation',
-      'translate.btnTranslatePreview': 'Translate Preview',
+      'translate.btnTranslatePreview': 'Translate Current Preview',
       'translate.btnTranslateEditor': 'Translate Editor',
       'translate.btnRestorePreview': 'Restore Original',
       'translate.displayMode': 'Display Mode',
@@ -756,6 +757,7 @@
       'translate.actionClose': 'Close',
       'translate.copied': 'Copied to clipboard',
       'translate.cmdSelection': 'Translate Selected Text',
+      'translate.cmdSelectionReplace': 'Translate and Replace Selection',
       'translate.cmdPopup': 'Toggle Translation Panel',
 
       // recovery

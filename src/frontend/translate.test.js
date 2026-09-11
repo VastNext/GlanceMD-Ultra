@@ -9,7 +9,9 @@
  * 6. 顶栏 Popup 浮窗：openPopup / closePopup / togglePopup 状态切换与渲染；
  * 7. Tab 隔离的翻译状态：isCurrentTabTranslated 准确反馈当前 Tab 的翻译状态；
  * 8. 预览区全文翻译与一键还原：collectPreviewSegments 提取段落，translatePreview 发送请求，applyPreviewTranslation 插入 .preview-trans-block，restorePreview 还原；
- * 9. 动作执行：替换选区（setRangeText）、插入（\n\n追加）、复制触发 toast。
+ * 9. 动作执行：替换选区（setRangeText）、插入（\n\n追加）、复制触发 toast；
+ * 10. 气泡锚定：openBubble 定位在划词触发按钮（即鼠标/选区）旁，而非固定坐标；
+ * 11. 直达替换：translateSelectionReplace 跳过气泡直接写回，失败回退弹气泡，写入经 EditorCommands.transact。
  */
 
 const assert = require('node:assert/strict');
@@ -242,7 +244,7 @@ function loadHarness() {
   ctx.window = ctx;
 
   vm.runInNewContext(fs.readFileSync(TRANSLATE_JS, 'utf8'), ctx, { filename: 'translate.js' });
-  return { ctx, els, ipcMsgs, editor, preview, btnTranslate, workspaceSubs, registeredCommands, makeEl, storage };
+  return { ctx, els, ipcMsgs, editor, preview, btnTranslate, workspaceSubs, registeredCommands, makeEl, storage, listeners };
 }
 
 test('TranslateUI 模块挂载与 API 完整暴露', () => {
@@ -258,6 +260,7 @@ test('TranslateUI 模块挂载与 API 完整暴露', () => {
   assert.equal(typeof h.ctx.TranslateUI.saveEngine, 'function');
   assert.equal(typeof h.ctx.TranslateUI.saveTargetLang, 'function');
   assert.ok(h.registeredCommands['translate.selection'], '已注册 translate.selection 命令');
+  assert.ok(h.registeredCommands['translate.selectionReplace'], '已注册 translate.selectionReplace 命令');
   assert.ok(h.registeredCommands['translate.popup'], '已注册 translate.popup 命令');
   assert.ok(h.registeredCommands['translate.preview'], '已注册 translate.preview 命令');
   assert.ok(h.registeredCommands['translate.restore'], '已注册 translate.restore 命令');
@@ -378,4 +381,81 @@ test('预览区双语对照翻译与一键还原：插入 .preview-trans-block �
   assert.equal(h.ctx.TranslateUI.isCurrentTabTranslated(), false);
   const transBlocksAfter = h.preview.querySelectorAll('.preview-trans-block');
   assert.equal(transBlocksAfter.length, 0, '双语译文块已全部清除');
+});
+
+test('划词气泡锚定在选区旁（触发按钮位置）而非固定坐标', () => {
+  const h = loadHarness();
+  h.editor.value = 'Hello world';
+  h.editor.selectionStart = 0;
+  h.editor.selectionEnd = 5;
+
+  // 模拟编辑区 mouseup（携带鼠标坐标）→ 浮现触发按钮 → 点击弹出气泡
+  (h.listeners.editor.mouseup || []).forEach((fn) => fn({ clientX: 200, clientY: 200 }));
+  const trigger = h.els['translate-trigger-btn'];
+  assert.equal(trigger.hidden, false, '划词后浮现触发按钮');
+
+  h.ctx.TranslateUI.openBubble();
+  const bubble = h.els['translate-bubble'];
+  assert.equal(bubble.hidden, false);
+  // 触发按钮的 getBoundingClientRect 桩返回 { left:100, top:100, bottom:200 }，
+  // 气泡应锚定在其下方（left=100, bottom+8=208），而不是旧的固定回退 (120,120)
+  assert.equal(bubble.style.left, '100px');
+  assert.equal(bubble.style.top, '208px');
+});
+
+test('直达替换：translateSelectionReplace 跳过气泡直接写回选区', () => {
+  const h = loadHarness();
+  h.editor.value = 'Hello world from Ultra';
+  h.editor.selectionStart = 6;
+  h.editor.selectionEnd = 11;
+
+  h.ctx.TranslateUI.translateSelectionReplace();
+  assert.equal(h.ctx.TranslateUI.getState().isOpen, false, '请求阶段不弹出气泡');
+  const req = h.ipcMsgs.find((m) => m.command === 'translate.request');
+  assert.ok(req, '已发出翻译请求');
+
+  h.ctx.TranslateUI.onTranslateResult({
+    requestId: req.requestId,
+    ok: true,
+    results: [{ id: 's0', text: '世界' }],
+  });
+  assert.equal(h.editor.value, 'Hello 世界 from Ultra', '回执后直接替换选区');
+  assert.equal(h.ctx.TranslateUI.getState().isOpen, false, '成功后也不弹气泡');
+});
+
+test('直达替换：接口失败时回退为弹出气泡展示', () => {
+  const h = loadHarness();
+  h.editor.value = 'Hello world';
+  h.editor.selectionStart = 0;
+  h.editor.selectionEnd = 5;
+
+  h.ctx.TranslateUI.translateSelectionReplace();
+  const req = h.ipcMsgs.find((m) => m.command === 'translate.request');
+  h.ctx.TranslateUI.onTranslateResult({ requestId: req.requestId, ok: false, message: '网络错误' });
+
+  const st = h.ctx.TranslateUI.getState();
+  assert.equal(st.isOpen, true, '失败回退弹出气泡');
+  assert.equal(st.pendingAutoReplace, false, '直达标记已消费');
+});
+
+test('直达替换：写回经 EditorCommands.transact 落应用级撤销栈', () => {
+  const h = loadHarness();
+  let transactCalls = 0;
+  h.ctx.EditorCommands = {
+    transact: (fn) => { transactCalls += 1; fn(h.editor); },
+  };
+
+  h.editor.value = 'Hello world';
+  h.editor.selectionStart = 0;
+  h.editor.selectionEnd = 5;
+  h.ctx.TranslateUI.translateSelectionReplace();
+  const req = h.ipcMsgs.find((m) => m.command === 'translate.request');
+  h.ctx.TranslateUI.onTranslateResult({
+    requestId: req.requestId,
+    ok: true,
+    results: [{ id: 's0', text: '世界' }],
+  });
+
+  assert.equal(transactCalls, 1, '替换写入走了 EditorCommands.transact');
+  assert.equal(h.editor.value, '世界 world');
 });
