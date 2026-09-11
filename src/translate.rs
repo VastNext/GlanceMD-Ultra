@@ -110,3 +110,61 @@ impl TranslateOutcome {
 pub struct TranslateTestRequest {
     pub engine: EngineConfig,
 }
+
+// ── 语言码映射（移植自插件 `translate-http.ts` 与 `languages.ts`）──
+
+/// 支持的目标语言集合（BCP-47 风格；`auto` 仅允许作为源语言）。
+pub const SUPPORTED_LANGUAGES: &[&str] = &[
+    "zh-Hans", "zh-Hant", "en", "ja", "ko", "fr", "it", "de", "es", "pt", "ru", "ar",
+];
+
+/// Google 引擎语言码映射（缺省原样透传）。
+pub fn map_google_language(language: &str) -> String {
+    match language {
+        "zh-Hans" => "zh-CN".to_string(),
+        "zh-Hant" => "zh-TW".to_string(),
+        "pt" => "pt-PT".to_string(),
+        other => other.to_string(),
+    }
+}
+
+/// Bing 引擎语言码映射（缺省原样透传）。
+pub fn map_bing_language(language: &str) -> String {
+    match language {
+        "pt" => "pt-pt".to_string(),
+        other => other.to_string(),
+    }
+}
+
+/// 语言码归一化：`_` → `-`、取主子码、中文区细分简繁。
+///
+/// 对齐插件 `normalizeLanguage`：`zh-TW`/`zh-HK`/`zh-MO`/`zh-Hant` 归
+/// `zh-Hant`，其余 zh 归 `zh-Hans`；未知语言取主子码小写。
+pub fn normalize_language(language: &str) -> String {
+    let normalized = language.trim().replace('_', "-");
+    let lower = normalized.to_lowercase();
+    if lower.starts_with("zh") {
+        let hant = [ "-tw", "-hk", "-mo", "-hant" ]
+            .iter()
+            .any(|suffix| {
+                lower == suffix.trim_start_matches('-')
+                    || lower.starts_with(&format!("{suffix}-"))
+                    || lower.starts_with(suffix)
+            });
+        return if hant { "zh-Hant".to_string() } else { "zh-Hans".to_string() };
+    }
+    lower.split('-').next().unwrap_or("en").to_string()
+}
+
+/// 校验目标语言合法（`auto` 不可作为目标；未知码报错）。
+pub fn validate_target_language(language: &str) -> Result<String, String> {
+    let normalized = normalize_language(language);
+    if normalized == "auto" {
+        return Err("目标语言不能为 auto".to_string());
+    }
+    if SUPPORTED_LANGUAGES.contains(&normalized.as_str()) {
+        Ok(normalized)
+    } else {
+        Err(format!("不支持的目标语言：{language}"))
+    }
+}
