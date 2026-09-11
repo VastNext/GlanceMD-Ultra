@@ -72,7 +72,7 @@
     // translate.selection 不设 when：编辑区与预览区选中的文本都要能呼出划词气泡
     // （无选区时命令自身空转）；直接替换写入编辑区，保留 editorTextFocus。
     record('translate.selection', 'Alt+T'),
-    record('translate.selectionReplace', 'Alt+Shift+T', 'editorTextFocus')
+    record('translate.selectionReplace', 'Alt+Shift+X', 'editorTextFocus')
   ];
 
   var vscode = [
@@ -88,7 +88,7 @@
     record('editor.toggleSplit', 'Ctrl+K V'),
     record('editor.focus', 'F12'),
     record('translate.selection', 'Alt+T'),
-    record('translate.selectionReplace', 'Alt+Shift+T', 'editorTextFocus')
+    record('translate.selectionReplace', 'Alt+Shift+X', 'editorTextFocus')
   ];
 
   var schemes = {

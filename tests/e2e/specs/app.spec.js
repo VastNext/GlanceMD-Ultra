@@ -797,7 +797,7 @@ test('划词翻译专项：预览区选中文字 Alt+T 呼出气泡（无需编�
   await expect(bubble.locator('#translate-btn-copy')).toBeVisible();
 });
 
-test('划词翻译专项：Alt+Shift+T 直达替换选区（不弹气泡）', async ({ page }) => {
+test('划词翻译专项：Alt+Shift+X 直达替换选区（不弹气泡）', async ({ page }) => {
   await installSettingsMock(page);
 
   const editor = page.locator('#editor');
@@ -808,7 +808,7 @@ test('划词翻译专项：Alt+Shift+T 直达替换选区（不弹气泡）', as
     ed.setSelectionRange(6, 11); // 'world'
   });
 
-  await page.keyboard.press('Alt+Shift+T');
+  await page.keyboard.press('Alt+Shift+X');
   const bubble = page.locator('#translate-bubble');
   await expect(bubble).toBeHidden();
 
@@ -984,4 +984,81 @@ test('顶栏翻译 Popup：已翻译后切换呈现模式复用缓存译文，�
   await expect(preview.locator('.preview-trans-block')).toHaveCount(2);
   await expect(preview.locator('p')).toHaveText('GlanceMD Ultra is a lightweight markdown workspace.');
   expect(await countRequests()).toBe(reqsBefore);
+});
+
+test('划词翻译专项：气泡局部快捷键 Alt+R 替换并带 tooltip 标注', async ({ page }) => {
+  await installSettingsMock(page);
+
+  const editor = page.locator('#editor');
+  await editor.fill('Hello world from Ultra');
+  await page.evaluate(() => {
+    const ed = document.getElementById('editor');
+    ed.focus();
+    ed.setSelectionRange(6, 11); // 'world'
+  });
+
+  await page.keyboard.press('Alt+T');
+  const bubble = page.locator('#translate-bubble');
+  await expect(bubble).toBeVisible();
+
+  const st = await page.evaluate(() => window.TranslateUI.getState());
+  await page.evaluate((reqId) => {
+    window.__fromRust('workspace:translate-result', {
+      requestId: reqId,
+      ok: true,
+      results: [{ id: 's0', text: '世界' }]
+    });
+  }, st.currentRequestId);
+  await expect(bubble.locator('#translate-result-text')).toHaveText('世界');
+
+  // 按钮 tooltip 标注快捷键（回执渲染后动作按钮才出现）
+  await expect(bubble.locator('#translate-btn-replace')).toHaveAttribute('title', '替换 (Alt+R)');
+  await expect(bubble.locator('#translate-btn-insert')).toHaveAttribute('title', '插入 (Alt+I)');
+  await expect(bubble.locator('#translate-btn-copy')).toHaveAttribute('title', '复制 (Alt+C)');
+
+  // Alt+R 等价点击"替换"
+  await page.keyboard.press('Alt+R');
+  await expect(editor).toHaveValue('Hello 世界 from Ultra');
+  await expect(bubble).toBeHidden();
+});
+
+test('划词翻译专项：Popup 局部快捷键 Alt+A 翻译当前预览并带 tooltip 标注', async ({ page }) => {
+  await installSettingsMock(page);
+
+  const editor = page.locator('#editor');
+  await editor.fill('# Welcome\n\nGlanceMD Ultra is a lightweight markdown workspace.');
+  await page.click('#btn-split');
+  const preview = page.locator('#preview');
+  await expect(preview.locator('p')).toContainText('GlanceMD Ultra is a lightweight');
+
+  await page.click('#btn-translate');
+  const popup = page.locator('#translate-popup');
+  await expect(popup).toBeVisible();
+
+  // tooltip 标注快捷键
+  await expect(popup.locator('#popup-btn-toggle-preview')).toHaveAttribute('title', '翻译当前预览 (Alt+A)');
+  await expect(popup.locator('.translate-popup-seg-btn[data-mode="bilingual"]')).toHaveAttribute('title', '双语对照 (Alt+B)');
+  await expect(popup.locator('.translate-popup-seg-btn[data-mode="replace"]')).toHaveAttribute('title', '纯译文 (Alt+V)');
+
+  // Alt+A 等价点击"翻译当前预览"
+  await page.keyboard.press('Alt+A');
+  const st = await page.evaluate(() => window.TranslateUI.getState());
+  expect(st.previewPendingReqId).toBeTruthy();
+
+  await page.evaluate((reqId) => {
+    window.__fromRust('workspace:translate-result', {
+      requestId: reqId,
+      ok: true,
+      results: [
+        { id: 'p_0', text: '欢迎使用' },
+        { id: 'p_1', text: 'GlanceMD Ultra 是一个轻量级 Markdown 工作区。' }
+      ]
+    });
+  }, st.previewPendingReqId);
+  await expect(preview.locator('.preview-trans-block')).toHaveCount(2);
+
+  // Alt+V 切纯译文（复用缓存）
+  await page.keyboard.press('Alt+V');
+  await expect(preview.locator('.preview-trans-block')).toHaveCount(0);
+  await expect(preview.locator('p')).toHaveText('GlanceMD Ultra 是一个轻量级 Markdown 工作区。');
 });

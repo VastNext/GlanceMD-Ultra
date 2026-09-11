@@ -17,7 +17,9 @@
 //    - 气泡锚定在选区旁，标题栏可拖动、右下角可 resize；
 //    - 编辑区支持「替换选区」、「插入到选区后」、「复制」；预览区支持「复制」；
 //    - 替换/插入经 EditorCommands.transact 落应用级撤销栈（Ctrl+Z 可回退）；
-//    - 快捷键 Alt+T 呼出气泡；Alt+Shift+T 跳过气泡直接"翻译选区并替换"。
+//    - 快捷键 Alt+T 呼出气泡；Alt+Shift+X 跳过气泡直接"翻译选区并替换"；
+//    - 浮层局部键（仅浮层打开时生效，tooltip 有标注）：气泡 Alt+R 替换/重试、
+//      Alt+I 插入、Alt+C 复制；Popup Alt+A 主操作、Alt+B/Alt+V 切呈现模式。
 // 4. 模块以 IIFE 组织并挂载 window.TranslateUI 供 Node/e2e 测试调用。
 
 (function(root, factory) {
@@ -364,19 +366,19 @@
     var footerHtml = '';
     if (state.isLoading) {
       footerHtml = '<div class="translate-bubble-footer">'
-        + '<button type="button" class="translate-btn" id="translate-btn-cancel">' + esc(t('translate.actionClose')) + '</button>'
+        + '<button type="button" class="translate-btn" id="translate-btn-cancel" title="' + esc(t('translate.actionClose') + ' (Esc)') + '">' + esc(t('translate.actionClose')) + '</button>'
         + '</div>';
     } else if (state.currentError) {
       footerHtml = '<div class="translate-bubble-footer">'
-        + '<button type="button" class="translate-btn translate-btn-primary" id="translate-btn-retry">' + esc(t('translate.actionRetry')) + '</button>'
-        + '<button type="button" class="translate-btn" id="translate-btn-close">' + esc(t('translate.actionClose')) + '</button>'
+        + '<button type="button" class="translate-btn translate-btn-primary" id="translate-btn-retry" title="' + esc(t('translate.actionRetry') + ' (Alt+R)') + '">' + esc(t('translate.actionRetry')) + '</button>'
+        + '<button type="button" class="translate-btn" id="translate-btn-close" title="' + esc(t('translate.actionClose') + ' (Esc)') + '">' + esc(t('translate.actionClose')) + '</button>'
         + '</div>';
     } else {
       var actionButtons = isPreviewSource
-        ? '<button type="button" class="translate-btn translate-btn-primary" id="translate-btn-copy">' + esc(t('translate.actionCopy')) + '</button>'
-        : '<button type="button" class="translate-btn translate-btn-primary" id="translate-btn-replace">' + esc(t('translate.actionReplace')) + '</button>'
-          + '<button type="button" class="translate-btn" id="translate-btn-insert">' + esc(t('translate.actionInsert')) + '</button>'
-          + '<button type="button" class="translate-btn" id="translate-btn-copy">' + esc(t('translate.actionCopy')) + '</button>';
+        ? '<button type="button" class="translate-btn translate-btn-primary" id="translate-btn-copy" title="' + esc(t('translate.actionCopy') + ' (Alt+C)') + '">' + esc(t('translate.actionCopy')) + '</button>'
+        : '<button type="button" class="translate-btn translate-btn-primary" id="translate-btn-replace" title="' + esc(t('translate.actionReplace') + ' (Alt+R)') + '">' + esc(t('translate.actionReplace')) + '</button>'
+          + '<button type="button" class="translate-btn" id="translate-btn-insert" title="' + esc(t('translate.actionInsert') + ' (Alt+I)') + '">' + esc(t('translate.actionInsert')) + '</button>'
+          + '<button type="button" class="translate-btn" id="translate-btn-copy" title="' + esc(t('translate.actionCopy') + ' (Alt+C)') + '">' + esc(t('translate.actionCopy')) + '</button>';
 
       footerHtml = '<div class="translate-bubble-footer">'
         + actionButtons
@@ -659,11 +661,11 @@
       : '';
 
     var mainActionBtnHtml = isTranslated
-      ? '<button type="button" class="translate-btn translate-btn-block translate-btn-restore" id="popup-btn-toggle-preview">'
+      ? '<button type="button" class="translate-btn translate-btn-block translate-btn-restore" id="popup-btn-toggle-preview" title="' + esc(t('translate.btnRestorePreview') + ' (Alt+A)') + '">'
         + '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>'
         + esc(t('translate.btnRestorePreview'))
         + '</button>'
-      : '<button type="button" class="translate-btn translate-btn-primary translate-btn-block" id="popup-btn-toggle-preview"' + (state.previewLoading ? ' disabled' : '') + '>'
+      : '<button type="button" class="translate-btn translate-btn-primary translate-btn-block" id="popup-btn-toggle-preview" title="' + esc(t('translate.btnTranslatePreview') + ' (Alt+A)') + '"' + (state.previewLoading ? ' disabled' : '') + '>'
         + (state.previewLoading ? '<svg class="svg-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="12"></circle></svg>' : '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4h7M6 2.5v1.5M3.5 6.5c.7 1.4 1.7 2.6 3 3.3M7 4c-.6 1.7-1.6 3.1-3 4.1M8.5 13.5l3.2-7 3.3 7M9.8 11.2h4.4"/></svg>')
         + esc(t('translate.btnTranslatePreview'))
         + '</button>';
@@ -695,8 +697,8 @@
       + '<div class="translate-popup-field">'
       + '<label class="translate-popup-label">' + esc(t('translate.displayMode')) + '</label>'
       + '<div class="translate-popup-segment-group">'
-      + '<button type="button" class="translate-popup-seg-btn' + (state.displayMode === 'bilingual' ? ' active' : '') + '" data-mode="bilingual">' + esc(t('translate.modeBilingual')) + '</button>'
-      + '<button type="button" class="translate-popup-seg-btn' + (state.displayMode === 'replace' ? ' active' : '') + '" data-mode="replace">' + esc(t('translate.modeReplace')) + '</button>'
+      + '<button type="button" class="translate-popup-seg-btn' + (state.displayMode === 'bilingual' ? ' active' : '') + '" data-mode="bilingual" title="' + esc(t('translate.modeBilingual') + ' (Alt+B)') + '">' + esc(t('translate.modeBilingual')) + '</button>'
+      + '<button type="button" class="translate-popup-seg-btn' + (state.displayMode === 'replace' ? ' active' : '') + '" data-mode="replace" title="' + esc(t('translate.modeReplace') + ' (Alt+V)') + '">' + esc(t('translate.modeReplace')) + '</button>'
       + '</div>'
       + '</div>'
       + aiAlertHtml
@@ -946,10 +948,46 @@
     }
   }
 
+  // 浮层局部快捷键：气泡/Popup 打开期间生效（capture 先于全局键位分派）。
+  // 不注册进全局键位系统——这些键是浮层按钮的键盘等价物，随浮层出现/消失，
+  // 避免污染用户键位方案；AltGr（ctrlKey+altKey 同真）不触发，防误触。
+  function isLocalCombo(e, letter) {
+    return Boolean(e.altKey) && !e.ctrlKey && !e.metaKey && !e.shiftKey
+      && typeof e.key === 'string' && e.key.toLowerCase() === letter;
+  }
+
   function onGlobalKeyDown(e) {
     if (e.key === 'Escape') {
       if (state.isOpen) { e.preventDefault(); e.stopPropagation(); closeBubble(); }
       if (state.isPopupOpen) { e.preventDefault(); e.stopPropagation(); closePopup(); }
+      return;
+    }
+    if (state.isOpen) {
+      if (isLocalCombo(e, 'r')) {
+        e.preventDefault(); e.stopPropagation();
+        if (state.currentError) startTranslate(); // 错误态同槽：Alt+R=重试
+        else if (state.currentResult) onActionReplace();
+      } else if (isLocalCombo(e, 'i')) {
+        e.preventDefault(); e.stopPropagation();
+        if (state.currentResult) onActionInsert();
+      } else if (isLocalCombo(e, 'c')) {
+        e.preventDefault(); e.stopPropagation();
+        if (state.currentResult) onActionCopy();
+      }
+      return;
+    }
+    if (state.isPopupOpen) {
+      if (isLocalCombo(e, 'a')) {
+        e.preventDefault(); e.stopPropagation();
+        if (isCurrentTabTranslated()) restorePreview();
+        else if (!state.previewLoading) translatePreview();
+      } else if (isLocalCombo(e, 'b')) {
+        e.preventDefault(); e.stopPropagation();
+        setPreviewDisplayMode('bilingual');
+      } else if (isLocalCombo(e, 'v')) {
+        e.preventDefault(); e.stopPropagation();
+        setPreviewDisplayMode('replace');
+      }
     }
   }
 
