@@ -74,6 +74,7 @@ const KEYBINDINGS_SETTINGS_JS: &str = include_str!("frontend/keybindings-setting
 const OVERLAY_HELPER_JS: &str = include_str!("frontend/overlay-helper.js");
 const RECOVERY_JS: &str = include_str!("frontend/recovery.js");
 const SETTINGS_APPLY_JS: &str = include_str!("frontend/settings-apply.js");
+const TRANSLATE_JS: &str = include_str!("frontend/translate.js");
 const ICON_PNG: &[u8] = include_bytes!("../assets/icon.png");
 
 pub(crate) const fn platform_base_url() -> &'static str {
@@ -985,9 +986,10 @@ fn build_html() -> String {
     // workspace:settings-effective 落到 CSS 变量与编辑器 DOM，开机即拉取一次；
     // 只依赖 workspace.js 的事件分发器与 ipc，晚于全部面板脚本无装载顺序问题）
     let scripts = format!(
-        "{}\n<script>{}</script>",
+        "{}\n<script>{}</script>\n<script>{}</script>",
         scripts,
         escape_for_script_tag(SETTINGS_APPLY_JS),
+        escape_for_script_tag(TRANSLATE_JS),
     );
 
     // 面板样式拼在 style.css 之后（同特异性下后写的规则生效；各面板 css 内
@@ -1013,6 +1015,8 @@ fn build_html() -> String {
         include_str!("frontend/keybindings-settings.css"),
         "\n/* ── recovery.css ── */\n",
         include_str!("frontend/recovery.css"),
+        "\n/* ── translate.css ── */\n",
+        include_str!("frontend/translate.css"),
     );
     let full_css = format!("{STYLE_CSS}{PANEL_CSS}");
 

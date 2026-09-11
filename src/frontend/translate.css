@@ -1,0 +1,301 @@
+/* translate.css —— 划词翻译气泡与触发按钮样式（FEAT-005）
+ *
+ * 继承 style.css 的紫→粉核心高亮色系（--mk-heading → --mk-heading-end，
+ * 即 #a855f7 → #ec4899）；明暗双主题通过 [data-theme="light"] 覆盖。
+ */
+
+/* ── 划词浮动触发按钮 ── */
+#translate-trigger-btn {
+  position: fixed;
+  z-index: 2000;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border-soft, #333);
+  border-radius: 6px;
+  background: var(--bg-surface, #1e1e1e);
+  color: var(--text-primary, #e5e7eb);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  transition: transform 0.12s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+#translate-trigger-btn:hover {
+  background: var(--bg-hover, #2a2a2a);
+  border-color: var(--mk-heading, #a855f7);
+  color: var(--mk-heading, #a855f7);
+  transform: scale(1.08);
+}
+
+#translate-trigger-btn:active {
+  transform: scale(0.95);
+}
+
+#translate-trigger-btn svg {
+  width: 15px;
+  height: 15px;
+  pointer-events: none;
+}
+
+/* ── 划词翻译气泡面板 ── */
+#translate-bubble {
+  position: fixed;
+  z-index: 2001;
+  width: min(380px, calc(100vw - 32px));
+  min-height: 160px;
+  max-height: min(420px, calc(100vh - 48px));
+  padding: 12px;
+  border: 1px solid var(--border-soft, #333);
+  border-radius: 10px;
+  background: var(--bg-surface, #1e1e1e);
+  color: var(--text-primary, #e5e7eb);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(168, 85, 247, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+#translate-bubble[hidden],
+#translate-trigger-btn[hidden] {
+  display: none !important;
+}
+
+/* 气泡顶栏：标题 + 目标语言切换 + 引擎指示 + 关闭 */
+.translate-bubble-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle, #2a2a2a);
+  flex-shrink: 0;
+}
+
+.translate-bubble-title {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-secondary, #9ca3af);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.translate-bubble-title svg {
+  width: 13px;
+  height: 13px;
+  color: var(--mk-heading, #a855f7);
+}
+
+.translate-bubble-target-select {
+  margin-left: auto;
+  font-size: 11px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border-soft, #333);
+  background: var(--bg-input, #252525);
+  color: var(--text-primary, #e5e7eb);
+  cursor: pointer;
+  outline: none;
+}
+
+.translate-bubble-target-select:focus-visible {
+  border-color: var(--mk-heading, #a855f7);
+}
+
+.translate-bubble-close {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #6b7280);
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.translate-bubble-close:hover {
+  background: var(--bg-hover, #2a2a2a);
+  color: var(--text-primary, #e5e7eb);
+}
+
+/* 气泡主体：译文展示区 / 错误 / loading */
+.translate-bubble-body {
+  flex: 1 1 auto;
+  min-height: 64px;
+  max-height: 260px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--bg-input, #181818);
+  border: 1px solid var(--border-subtle, #2a2a2a);
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.55;
+  font-size: 13px;
+  user-select: text;
+}
+
+.translate-bubble-body.is-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted, #6b7280);
+  font-style: italic;
+  gap: 8px;
+}
+
+.translate-bubble-body.is-error {
+  color: var(--danger-color, #ef4444);
+  background: rgba(239, 68, 68, 0.06);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+/* 气泡底栏：动作按钮（替换、插入、复制、重试）+ 引擎标签 */
+.translate-bubble-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 4px;
+  flex-shrink: 0;
+}
+
+.translate-bubble-engine-badge {
+  font-size: 11px;
+  color: var(--text-muted, #6b7280);
+  margin-right: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 110px;
+}
+
+.translate-btn {
+  height: 24px;
+  padding: 0 9px;
+  font-size: 11px;
+  border-radius: 4px;
+  border: 1px solid var(--border-soft, #333);
+  background: var(--bg-surface, #252525);
+  color: var(--text-primary, #e5e7eb);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.translate-btn:hover {
+  background: var(--bg-hover, #333);
+  border-color: var(--mk-heading, #a855f7);
+  color: var(--mk-heading, #a855f7);
+}
+
+.translate-btn:active {
+  transform: scale(0.96);
+}
+
+.translate-btn-primary {
+  background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+  color: #fff;
+  border: none;
+  font-weight: 500;
+}
+
+.translate-btn-primary:hover {
+  filter: brightness(1.1);
+  color: #fff;
+}
+
+/* 复制成功提示小气泡 */
+.translate-toast {
+  position: absolute;
+  top: 10px;
+  right: 40px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #111;
+  color: #fff;
+  font-size: 11px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  animation: translate-fade 0.2s ease;
+}
+
+.translate-toast[hidden] {
+  display: none !important;
+}
+
+@keyframes translate-fade {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Light 主题覆盖 ── */
+[data-theme="light"] #translate-trigger-btn {
+  background: #ffffff;
+  border-color: #d1d5db;
+  color: #1f2937;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] #translate-trigger-btn:hover {
+  background: #f9fafb;
+  border-color: #9333ea;
+  color: #9333ea;
+}
+
+[data-theme="light"] #translate-bubble {
+  background: #ffffff;
+  border-color: #e5e7eb;
+  color: #1f2937;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(147, 51, 234, 0.15);
+}
+
+[data-theme="light"] .translate-bubble-header {
+  border-bottom-color: #f3f4f6;
+}
+
+[data-theme="light"] .translate-bubble-target-select {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  color: #1f2937;
+}
+
+[data-theme="light"] .translate-bubble-close:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+[data-theme="light"] .translate-bubble-body {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+  color: #111827;
+}
+
+[data-theme="light"] .translate-bubble-body.is-error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+[data-theme="light"] .translate-btn {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  color: #374151;
+}
+
+[data-theme="light"] .translate-btn:hover {
+  background: #f3f4f6;
+  border-color: #9333ea;
+  color: #9333ea;
+}
