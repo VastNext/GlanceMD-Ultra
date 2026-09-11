@@ -311,14 +311,14 @@ test('receive 保存 effective 设置', () => {
   assert.equal(h.ctx.SettingsUI.getState().effective.appearance.theme, 'dark');
 });
 
-test('分类导航中文化：九个中文分类、每类一句描述、点击切换', () => {
+test('分类导航中文化：十个中文分类、每类一句描述、点击切换', () => {
   const h = load();
   h.ctx.SettingsUI.open();
   const panel = h.els['settings-panel'];
   const nav = panel.querySelector('#settings-categories');
   assert.deepEqual(
     nav.children.map((b) => b.textContent),
-    ['外观', '文件', '监听', '搜索', '编辑器', '窗口与命令行', '网络', '快捷键', '恢复'],
+    ['外观', '文件', '监听', '搜索', '编辑器', '窗口与命令行', '网络', '翻译', '快捷键', '恢复'],
   );
   assert.equal(nav.children[0].dataset.category, 'appearance');
   const bodyText = () => panel.querySelector('#settings-body').textContent;
@@ -361,7 +361,7 @@ test('控件按值类型渲染：theme→select、bool→switch、number→numbe
   assert.equal(exts.type, 'text');
   assert.equal(exts.value, 'md, markdown');
   // 快捷键分类 → 专用列表或组件
-  nav.children[7].onclick(); // 快捷键
+  nav.children[8].onclick(); // 快捷键
   const kbRoot = panel.querySelector('.keybindings-settings-root');
   const kbRows = panel.querySelectorAll('.settings-kb-row');
   assert.ok(kbRoot || kbRows.length > 0, '快捷键分类已渲染专用视图');
@@ -610,7 +610,7 @@ function loadKb() {
 function openKb(h) {
   h.ctx.SettingsUI.open();
   const panel = h.els['settings-panel'];
-  panel.querySelector('#settings-categories').children[7].onclick(); // 快捷键
+  panel.querySelector('#settings-categories').children[8].onclick(); // 快捷键
   return panel;
 }
 

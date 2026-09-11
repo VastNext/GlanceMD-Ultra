@@ -25,7 +25,7 @@
   'use strict';
   function t(key, params) { return window.I18n ? window.I18n.t(key, params) : key; }
 
-  var state = { open: false, category: 'appearance', global: {}, effective: {}, project: {}, kbRecording: null, kbError: null, pendingTheme: null, warnings: [], overridden: [], terminals: null, terminalsScanning: false, terminalsScanned: false, customTerminalSelected: false, cliShim: { installed: false, dir: '', message: '' }, proxyTesting: false, proxyTestResult: null, proxyTestTimer: null };
+  var state = { open: false, category: 'appearance', global: {}, effective: {}, project: {}, kbRecording: null, kbError: null, pendingTheme: null, warnings: [], overridden: [], terminals: null, terminalsScanning: false, terminalsScanned: false, customTerminalSelected: false, cliShim: { installed: false, dir: '', message: '' }, proxyTesting: false, proxyTestResult: null, proxyTestTimer: null, translateTesting: false, translateTestResult: null, translateTestTimer: null };
 
   // 分类（与 Rust settings schema 一一对应）：中文标签 + 每类一句描述 + SVG 图标。
   var CATEGORIES = [
@@ -84,6 +84,14 @@
       labelKey: 'settings.httpCategory',
       descKey: 'settings.httpCategoryDesc',
       icon: '<svg class="svg-icon nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>'
+    },
+    {
+      key: 'translation',
+      label: '翻译',
+      desc: '划词翻译引擎与目标语言配置',
+      labelKey: 'settings.cat.translation',
+      descKey: 'settings.cat.translationDesc',
+      icon: '<svg class="svg-icon nav-icon" viewBox="0 0 24 24"><path d="M5 8l6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"></path></svg>'
     },
     {
       key: 'keybindings',
@@ -152,6 +160,42 @@
       desc: '关闭后跳过证书校验（仅用于自签证书/中间人代理等特殊场景）',
       labelKey: 'settings.proxyStrictSSL',
       descKey: 'settings.proxyStrictSSLDesc'
+    },
+    'translation.engineKind': {
+      label: '翻译引擎',
+      desc: '选择翻译服务提供方（Google 与 Bing 免 key）',
+      labelKey: 'settings.translationEngine',
+      descKey: 'settings.translationEngineDesc'
+    },
+    'translation.baseUrl': {
+      label: 'Base URL',
+      desc: 'OpenAI 兼容接口基地址，如 https://api.openai.com/v1',
+      labelKey: 'settings.translationBaseUrl',
+      descKey: 'settings.translationBaseUrlDesc'
+    },
+    'translation.model': {
+      label: '模型名称',
+      desc: '用于翻译的模型 ID，如 gpt-4o-mini',
+      labelKey: 'settings.translationModel',
+      descKey: 'settings.translationModelDesc'
+    },
+    'translation.apiKey': {
+      label: 'API Key',
+      desc: '接口访问密钥（仅保存于本地设置文件）',
+      labelKey: 'settings.translationApiKey',
+      descKey: 'settings.translationApiKeyDesc'
+    },
+    'translation.targetLanguage': {
+      label: '默认目标语言',
+      desc: '划词翻译的目标语言',
+      labelKey: 'settings.translationTargetLanguage',
+      descKey: 'settings.translationTargetLanguageDesc'
+    },
+    'translation.selectionTriggerEnabled': {
+      label: '选中文本时浮现翻译按钮',
+      desc: '关闭后仅可通过快捷键（Alt+T）或命令面板触发翻译',
+      labelKey: 'settings.translationSelectionTrigger',
+      descKey: 'settings.translationSelectionTriggerDesc'
     }
   };
 
@@ -172,7 +216,15 @@
     editor: { fontSize: 14, tabSize: 4, wordWrap: true, lineNumbers: true, largeFileMB: 5 },
     window: { reuseWindowForFolder: false },
     recovery: { confirmCloseDirty: true, crashRecovery: true, createProjectSettings: false },
-    http: { proxySupport: 'off', proxy: '', proxyStrictSSL: true }
+    http: { proxySupport: 'off', proxy: '', proxyStrictSSL: true },
+    translation: {
+      engineKind: 'google',
+      baseUrl: '',
+      model: '',
+      apiKey: '',
+      targetLanguage: 'zh-Hans',
+      selectionTriggerEnabled: true
+    }
   };
 
   // 枚举键：取值清单（渲染 <select>；当前值不在清单内时补一项兜底）。
@@ -199,6 +251,22 @@
       { value: 'off', label: '直连（禁用代理）', labelKey: 'settings.enum.proxySupport.off' },
       { value: 'system', label: '跟随系统代理', labelKey: 'settings.enum.proxySupport.system' },
       { value: 'override', label: '使用下方指定代理', labelKey: 'settings.enum.proxySupport.override' }
+    ],
+    'translation.engineKind': [
+      { value: 'google', label: 'Google 翻译 (免 key)' },
+      { value: 'bing', label: 'Bing 翻译 (免 key)' },
+      { value: 'customAi', label: '自定义 OpenAI 兼容接口' }
+    ],
+    'translation.targetLanguage': [
+      { value: 'zh-Hans', label: '简体中文 (zh-Hans)' },
+      { value: 'zh-Hant', label: '繁體中文 (zh-Hant)' },
+      { value: 'en', label: 'English (en)' },
+      { value: 'ja', label: '日本語 (ja)' },
+      { value: 'ko', label: '한국어 (ko)' },
+      { value: 'fr', label: 'Français (fr)' },
+      { value: 'de', label: 'Deutsch (de)' },
+      { value: 'es', label: 'Español (es)' },
+      { value: 'ru', label: 'Русский (ru)' }
     ]
   };
 
@@ -695,6 +763,62 @@
     };
   }
 
+  // ── 翻译分类：引擎连通性测试按钮行 ──
+  function renderTranslateTestRow(objTrans) {
+    var isTesting = Boolean(state.translateTesting);
+    var resClass = 'setting-proxy-result setting-translate-result';
+    var resText = '';
+    if (isTesting) {
+      resClass += ' setting-proxy-testing';
+      resText = t('settings.translationTesting');
+    } else if (state.translateTestResult) {
+      resClass += state.translateTestResult.ok ? ' setting-proxy-ok' : ' setting-proxy-fail';
+      resText = state.translateTestResult.message || '';
+    }
+    return '<div class="setting-row setting-row-translate-test">'
+      + '<div class="setting-info">'
+      + '<span class="setting-label">' + esc(t('settings.translationTest')) + '</span>'
+      + '<span class="setting-desc">' + esc(t('settings.translationEngineDesc')) + '</span>'
+      + '</div>'
+      + '<div class="setting-control">'
+      + '<button type="button" class="btn setting-translate-test-btn" id="setting-translate-test-btn"' + (isTesting ? ' disabled' : '') + '>' + esc(t('settings.translationTest')) + '</button>'
+      + '<div class="' + resClass + '" id="setting-translate-result">' + esc(resText) + '</div>'
+      + '</div>'
+      + '</div>';
+  }
+
+  function wireTranslateTest(container, objTrans) {
+    var btn = container.querySelector('#setting-translate-test-btn');
+    if (!btn) return;
+    btn.onclick = function () {
+      if (state.translateTesting) return;
+      var engineKind = (valueOf('translation', 'engineKind') || 'google');
+      var baseUrl = (valueOf('translation', 'baseUrl') || '');
+      var model = (valueOf('translation', 'model') || '');
+      var apiKey = (valueOf('translation', 'apiKey') || '');
+
+      state.translateTesting = true;
+      state.translateTestResult = null;
+      if (state.translateTestTimer) clearTimeout(state.translateTestTimer);
+      state.translateTestTimer = setTimeout(function () {
+        if (state.translateTesting) {
+          state.translateTesting = false;
+          state.translateTestResult = { ok: false, message: t('settings.translationTestTimeout') };
+          if (state.open) render();
+        }
+      }, 35000);
+
+      render();
+      send({
+        command: 'translate.test',
+        engineKind: engineKind,
+        baseUrl: baseUrl,
+        model: model,
+        apiKey: apiKey
+      });
+    };
+  }
+
   // ── 设置行：左（中文标签 + 说明 + 项目覆盖徽标）/ 右（控件）──
   function rowHTML(cat, key, v) {
     if (cat === 'files' && key === 'terminalPath') {
@@ -1055,6 +1179,28 @@
       wireProxyTest(body, objHttp);
       return;
     }
+    if (catKey === 'translation') {
+      // 翻译分类专用渲染：按 engineKind 动态折叠 customAi 字段 + 附测试连接按钮
+      var objTrans = Object.assign({}, DEFAULT_SETTINGS.translation || {}, state.effective.translation || {});
+      var isCustom = objTrans.engineKind === 'customAi';
+      var keysTrans = Object.keys(objTrans).filter(function (k) {
+        if (!isCustom && (k === 'baseUrl' || k === 'model' || k === 'apiKey')) return false;
+        if (!q) return true;
+        var m = metaOf('translation', k);
+        return (k + ' ' + m.label + ' ' + m.desc).toLowerCase().indexOf(q) >= 0;
+      });
+      if (!keysTrans.length) {
+        html += '<p class="settings-empty">' + (q ? t('settings.noMatch') : t('settings.categoryEmpty')) + '</p>';
+      } else {
+        keysTrans.forEach(function (k) { html += rowHTML('translation', k, objTrans[k]); });
+        html += renderTranslateTestRow(objTrans);
+      }
+      body.innerHTML = html;
+      Array.prototype.forEach.call(p.querySelectorAll('[data-setting]'), wire);
+      enhanceSelects(body);
+      wireTranslateTest(body, objTrans);
+      return;
+    }
     var obj = Object.assign({}, DEFAULT_SETTINGS[catKey] || {}, state.effective[catKey] || {});
     var keys = Object.keys(obj).filter(function (k) {
       if (catKey === 'files' && k === 'terminalArgs') return false;
@@ -1408,6 +1554,19 @@
         render();
       }
     }
+    else if (e === 'workspace:translate-result') {
+      if (d && d.requestId === 'test') {
+        if (state.translateTestTimer) {
+          clearTimeout(state.translateTestTimer);
+          state.translateTestTimer = null;
+        }
+        state.translateTesting = false;
+        state.translateTestResult = d;
+        if (state.open) {
+          render();
+        }
+      }
+    }
   }
 
   if (window.Workspace && Workspace.on) {
@@ -1419,6 +1578,7 @@
     Workspace.on('workspace:cli-shim-status', function (d) { receive('workspace:cli-shim-status', d); });
     Workspace.on('workspace:proxy-test-result', function (d) { receive('workspace:proxy-test-result', d); });
     Workspace.on('net:test-proxy-result', function (d) { receive('net:test-proxy-result', d); });
+    Workspace.on('workspace:translate-result', function (d) { receive('workspace:translate-result', d); });
   }
 
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
