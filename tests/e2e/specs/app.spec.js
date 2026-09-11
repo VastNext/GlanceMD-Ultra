@@ -573,11 +573,12 @@ test('翻译专项：设置页翻译分类字段展示与测试连接交互', as
   const panel = page.locator('#settings-panel');
   await panel.locator('#settings-categories button[data-category="translation"]').click();
 
-  const engineSelect = panel.locator('[data-setting="engineKind"]');
+  const engineRow = panel.locator('.setting-row', { hasText: '翻译引擎' });
   const testBtn = panel.locator('#setting-translate-test-btn');
   const resultBox = panel.locator('#setting-translate-result');
 
-  await expect(engineSelect).toBeVisible();
+  await expect(engineRow).toBeVisible();
+  await expect(engineRow.locator('.custom-select-trigger')).toBeVisible();
   await expect(testBtn).toBeVisible();
 
   // 点击测试连接
@@ -651,4 +652,47 @@ test('划词翻译专项：Alt+T 弹出气泡、模拟回执展示译文并支�
   await expect(bubble).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(bubble).toBeHidden();
+});
+
+test('划词翻译专项：选中文本浮现翻译按钮、点击按钮弹出气泡并完成页面翻译', async ({ page }) => {
+  await installSettingsMock(page);
+
+  const editor = page.locator('#editor');
+  await editor.fill('Good morning and welcome to GlanceMD Ultra');
+
+  // 模拟鼠标选中 'Good morning' 并触发 mouseup
+  await page.evaluate(() => {
+    const ed = document.getElementById('editor');
+    ed.focus();
+    ed.setSelectionRange(0, 12); // 'Good morning'
+    ed.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, clientX: 200, clientY: 200 }));
+  });
+
+  const triggerBtn = page.locator('#translate-trigger-btn');
+  await expect(triggerBtn).toBeVisible();
+
+  // 点击浮动翻译按钮
+  await triggerBtn.click();
+
+  const bubble = page.locator('#translate-bubble');
+  await expect(bubble).toBeVisible();
+
+  // 获取 requestId 并模拟返回译文
+  const st = await page.evaluate(() => window.TranslateUI.getState());
+  expect(st.currentRequestId).toBeTruthy();
+
+  await page.evaluate((reqId) => {
+    window.__fromRust('workspace:translate-result', {
+      requestId: reqId,
+      ok: true,
+      results: [{ id: 's0', text: '早上好' }]
+    });
+  }, st.currentRequestId);
+
+  await expect(bubble.locator('#translate-result-text')).toHaveText('早上好');
+
+  // 点击替换，验证页面内容已成功翻译替换
+  await bubble.locator('#translate-btn-replace').click();
+  await expect(bubble).toBeHidden();
+  await expect(editor).toHaveValue('早上好 and welcome to GlanceMD Ultra');
 });

@@ -74,6 +74,7 @@ SCRIPT_ORDER = (
     "keybindings-settings.js",
     "recovery.js",
     "settings-apply.js",
+    "translate.js",
 )
 
 
@@ -94,6 +95,7 @@ PANEL_CSS_ORDER = (
     "key-assist.css",
     "keybindings-settings.css",
     "recovery.css",
+    "translate.css",
 )
 
 
