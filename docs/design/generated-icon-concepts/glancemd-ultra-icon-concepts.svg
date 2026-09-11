@@ -33,11 +33,11 @@
     <text x="232" y="0" fill="#171827" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">A · G 形视口</text>
     <text x="232" y="34" fill="#77788a" font-family="Segoe UI, Arial, sans-serif" font-size="15" text-anchor="middle">Glance / 浏览 / 窗口</text>
     <rect x="18" y="76" width="428" height="428" rx="94" fill="#161722" filter="url(#iconShadow)"/>
-    <path d="M337 206A120 120 0 1 0 337 374V312h-70" fill="none" stroke="url(#accent)" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M317 205A120 120 0 1 0 317 375q33-20 33-63h-82" fill="none" stroke="url(#accent)" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
     <g stroke="#f6d9ff" stroke-width="15" stroke-linecap="round">
-      <path d="M165 252h66"/>
-      <path d="M165 294h48"/>
-      <path d="M165 336h58"/>
+      <path d="M176 246h68"/>
+      <path d="M176 286h54"/>
+      <path d="M176 326h40"/>
     </g>
     <text x="232" y="554" fill="#171827" font-family="Segoe UI, Arial, sans-serif" font-size="17" text-anchor="middle">近圆 G + Markdown 横线 + 开放视口</text>
   </g>
@@ -47,13 +47,15 @@
     <text x="232" y="0" fill="#171827" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" text-anchor="middle">B · 工作区树形</text>
     <text x="232" y="34" fill="#77788a" font-family="Segoe UI, Arial, sans-serif" font-size="15" text-anchor="middle">项目 / 文件 / 光标</text>
     <rect x="18" y="76" width="428" height="428" rx="94" fill="#161722" filter="url(#iconShadow)"/>
-    <path d="M125 142v296M125 176h30M125 291h30M125 406h30" stroke="url(#accentSoft)" stroke-width="22" stroke-linecap="round"/>
-    <g fill="url(#accent)">
-      <path d="M155 126h42l18 18h65v48c0 18-14 32-32 32h-61c-18 0-32-14-32-32Z"/>
-      <path d="M155 241h42l18 18h65v48c0 18-14 32-32 32h-61c-18 0-32-14-32-32Z"/>
-      <path d="M155 356h42l18 18h65v48c0 18-14 32-32 32h-61c-18 0-32-14-32-32Z"/>
+    <g transform="translate(-6 0)">
+      <path d="M131 142v296M131 176h30M131 291h30M131 406h30" stroke="url(#accentSoft)" stroke-width="22" stroke-linecap="round"/>
+      <g fill="url(#accent)">
+        <path d="M161 126h42l18 18h65v48c0 18-14 32-32 32h-61c-18 0-32-14-32-32Z"/>
+        <path d="M161 241h42l18 18h65v48c0 18-14 32-32 32h-61c-18 0-32-14-32-32Z"/>
+        <path d="M161 356h42l18 18h65v48c0 18-14 32-32 32h-61c-18 0-32-14-32-32Z"/>
+      </g>
+      <path d="M331 236v108M318 236h26M318 344h26" stroke="#ff3fa5" stroke-width="14" stroke-linecap="round"/>
     </g>
-    <path d="M325 236v108M312 236h26M312 344h26" stroke="#ff3fa5" stroke-width="14" stroke-linecap="round"/>
     <text x="232" y="554" fill="#171827" font-family="Segoe UI, Arial, sans-serif" font-size="17" text-anchor="middle">主干 + 三个文件夹 + 隐藏光标</text>
   </g>
 
