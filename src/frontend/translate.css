@@ -246,16 +246,15 @@
   border: 1px solid var(--border-subtle, #2a2a2a);
 }
 
-/* ── 预览区双语对照译文块 ── */
+/* ── 预览区双语对照译文块（语层翻译内联风格）──
+ * 对齐 VastTranslatorChromePlugin 的内联渲染：译文是紧跟原文的纯文本行
+ * （pre-wrap + 上边距 .2em），无背景框、无侧边条——此前"左边框+底色"的
+ * 引用块观感不符合原项目设计。用次要文本色做轻量区分。 */
 .preview-trans-block {
-  margin: 4px 0 12px 0;
-  padding: 6px 12px;
-  border-left: 3px solid var(--mk-heading, #a855f7);
-  border-radius: 0 6px 6px 0;
-  background: rgba(168, 85, 247, 0.07);
-  color: var(--text-primary, #e5e7eb);
+  margin: 0.2em 0 12px 0;
+  color: var(--mk-text-secondary, #cccccc);
   font-size: 0.95em;
-  line-height: 1.6;
+  line-height: inherit;
   white-space: pre-wrap;
   word-break: break-word;
   animation: translate-fade 0.25s ease;
@@ -459,7 +458,10 @@
   transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
 
-.translate-btn:hover {
+/* hover 用 :not 排除主按钮：基础 hover 的 specificity(0,2,0) 高于
+   .translate-btn-primary(0,1,0)，曾把渐变背景压成 bg-hover——亮色主题下
+   bg-hover 接近白色叠加白色文字，hover 时字"消失"。 */
+.translate-btn:not(.translate-btn-primary):hover {
   background: var(--bg-hover, #333);
   border-color: var(--mk-heading, #a855f7);
   color: var(--mk-heading, #a855f7);
@@ -478,6 +480,7 @@
 }
 
 .translate-btn-primary:hover {
+  background: var(--heading-gradient, linear-gradient(135deg, #a855f7 0%, #ec4899 100%));
   filter: brightness(1.08);
   color: #fff;
   box-shadow: 0 3px 14px rgba(236, 72, 153, 0.42);
@@ -543,12 +546,6 @@
   background: #f9fafb;
   border-color: #e5e7eb;
   color: #4b5563;
-}
-
-[data-theme="light"] .preview-trans-block {
-  background: rgba(147, 51, 234, 0.05);
-  border-left-color: #9333ea;
-  color: #111827;
 }
 
 [data-theme="light"] #translate-trigger-btn {

@@ -882,17 +882,24 @@ test('划词翻译专项：气泡出现在划词位置旁且标题栏可拖动',
 
   const trigger = page.locator('#translate-trigger-btn');
   await expect(trigger).toBeVisible();
-  // 先记录触发按钮位置（气泡打开后触发按钮会隐藏）
-  const triggerBox = await trigger.boundingBox();
   await trigger.click();
 
   const bubble = page.locator('#translate-bubble');
   await expect(bubble).toBeVisible();
 
-  // 气泡锚定在触发按钮附近（同一区域，而非视口固定 (120,120) 回退值）
+  // 气泡锚定在选区起点旁（CustomCaret 镜像测距换算的视口坐标），而非视口固定回退值
+  const expected = await page.evaluate(() => {
+    const ed = document.getElementById('editor');
+    const m = window.CustomCaret.measureCoordinates(6); // 'world' 起点
+    const r = ed.getBoundingClientRect();
+    return {
+      x: r.left + ed.clientLeft + m.markerLeft - ed.scrollLeft,
+      y: r.top + ed.clientTop + m.markerTop - ed.scrollTop + m.lineHeight,
+    };
+  });
   const before = await bubble.boundingBox();
-  expect(Math.abs(before.x - triggerBox.x)).toBeLessThan(24);
-  expect(Math.abs(before.y - (triggerBox.y + triggerBox.height + 8))).toBeLessThan(24);
+  expect(Math.abs(before.x - expected.x)).toBeLessThan(24);
+  expect(Math.abs(before.y - expected.y)).toBeLessThan(24);
 
   // 标题栏拖拽：按住头部移动，气泡整体跟随（按压点落在标题栏文字区）
   await page.mouse.move(before.x + 60, before.y + 20);
@@ -902,4 +909,79 @@ test('划词翻译专项：气泡出现在划词位置旁且标题栏可拖动',
   const after = await bubble.boundingBox();
   expect(Math.round(after.x - before.x)).toBe(100);
   expect(Math.round(after.y - before.y)).toBe(80);
+});
+
+test('划词翻译专项：键盘选区（无鼠标事件）Alt+T 气泡同样定位到选区旁', async ({ page }) => {
+  await installSettingsMock(page);
+
+  const editor = page.locator('#editor');
+  await editor.fill('Hello world from Ultra');
+  await page.evaluate(() => {
+    const ed = document.getElementById('editor');
+    ed.focus();
+    ed.setSelectionRange(6, 11); // 'world'
+  });
+
+  await page.keyboard.press('Alt+T');
+  const bubble = page.locator('#translate-bubble');
+  await expect(bubble).toBeVisible();
+
+  const expected = await page.evaluate(() => {
+    const ed = document.getElementById('editor');
+    const m = window.CustomCaret.measureCoordinates(6);
+    const r = ed.getBoundingClientRect();
+    return {
+      x: r.left + ed.clientLeft + m.markerLeft - ed.scrollLeft,
+      y: r.top + ed.clientTop + m.markerTop - ed.scrollTop + m.lineHeight,
+    };
+  });
+  const box = await bubble.boundingBox();
+  expect(Math.abs(box.x - expected.x)).toBeLessThan(24);
+  expect(Math.abs(box.y - expected.y)).toBeLessThan(24);
+});
+
+test('顶栏翻译 Popup：已翻译后切换呈现模式复用缓存译文，不发新请求', async ({ page }) => {
+  await installSettingsMock(page);
+
+  const editor = page.locator('#editor');
+  await editor.fill('# Welcome\n\nGlanceMD Ultra is a lightweight markdown workspace.');
+  await page.click('#btn-split');
+  const preview = page.locator('#preview');
+  await expect(preview.locator('p')).toContainText('GlanceMD Ultra is a lightweight');
+
+  const btnTranslate = page.locator('#btn-translate');
+  await btnTranslate.click();
+  const popup = page.locator('#translate-popup');
+  await expect(popup).toBeVisible();
+  await popup.locator('#popup-btn-toggle-preview').click();
+
+  const st = await page.evaluate(() => window.TranslateUI.getState());
+  await page.evaluate((reqId) => {
+    window.__fromRust('workspace:translate-result', {
+      requestId: reqId,
+      ok: true,
+      results: [
+        { id: 'p_0', text: '欢迎使用' },
+        { id: 'p_1', text: 'GlanceMD Ultra 是一个轻量级 Markdown 工作区。' }
+      ]
+    });
+  }, st.previewPendingReqId);
+  await expect(preview.locator('.preview-trans-block')).toHaveCount(2);
+
+  const countRequests = () => page.evaluate(() =>
+    (window.__ipcLog || []).map((m) => JSON.parse(m)).filter((m) => m.command === 'translate.request').length
+  );
+  const reqsBefore = await countRequests();
+
+  // 双语对照 → 纯译文：本地重渲染，原文段落被译文替换，无新请求
+  await popup.locator('.translate-popup-seg-btn[data-mode="replace"]').click();
+  await expect(preview.locator('.preview-trans-block')).toHaveCount(0);
+  await expect(preview.locator('p')).toHaveText('GlanceMD Ultra 是一个轻量级 Markdown 工作区。');
+  expect(await countRequests()).toBe(reqsBefore);
+
+  // 纯译文 → 双语对照：同样复用缓存，原文还原且译文块恢复
+  await popup.locator('.translate-popup-seg-btn[data-mode="bilingual"]').click();
+  await expect(preview.locator('.preview-trans-block')).toHaveCount(2);
+  await expect(preview.locator('p')).toHaveText('GlanceMD Ultra is a lightweight markdown workspace.');
+  expect(await countRequests()).toBe(reqsBefore);
 });

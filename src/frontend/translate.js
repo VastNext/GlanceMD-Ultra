@@ -9,7 +9,9 @@
 // 2. 预览区（#preview）段落级全文翻译与双语对照渲染：
 //    - 智能提取 h1-h6/p/li/blockquote/table 文本段落，自动跳过 pre/code/mermaid/复制按钮；
 //    - 按 Tab 分离翻译状态，切 Tab / 重新渲染即时同步状态；
-//    - 分批发送 translate.request，回执后在段落下插入 .preview-trans-block 译文块；
+//    - 回执按 Tab 缓存：已翻译后切换 双语对照/纯译文 直接复用译文本地重渲染，不发新请求；
+//    - 分批发送 translate.request，回执后按语层翻译内联风格（无引用框的纯文本行）
+//      在段落下插入 .preview-trans-block；
 // 3. 划词选区翻译（同时支持编辑区 #editor 与预览区 #preview）：
 //    - 划词气泡独立支持切换翻译引擎与目标语言，并记住上次选择；
 //    - 气泡锚定在选区旁，标题栏可拖动、右下角可 resize；
@@ -543,8 +545,27 @@
 
   /* ── 气泡锚定：贴着选区弹出 ── */
 
-  // 选区旁的锚点：预览区用 DOM 选区真实几何；编辑区用浮动触发按钮位置
-  // （即划词时的鼠标位置）；都不可用时退回最近鼠标位置。
+  // 编辑区选区几何：CustomCaret 的镜像测距给出选区首字符的行内坐标
+  // （mirror 与编辑器同排版样式，markerLeft/Top 自 padding 边缘起算），
+  // 换算为视口坐标并下移一行，让气泡落在选区文字旁——键盘划词（无鼠标
+  // 坐标）时浮动按钮只能落在编辑器顶部中央，靠它锚定会跑偏。
+  function getEditorSelectionAnchor() {
+    var ed = getEditor();
+    var sel = state.activeSelection;
+    if (!ed || !sel || typeof sel.start !== 'number') return null;
+    var caret = (typeof window !== 'undefined') ? window.CustomCaret : null;
+    if (!caret || typeof caret.measureCoordinates !== 'function') return null;
+    var m = caret.measureCoordinates(sel.start);
+    if (!m) return null;
+    var rect = ed.getBoundingClientRect();
+    return {
+      x: rect.left + (ed.clientLeft || 0) + (m.markerLeft || 0) - (ed.scrollLeft || 0),
+      y: rect.top + (ed.clientTop || 0) + (m.markerTop || 0) - (ed.scrollTop || 0) + (m.lineHeight || 20)
+    };
+  }
+
+  // 选区旁的锚点：预览区用 DOM 选区真实几何，编辑区用 CustomCaret 测距；
+  // 都不可用时退回触发按钮位置（即划词时的鼠标位置）与最近鼠标位置。
   function getBubbleAnchor() {
     var sel = state.activeSelection;
     if (sel && sel.source === 'preview' && typeof window.getSelection === 'function') {
@@ -554,6 +575,8 @@
         if (r && (r.width || r.height)) return { x: r.left, y: r.bottom + 8 };
       } catch (err) {}
     }
+    var edAnchor = sel && sel.source === 'editor' ? getEditorSelectionAnchor() : null;
+    if (edAnchor) return edAnchor;
     if (state.triggerEl && !state.triggerEl.hidden) {
       var rect = state.triggerEl.getBoundingClientRect();
       return { x: rect.left, y: rect.bottom + 8 };
@@ -647,8 +670,12 @@
 
     popup.innerHTML = '<div class="translate-popup-header">'
       + '<span class="translate-popup-title">'
-      + '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">'
-      + '<path d="M2.5 4h7M6 2.5v1.5M3.5 6.5c.7 1.4 1.7 2.6 3 3.3M7 4c-.6 1.7-1.6 3.1-3 4.1M8.5 13.5l3.2-7 3.3 7M9.8 11.2h4.4"/>'
+      // 语层翻译品牌标（V 形星座，取自 VastTranslatorChromePlugin 的 BrandMark）
+      + '<svg viewBox="0 0 48 48" fill="none" stroke-linecap="round" stroke-linejoin="round">'
+      + '<path d="M11.5 14 24 36 37.5 10.5" stroke="currentColor" stroke-width="3.5"/>'
+      + '<circle cx="11.5" cy="14" r="3.5" fill="currentColor" stroke="none"/>'
+      + '<circle cx="24" cy="36" r="3.5" fill="currentColor" stroke="none"/>'
+      + '<circle cx="37.5" cy="10.5" r="3.5" fill="currentColor" stroke="none"/>'
       + '</svg>'
       + esc(t('translate.popupTitle'))
       + '</span>'
@@ -719,8 +746,7 @@
     var segBtns = popup.querySelectorAll('.translate-popup-seg-btn');
     Array.prototype.forEach.call(segBtns, function(btn) {
       btn.onclick = function() {
-        state.displayMode = btn.dataset.mode;
-        renderPopupContent();
+        setPreviewDisplayMode(btn.dataset.mode);
       };
     });
 
@@ -856,7 +882,25 @@
     state.tabTranslationState[tabId] = {
       isTranslated: true,
       displayMode: state.displayMode,
+      results: results // 缓存回执：切换呈现模式时本地重渲染，不再发新请求
     };
+  }
+
+  // Popup 呈现模式切换：当前 Tab 已翻译且有缓存回执时直接复用译文重渲染；
+  // 未翻译时仅记录模式，下一次翻译生效。
+  function setPreviewDisplayMode(mode) {
+    if (mode !== 'bilingual' && mode !== 'replace') return;
+    state.displayMode = mode;
+    var tabId = getActiveTabId();
+    var tabState = state.tabTranslationState[tabId];
+    if (tabState && tabState.isTranslated && tabState.results && tabState.results.length) {
+      applyPreviewTranslation(tabState.results);
+      state.previewStatusText = t('translate.modeSwitched', {
+        mode: mode === 'bilingual' ? t('translate.modeBilingual') : t('translate.modeReplace'),
+        count: tabState.results.length
+      });
+    }
+    renderPopupContent();
   }
 
   /* ── IPC 事件与生命周期 ── */
@@ -1041,6 +1085,7 @@
     togglePopup: togglePopup,
     translatePreview: translatePreview,
     restorePreview: restorePreview,
+    setPreviewDisplayMode: setPreviewDisplayMode,
     collectPreviewSegments: collectPreviewSegments,
     startTranslate: startTranslate,
     translateSelectionReplace: translateSelectionReplace,

@@ -383,6 +383,49 @@ test('预览区双语对照翻译与一键还原：插入 .preview-trans-block �
   assert.equal(transBlocksAfter.length, 0, '双语译文块已全部清除');
 });
 
+test('已翻译后切换呈现模式：复用缓存译文本地重渲染，不发新请求', () => {
+  const h = loadHarness();
+  const p = h.makeEl('p');
+  p.textContent = 'English paragraph.';
+  h.preview.appendChild(p);
+
+  h.ctx.TranslateUI.translatePreview();
+  let reqCount = h.ipcMsgs.filter((m) => m.command === 'translate.request').length;
+  assert.equal(reqCount, 1);
+  const req = h.ipcMsgs.find((m) => m.command === 'translate.request');
+  h.ctx.TranslateUI.onTranslateResult({
+    requestId: req.requestId,
+    ok: true,
+    results: [{ id: 'p_0', text: '中文段落。' }],
+  });
+  assert.equal(h.ctx.TranslateUI.isCurrentTabTranslated(), true);
+
+  // 双语对照 → 纯译文：本地重渲染，无新请求
+  h.ctx.TranslateUI.setPreviewDisplayMode('replace');
+  reqCount = h.ipcMsgs.filter((m) => m.command === 'translate.request').length;
+  assert.equal(reqCount, 1, '切换模式未发新请求');
+  assert.equal(h.ctx.TranslateUI.getState().displayMode, 'replace');
+  assert.equal(h.preview.querySelectorAll('.preview-trans-block').length, 0, '双语译文块已清除');
+  assert.equal(h.preview.children[0].textContent, '中文段落。', '原文段落显示纯译文');
+  assert.equal(h.ctx.TranslateUI.getState().tabTranslationState.tab_1.results.length, 1, '回执已缓存');
+
+  // 纯译文 → 双语对照：同样复用缓存
+  h.ctx.TranslateUI.setPreviewDisplayMode('bilingual');
+  reqCount = h.ipcMsgs.filter((m) => m.command === 'translate.request').length;
+  assert.equal(reqCount, 1, '切回双语同样未发新请求');
+  const blocks = h.preview.querySelectorAll('.preview-trans-block');
+  assert.equal(blocks.length, 1, '双语译文块恢复');
+  assert.equal(blocks[0].textContent, '中文段落。');
+});
+
+test('未翻译时切换呈现模式仅记录状态，不发请求', () => {
+  const h = loadHarness();
+  h.ctx.TranslateUI.setPreviewDisplayMode('replace');
+  assert.equal(h.ctx.TranslateUI.getState().displayMode, 'replace');
+  assert.equal(h.ipcMsgs.filter((m) => m.command === 'translate.request').length, 0);
+  assert.equal(h.ctx.TranslateUI.isCurrentTabTranslated(), false);
+});
+
 test('划词气泡锚定在选区旁（触发按钮位置）而非固定坐标', () => {
   const h = loadHarness();
   h.editor.value = 'Hello world';
