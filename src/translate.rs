@@ -168,3 +168,58 @@ pub fn validate_target_language(language: &str) -> Result<String, String> {
         Err(format!("不支持的目标语言：{language}"))
     }
 }
+
+// ── 分批与结果重排（移植自插件 `batching.ts`）──
+
+/// 默认分批参数：每批最多 8 段、6000 字符（对齐插件默认值）。
+pub const MAX_SEGMENTS_PER_BATCH: usize = 8;
+pub const MAX_CHARACTERS_PER_BATCH: usize = 6000;
+
+/// 把分段列表切分为引擎请求批次。
+///
+/// 单段超过 `max_characters` 直接报错（提示用户缩小选区）；常规切分规则：
+/// 当前批非空且（段数达上限或累计字符将超限）时先落批。
+pub fn create_batches(
+    segments: &[TranslationSegment],
+    max_segments: usize,
+    max_characters: usize,
+) -> Result<Vec<Vec<TranslationSegment>>, String> {
+    let mut batches: Vec<Vec<TranslationSegment>> = Vec::new();
+    let mut batch: Vec<TranslationSegment> = Vec::new();
+    let mut characters = 0usize;
+    for segment in segments {
+        if segment.text.chars().count() > max_characters {
+            return Err(format!(
+                "分段 {} 超过单段字符上限 {max_characters}",
+                segment.id
+            ));
+        }
+        if !batch.is_empty()
+            && (batch.len() >= max_segments || characters + segment.text.chars().count() > max_characters)
+        {
+            batches.push(std::mem::take(&mut batch));
+            characters = 0;
+        }
+        characters += segment.text.chars().count();
+        batch.push(segment.clone());
+    }
+    if !batch.is_empty() {
+        batches.push(batch);
+    }
+    Ok(batches)
+}
+
+/// 把结果按请求分段顺序重排（缺段直接丢弃；调用方负责校验完整性）。
+pub fn order_results(
+    segments: &[TranslationSegment],
+    results: &[TranslationResult],
+) -> Vec<TranslationResult> {
+    let by_id: std::collections::HashMap<&str, &TranslationResult> = results
+        .iter()
+        .map(|r| (r.id.as_str(), r))
+        .collect();
+    segments
+        .iter()
+        .filter_map(|segment| by_id.get(segment.id.as_str()).map(|r| (*r).clone()))
+        .collect()
+}
