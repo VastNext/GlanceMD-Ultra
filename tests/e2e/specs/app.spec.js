@@ -588,7 +588,7 @@ test('翻译专项：设置页翻译分类字段展示与测试连接交互', as
   const ipcMessages = await page.evaluate(() => (window.__ipcLog || []).map((msg) => JSON.parse(msg)));
   const testCmd = ipcMessages.find((m) => m.command === 'translate.test');
   expect(testCmd).toBeTruthy();
-  expect(testCmd.engineKind).toBe('google');
+  expect(testCmd.engineKind).toBe('bing');
 
   // 模拟 Rust 返回成功回执
   await page.evaluate(() => {
@@ -1059,6 +1059,60 @@ test('划词翻译专项：Popup 局部快捷键 Alt+A 翻译当前预览并带 
 
   // Alt+V 切纯译文（复用缓存）
   await page.keyboard.press('Alt+V');
+  await expect(preview.locator('.preview-trans-block')).toHaveCount(0);
+  await expect(preview.locator('p')).toHaveText('GlanceMD Ultra 是一个轻量级 Markdown 工作区。');
+});
+
+test('划词翻译专项：IME 接管 Alt 键（e.key=Process）时快捷键经 e.code 回退仍生效', async ({ page }) => {
+  await installSettingsMock(page);
+
+  const editor = page.locator('#editor');
+  await editor.fill('# Welcome\n\nGlanceMD Ultra is a lightweight markdown workspace.');
+  await page.click('#btn-split');
+  const preview = page.locator('#preview');
+  await expect(preview.locator('p')).toContainText('GlanceMD Ultra is a lightweight');
+
+  // 打开 Popup（上下文键 translatePopupOpen 置位）
+  await page.click('#btn-translate');
+  const popup = page.locator('#translate-popup');
+  await expect(popup).toBeVisible();
+  await expect(page.evaluate(() => window.contextKeys.get('translatePopupOpen'))).resolves.toBe(true);
+
+  const countRequests = () => page.evaluate(() =>
+    (window.__ipcLog || []).map((m) => JSON.parse(m)).filter((m) => m.command === 'translate.request').length);
+
+  // IME 接管形态：e.key='Process'、e.code='KeyA'（中文输入法激活时 Alt+A 的真实事件形态）
+  const before = await countRequests();
+  await page.evaluate(() => {
+    const target = document.activeElement || document.body;
+    target.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Process', code: 'KeyA', altKey: true, ctrlKey: false, metaKey: false, shiftKey: false,
+      bubbles: true, cancelable: true,
+    }));
+  });
+  await expect.poll(countRequests).toBeGreaterThan(before);
+
+  const st = await page.evaluate(() => window.TranslateUI.getState());
+  await page.evaluate((reqId) => {
+    window.__fromRust('workspace:translate-result', {
+      requestId: reqId,
+      ok: true,
+      results: [
+        { id: 'p_0', text: '欢迎使用' },
+        { id: 'p_1', text: 'GlanceMD Ultra 是一个轻量级 Markdown 工作区。' }
+      ]
+    });
+  }, st.previewPendingReqId);
+  await expect(preview.locator('.preview-trans-block')).toHaveCount(2);
+
+  // IME 形态 Alt+V：切纯译文（复用缓存）
+  await page.evaluate(() => {
+    const target = document.activeElement || document.body;
+    target.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Process', code: 'KeyV', altKey: true, ctrlKey: false, metaKey: false, shiftKey: false,
+      bubbles: true, cancelable: true,
+    }));
+  });
   await expect(preview.locator('.preview-trans-block')).toHaveCount(0);
   await expect(preview.locator('p')).toHaveText('GlanceMD Ultra 是一个轻量级 Markdown 工作区。');
 });

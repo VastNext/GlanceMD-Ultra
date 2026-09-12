@@ -224,7 +224,7 @@
     recovery: { confirmCloseDirty: true, crashRecovery: true, createProjectSettings: false },
     http: { proxySupport: 'off', proxy: '', proxyStrictSSL: true },
     translation: {
-      engineKind: 'google',
+      engineKind: 'bing',
       baseUrl: '',
       model: '',
       apiKey: '',
@@ -260,8 +260,8 @@
       { value: 'override', label: '使用下方指定代理', labelKey: 'settings.enum.proxySupport.override' }
     ],
     'translation.engineKind': [
-      { value: 'google', label: 'Google 翻译 (免 key)' },
       { value: 'bing', label: 'Bing 翻译 (免 key)' },
+      { value: 'google', label: 'Google 翻译 (免 key)' },
       { value: 'customAi', label: '自定义 OpenAI 兼容接口' }
     ],
     'translation.targetLanguage': [
@@ -810,7 +810,7 @@
     if (!btn) return;
     btn.onclick = function () {
       if (state.translateTesting) return;
-      var engineKind = (valueOf('translation', 'engineKind') || 'google');
+      var engineKind = (valueOf('translation', 'engineKind') || 'bing');
       var baseUrl = (valueOf('translation', 'baseUrl') || '');
       var model = (valueOf('translation', 'model') || '');
       var apiKey = (valueOf('translation', 'apiKey') || '');

@@ -74,8 +74,8 @@
   ];
 
   var ENGINES = [
-    { value: 'google', label: 'Google 翻译' },
     { value: 'bing', label: 'Bing 翻译' },
+    { value: 'google', label: 'Google 翻译' },
     { value: 'customAi', label: '自定义 OpenAI 兼容接口' }
   ];
 
@@ -103,9 +103,9 @@
     } catch (e) {}
     if (window.SettingsApply && typeof window.SettingsApply.get === 'function') {
       var conf = window.SettingsApply.get().translation || {};
-      return conf.engineKind || 'google';
+      return conf.engineKind || 'bing';
     }
-    return 'google';
+    return 'bing';
   }
 
   function saveEngine(val) {

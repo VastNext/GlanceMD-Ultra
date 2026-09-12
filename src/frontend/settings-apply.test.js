@@ -166,7 +166,7 @@ test('get() 未收到事件时返回内置默认值（与 Rust schema v2 Default
     window: { reuseWindowForFolder: false },
     http: { proxySupport: 'off', proxy: '', proxyStrictSSL: true },
     translation: {
-      engineKind: 'google',
+      engineKind: 'bing',
       baseUrl: '',
       model: '',
       apiKey: '',

@@ -52,7 +52,7 @@
     recovery: { confirmCloseDirty: true, crashRecovery: true, createProjectSettings: false },
     http: { proxySupport: 'off', proxy: '', proxyStrictSSL: true },
     translation: {
-      engineKind: 'google',
+      engineKind: 'bing',
       baseUrl: '',
       model: '',
       apiKey: '',

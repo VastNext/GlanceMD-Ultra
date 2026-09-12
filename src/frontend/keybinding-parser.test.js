@@ -132,3 +132,18 @@ test('malformed and unusual inputs remain deterministic without throwing', () =>
   assert.equal(p.stroke({ key: '', code: 'F2' }), 'F2');
   assert.equal(p.stroke({ key: ' ', code: 'Space' }), 'Space');
 });
+
+test('IME Process/Unidentified 键回退 e.code 物理键位', () => {
+  const p = parser();
+  // 中文输入法接管 Alt+字母 时的标准形态：e.key='Process'
+  assert.equal(p.stroke({ key: 'Process', code: 'KeyA', altKey: true, ctrlKey: false, shiftKey: false, metaKey: false }), 'Alt+A');
+  assert.equal(p.stroke({ key: 'Process', code: 'KeyT', altKey: true, shiftKey: true, ctrlKey: false, metaKey: false }), 'Alt+Shift+T');
+  assert.equal(p.stroke({ key: 'Unidentified', code: 'KeyR', altKey: true, ctrlKey: false, shiftKey: false, metaKey: false }), 'Alt+R');
+  assert.equal(p.stroke({ key: 'Process', code: 'Digit1', ctrlKey: true, altKey: false, shiftKey: false, metaKey: false }), 'Ctrl+1');
+  // e.code 缺失时退回 'Unidentified'，不抛错
+  assert.equal(p.stroke({ key: 'Process', altKey: true, ctrlKey: false, shiftKey: false, metaKey: false }), 'Alt+Process');
+  // 正常 e.key 不受影响
+  assert.equal(p.stroke({ key: 'a', code: 'KeyA', altKey: true, ctrlKey: false, shiftKey: false, metaKey: false }), 'Alt+A');
+  // 无修饰键同样回退（编辑器内 IME 接管的普通输入不产生绑定匹配）
+  assert.equal(p.stroke({ key: 'Process', code: 'KeyZ' }), 'Z');
+});

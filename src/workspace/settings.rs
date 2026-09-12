@@ -199,7 +199,8 @@ pub struct Translation {
 impl Default for Translation {
     fn default() -> Self {
         Translation {
-            engine_kind: TranslationEngine::Google,
+            // 出厂默认 Bing：免 key 且在国内网络环境可直接可达（Google 常不可达）
+            engine_kind: TranslationEngine::Bing,
             base_url: String::new(),
             model: String::new(),
             api_key: String::new(),
