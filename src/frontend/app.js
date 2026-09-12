@@ -83,8 +83,7 @@ document.addEventListener('DOMContentLoaded', function() {
     $.gotoBar = document.getElementById('goto-bar');
     $.gotoInput = document.getElementById('goto-input');
     $.gotoHint = document.getElementById('goto-hint');
-    $.zoomToast = document.getElementById('zoom-toast');
-    var editorColumn = document.getElementById('editor-column');
+        var editorColumn = document.getElementById('editor-column');
     if (editorColumn) editorColumn.style.position = 'relative';
 });
 
@@ -302,17 +301,11 @@ function updateModeSwitchUI(mode) {
 }
 window.updateModeSwitchUI = updateModeSwitchUI;
 
-var appToastTimer = null;
+// 全应用统一气泡提示（toast.js / AppToast）：保留旧入口别名，样式与实现只有一份
 function showAppToast(text, duration) {
-  var toast = (typeof $ !== 'undefined' && $.zoomToast) || document.getElementById('zoom-toast');
-  if (!toast) return;
-  toast.textContent = text;
-  toast.classList.add('visible');
-  if (appToastTimer) clearTimeout(appToastTimer);
-  appToastTimer = setTimeout(function () {
-    toast.classList.remove('visible');
-    appToastTimer = null;
-  }, duration || 1200);
+  if (window.AppToast && typeof window.AppToast.show === 'function') {
+    window.AppToast.show(text, { duration: duration || 1200 });
+  }
 }
 window.showAppToast = showAppToast;
 
@@ -722,13 +715,9 @@ var ZOOM_MAX = 3;
 function applyZoom(level) {
   zoomLevel = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, level));
   document.documentElement.style.setProperty('--zoom', zoomLevel);
-  var toast = $.zoomToast || document.getElementById('zoom-toast');
-  toast.textContent = Math.round(zoomLevel * 100) + '%';
-  toast.classList.add('visible');
-  clearTimeout(applyZoom._timer);
-  applyZoom._timer = setTimeout(function() {
-    toast.classList.remove('visible');
-  }, 800);
+  if (window.AppToast && typeof window.AppToast.show === 'function') {
+    window.AppToast.show(Math.round(zoomLevel * 100) + '%', { duration: 800 });
+  }
 }
 
 document.addEventListener('wheel', function(e) {

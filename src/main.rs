@@ -37,6 +37,7 @@ const INDEX_HTML: &str = include_str!("frontend/index.html");
 const STYLE_CSS: &str = include_str!("frontend/style.css");
 // i18n.js 必须是第一个产品脚本：tabs/project-tree/recovery 等模块执行时即用 I18n.t
 const I18N_JS: &str = include_str!("frontend/i18n.js");
+const TOAST_JS: &str = include_str!("frontend/toast.js");
 const APP_JS: &str = include_str!("frontend/app.js");
 const CARET_JS: &str = include_str!("frontend/caret.js");
 const EDITOR_JS: &str = include_str!("frontend/editor.js");
@@ -925,8 +926,10 @@ fn escape_for_script_tag(js: &str) -> String {
 fn build_html() -> String {
     // i18n.js 必须最前：后续模块（tabs/project-tree/recovery…）执行时即用 I18n.t
     let scripts = format!(
-        "<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>",
+        "<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>
+<script>{}</script>",
         escape_for_script_tag(I18N_JS),
+        escape_for_script_tag(TOAST_JS),
         escape_for_script_tag(HLJS),
         escape_for_script_tag(MARKED_JS),
         escape_for_script_tag(MERMAID_JS),

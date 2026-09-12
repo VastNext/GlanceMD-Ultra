@@ -10,7 +10,7 @@
 - index.html 中 ``/* __CSS__ */`` 替换为 style.css 全文，随后按 main.rs 同序追加 7 个面板 CSS；
 - ``<body>`` 替换为 ``<body data-platform="{platform}">``；
 - ``<!-- __SCRIPTS__ -->`` 替换为按序内联 <script>（与 main.rs 同序）：
-  highlight.min.js -> marked.min.js -> preview.js -> tabs.js -> editor.js -> app.js
+  i18n.js -> toast.js -> highlight.min.js -> marked.min.js -> preview.js -> tabs.js -> editor.js -> app.js
   -> commands.js -> workspace.js -> layout.js -> …面板脚本… -> settings-apply.js
   （完整清单见下方 SCRIPT_ORDER）；
 - 每个 JS 经 ``</script`` -> ``<\\/script`` 转义后内联，防止提前闭合标签。
@@ -40,6 +40,7 @@ DEFAULT_OUT = REPO_ROOT / "tests" / ".tmp" / "index.html"
 # 与 main.rs::build_html 的脚本顺序严格一致（i18n.js 必须最前）
 SCRIPT_ORDER = (
     "i18n.js",
+    "toast.js",
     "highlight.min.js",
     "marked.min.js",
     "mermaid.min.js",

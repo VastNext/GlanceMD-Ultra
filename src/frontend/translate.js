@@ -41,8 +41,6 @@
     triggerEl: null,
     bubbleEl: null,
     popupEl: null,
-    statusToastEl: null,
-    statusToastTimer: null,
     toastTimer: null,
     activeSelection: null, // { text, start, end, source: 'editor' | 'preview' }
     lastMouse: null, // { x, y } 最近一次划词鼠标位置（气泡定位兜底）
@@ -154,45 +152,18 @@
     return {};
   }
 
-  /* ── 全局状态气泡（样式交互对齐 #zoom-toast：底部居中、淡入淡出）──
-   * Alt+A/B/V 为全局键且翻译走异步网络，必须给每次按键可视回声：
-   * 正在翻译（粘滞直至回执）/ 完成 / 失败 / 已还原 / 模式切换。 */
-  function ensureStatusToast() {
-    if (state.statusToastEl) return state.statusToastEl;
-    var el = document.createElement('div');
-    el.id = 'translate-status-toast';
-    el.hidden = true;
-    el.setAttribute('role', 'status');
-    document.body.appendChild(el);
-    state.statusToastEl = el;
-    return el;
+  /* ── 全局状态气泡：Alt+A/B/V 为全局键且翻译走异步网络，每次按键必须有
+   * 可视回声（正在翻译粘滞至回执 / 完成 / 失败 / 已还原 / 模式切换）。
+   * 样式与实现统一走 toast.js 的 AppToast（紫粉渐变底白字，全应用唯一）。 */
+  function showStatusToast(text, opts) {
+    if (window.AppToast && typeof window.AppToast.show === 'function') {
+      window.AppToast.show(text, opts);
+    }
   }
 
   function hideStatusToast() {
-    if (state.statusToastTimer) { clearTimeout(state.statusToastTimer); state.statusToastTimer = null; }
-    var el = state.statusToastEl;
-    if (!el) return;
-    el.classList.remove('visible');
-    var done = function () { if (!el.classList.contains('visible')) el.hidden = true; };
-    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
-      window.requestAnimationFrame(function () { window.requestAnimationFrame(done); });
-    } else { done(); }
-  }
-
-  function showStatusToast(text, opts) {
-    opts = opts || {};
-    var el = ensureStatusToast();
-    el.textContent = text;
-    el.classList.toggle('is-loading', Boolean(opts.loading));
-    el.classList.toggle('is-error', Boolean(opts.isError));
-    el.hidden = false;
-    var raf = (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function')
-      ? window.requestAnimationFrame.bind(window)
-      : function (fn) { fn(); };
-    raf(function () { raf(function () { el.classList.add('visible'); }); });
-    if (state.statusToastTimer) clearTimeout(state.statusToastTimer);
-    if (!opts.sticky) {
-      state.statusToastTimer = setTimeout(hideStatusToast, opts.duration || 1600);
+    if (window.AppToast && typeof window.AppToast.hide === 'function') {
+      window.AppToast.hide();
     }
   }
 
@@ -451,8 +422,7 @@
       + '<button type="button" class="translate-bubble-close" id="translate-close-btn" aria-label="' + esc(t('translate.actionClose')) + '">&times;</button>'
       + '</div>'
       + bodyHtml
-      + footerHtml
-      + '<div class="translate-toast" id="translate-toast" hidden>' + esc(t('translate.copied')) + '</div>';
+      + footerHtml;
 
     wireBubbleEvents(bubble);
   }
@@ -569,14 +539,7 @@
   }
 
   function showCopyToast() {
-    var bubble = ensureBubble();
-    var toast = bubble.querySelector('#translate-toast');
-    if (!toast) return;
-    toast.hidden = false;
-    if (state.toastTimer) clearTimeout(state.toastTimer);
-    state.toastTimer = setTimeout(function() {
-      if (toast) toast.hidden = true;
-    }, 1500);
+    showStatusToast(t('translate.copied'), { duration: 1400 });
   }
 
   function startTranslate(targetLang) {

@@ -2,6 +2,7 @@
  *
  * 继承 style.css 的紫→粉核心高亮色系（--mk-heading → --mk-heading-end，
  * 即 #a855f7 → #ec4899）；明暗双主题通过 [data-theme="light"] 覆盖。
+ * 全局提示气泡统一走 toast.js 的 AppToast（样式见 style.css #app-toast）。
  */
 
 /* ── token 别名 ──
@@ -486,24 +487,6 @@
   box-shadow: 0 3px 14px rgba(236, 72, 153, 0.42);
 }
 
-.translate-toast {
-  position: absolute;
-  top: 10px;
-  right: 40px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  background: #111;
-  color: #fff;
-  font-size: 11px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  pointer-events: none;
-  animation: translate-fade 0.2s ease;
-}
-
-.translate-toast[hidden] {
-  display: none !important;
-}
-
 @keyframes translate-fade {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
@@ -607,45 +590,3 @@
   color: #9333ea;
 }
 
-/* ── 全局翻译状态气泡（Alt+A/B/X 触发时的可视回声）──
- * 样式与交互对齐 #zoom-toast：底部居中胶囊、淡入淡出；loading 态粘滞
- * 直至回执收尾，错误态用 danger 色。 */
-#translate-status-toast {
-  position: fixed;
-  bottom: 48px;
-  left: 50%;
-  transform: translateX(-50%) scale(0.9);
-  background: var(--bg-overlay);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 20px;
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-  letter-spacing: 0.02em;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s, transform 0.15s;
-  z-index: 2020;
-  box-sizing: border-box;
-  max-width: calc(100vw - 48px);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-#translate-status-toast.visible {
-  opacity: 1;
-  transform: translateX(-50%) scale(1);
-}
-
-#translate-status-toast.is-loading {
-  border-color: var(--mk-heading, #a855f7);
-  color: var(--mk-heading, #a855f7);
-}
-
-#translate-status-toast.is-error {
-  border-color: var(--danger);
-  color: var(--danger);
-}

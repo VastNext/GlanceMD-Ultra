@@ -243,6 +243,7 @@ function loadHarness() {
   };
   ctx.window = ctx;
 
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, 'toast.js'), 'utf8'), ctx, { filename: 'toast.js' });
   vm.runInNewContext(fs.readFileSync(TRANSLATE_JS, 'utf8'), ctx, { filename: 'translate.js' });
   return { ctx, els, ipcMsgs, editor, preview, btnTranslate, workspaceSubs, registeredCommands, makeEl, storage, listeners, docListeners };
 }
@@ -642,11 +643,10 @@ test('全局状态气泡：翻译开始粘滞"正在翻译"、回执后收尾', 
   h.preview.appendChild(p);
 
   h.ctx.TranslateUI.translatePreview();
-  let toast = h.els['translate-status-toast'];
-  assert.ok(toast, '状态气泡已创建');
+  let toast = h.els['app-toast'];
+  assert.ok(toast, '统一气泡已创建');
   assert.equal(toast.textContent, 'translate.toastTranslating');
   assert.equal(toast.hidden, false);
-  assert.equal(toast.classList.contains('is-loading'), true, '加载态样式');
 
   const req = h.ipcMsgs.find((m) => m.command === 'translate.request');
   h.ctx.TranslateUI.onTranslateResult({
@@ -654,7 +654,7 @@ test('全局状态气泡：翻译开始粘滞"正在翻译"、回执后收尾', 
     ok: true,
     results: [{ id: 'p_0', text: '中文段落。' }],
   });
-  assert.equal(toast.classList.contains('is-loading'), false, '回执后退出加载态');
+  assert.equal(toast.textContent, 'translate.previewSuccess', '回执后切换为完成提示');
 });
 
 test('全局状态气泡：还原与模式切换均有可视回声', () => {
@@ -672,7 +672,7 @@ test('全局状态气泡：还原与模式切换均有可视回声', () => {
   });
 
   h.ctx.TranslateUI.setPreviewDisplayMode('replace');
-  let toast = h.els['translate-status-toast'];
+  let toast = h.els['app-toast'];
   assert.equal(toast.textContent, 'translate.modeSwitched', '模式切换提示');
 
   h.ctx.TranslateUI.restorePreview();

@@ -1753,27 +1753,33 @@ body.split-resizing * { cursor: col-resize !important; }
 /* ============================================
    ZOOM TOAST
    ============================================ */
-#zoom-toast {
+/* 全应用统一气泡提示（toast.js / AppToast.show）：紫粉渐变底 + 白字 */
+#app-toast {
   position: fixed;
   bottom: 48px;
   left: 50%;
   transform: translateX(-50%) scale(0.9);
-  background: var(--bg-overlay);
-  border: 1px solid var(--border);
+  background: var(--heading-gradient);
   border-radius: 8px;
   padding: 8px 20px;
   font-family: var(--font-body);
   font-size: 13px;
   font-weight: 600;
-  color: var(--text);
+  color: #ffffff;
   letter-spacing: 0.02em;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.15s, transform 0.15s;
-  z-index: 900;
+  z-index: 2100;
+  box-shadow: 0 4px 14px rgba(168, 85, 247, 0.35);
+  box-sizing: border-box;
+  max-width: calc(100vw - 48px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-#zoom-toast.visible {
+#app-toast.visible {
   opacity: 1;
   transform: translateX(-50%) scale(1);
 }
