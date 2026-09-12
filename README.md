@@ -14,6 +14,7 @@
 <a href="https://github.com/VastNext/GlanceMD-Ultra/stargazers"><img src="https://img.shields.io/github/stars/VastNext/GlanceMD-Ultra?style=flat-square&color=f59e0b" alt="stars"></a>
 <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6?style=flat-square" alt="platform">
 <img src="https://img.shields.io/badge/built%20with-Rust-DEA584?style=flat-square&logo=rust" alt="rust">
+<a href="https://vastnext.com/glance-md-ultra/"><img src="https://img.shields.io/badge/website-vastnext.com-8b5cf6?style=flat-square" alt="website"></a>
 
 </div>
 
