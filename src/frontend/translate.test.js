@@ -634,3 +634,47 @@ test('直达替换：写回经 EditorCommands.transact 落应用级撤销栈', (
   assert.equal(transactCalls, 1, '替换写入走了 EditorCommands.transact');
   assert.equal(h.editor.value, '世界 world');
 });
+
+test('全局状态气泡：翻译开始粘滞"正在翻译"、回执后收尾', () => {
+  const h = loadHarness();
+  const p = h.makeEl('p');
+  p.textContent = 'English paragraph.';
+  h.preview.appendChild(p);
+
+  h.ctx.TranslateUI.translatePreview();
+  let toast = h.els['translate-status-toast'];
+  assert.ok(toast, '状态气泡已创建');
+  assert.equal(toast.textContent, 'translate.toastTranslating');
+  assert.equal(toast.hidden, false);
+  assert.equal(toast.classList.contains('is-loading'), true, '加载态样式');
+
+  const req = h.ipcMsgs.find((m) => m.command === 'translate.request');
+  h.ctx.TranslateUI.onTranslateResult({
+    requestId: req.requestId,
+    ok: true,
+    results: [{ id: 'p_0', text: '中文段落。' }],
+  });
+  assert.equal(toast.classList.contains('is-loading'), false, '回执后退出加载态');
+});
+
+test('全局状态气泡：还原与模式切换均有可视回声', () => {
+  const h = loadHarness();
+  const p = h.makeEl('p');
+  p.textContent = 'English paragraph.';
+  h.preview.appendChild(p);
+
+  h.ctx.TranslateUI.translatePreview();
+  const req = h.ipcMsgs.find((m) => m.command === 'translate.request');
+  h.ctx.TranslateUI.onTranslateResult({
+    requestId: req.requestId,
+    ok: true,
+    results: [{ id: 'p_0', text: '中文段落。' }],
+  });
+
+  h.ctx.TranslateUI.setPreviewDisplayMode('replace');
+  let toast = h.els['translate-status-toast'];
+  assert.equal(toast.textContent, 'translate.modeSwitched', '模式切换提示');
+
+  h.ctx.TranslateUI.restorePreview();
+  assert.equal(toast.textContent, 'translate.previewRestored', '还原提示');
+});

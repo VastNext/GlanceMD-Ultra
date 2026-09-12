@@ -41,6 +41,8 @@
     triggerEl: null,
     bubbleEl: null,
     popupEl: null,
+    statusToastEl: null,
+    statusToastTimer: null,
     toastTimer: null,
     activeSelection: null, // { text, start, end, source: 'editor' | 'preview' }
     lastMouse: null, // { x, y } 最近一次划词鼠标位置（气泡定位兜底）
@@ -150,6 +152,48 @@
       return (s && s.translation) || {};
     }
     return {};
+  }
+
+  /* ── 全局状态气泡（样式交互对齐 #zoom-toast：底部居中、淡入淡出）──
+   * Alt+A/B/V 为全局键且翻译走异步网络，必须给每次按键可视回声：
+   * 正在翻译（粘滞直至回执）/ 完成 / 失败 / 已还原 / 模式切换。 */
+  function ensureStatusToast() {
+    if (state.statusToastEl) return state.statusToastEl;
+    var el = document.createElement('div');
+    el.id = 'translate-status-toast';
+    el.hidden = true;
+    el.setAttribute('role', 'status');
+    document.body.appendChild(el);
+    state.statusToastEl = el;
+    return el;
+  }
+
+  function hideStatusToast() {
+    if (state.statusToastTimer) { clearTimeout(state.statusToastTimer); state.statusToastTimer = null; }
+    var el = state.statusToastEl;
+    if (!el) return;
+    el.classList.remove('visible');
+    var done = function () { if (!el.classList.contains('visible')) el.hidden = true; };
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(function () { window.requestAnimationFrame(done); });
+    } else { done(); }
+  }
+
+  function showStatusToast(text, opts) {
+    opts = opts || {};
+    var el = ensureStatusToast();
+    el.textContent = text;
+    el.classList.toggle('is-loading', Boolean(opts.loading));
+    el.classList.toggle('is-error', Boolean(opts.isError));
+    el.hidden = false;
+    var raf = (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function')
+      ? window.requestAnimationFrame.bind(window)
+      : function (fn) { fn(); };
+    raf(function () { raf(function () { el.classList.add('visible'); }); });
+    if (state.statusToastTimer) clearTimeout(state.statusToastTimer);
+    if (!opts.sticky) {
+      state.statusToastTimer = setTimeout(hideStatusToast, opts.duration || 1600);
+    }
   }
 
   function getEditor() { return document.getElementById('editor'); }
@@ -649,6 +693,7 @@
     hideTrigger();
     // 直达替换是"输入"场景（如中文译英文），使用设置里的输入翻译目标语言
     startTranslate(getInputTargetLang());
+    showStatusToast(t('translate.toastTranslating'), { sticky: true, loading: true });
   }
 
   /* ── 顶栏 Popup 浮窗渲染与交互 ── */
@@ -837,6 +882,8 @@
     var collected = collectPreviewSegments();
     if (!collected || !collected.segments.length) {
       state.previewStatusText = t('translate.previewEmpty');
+      // 全局键触发时 Popup 多半是关闭的，气泡提示是唯一可视回声
+      showStatusToast(t('translate.previewEmpty'), { duration: 1800, isError: true });
       renderPopupContent();
       return;
     }
@@ -847,6 +894,8 @@
     state.previewSegmentsMap = collected.map;
     state.previewLoading = true;
     state.previewStatusText = t('translate.loading');
+    // 异步网络翻译：粘滞"正在翻译…"直至回执（成功/失败均由回执分支收尾）
+    showStatusToast(t('translate.toastTranslating'), { sticky: true, loading: true });
     renderPopupContent();
 
     send({
@@ -858,7 +907,7 @@
     });
   }
 
-  function restorePreview() {
+  function restorePreview(silent) {
     var prev = getPreview();
     if (!prev) return;
     var transBlocks = prev.querySelectorAll('.preview-trans-block');
@@ -875,6 +924,7 @@
     delete state.tabTranslationState[tabId];
 
     state.previewStatusText = t('translate.previewRestored');
+    if (!silent) showStatusToast(t('translate.previewRestored'), { duration: 1500 });
     renderPopupContent();
   }
 
@@ -883,7 +933,7 @@
     if (!map) return;
     var isBilingual = state.displayMode === 'bilingual';
 
-    restorePreview();
+    restorePreview(true);
 
     results.forEach(function(res) {
       var elem = map[res.id];
@@ -916,12 +966,16 @@
     state.displayMode = mode;
     var tabId = getActiveTabId();
     var tabState = state.tabTranslationState[tabId];
+    var modeLabel = mode === 'bilingual' ? t('translate.modeBilingual') : t('translate.modeReplace');
     if (tabState && tabState.isTranslated && tabState.results && tabState.results.length) {
       applyPreviewTranslation(tabState.results);
       state.previewStatusText = t('translate.modeSwitched', {
-        mode: mode === 'bilingual' ? t('translate.modeBilingual') : t('translate.modeReplace'),
+        mode: modeLabel,
         count: tabState.results.length
       });
+      showStatusToast(t('translate.modeSwitched', { mode: modeLabel, count: tabState.results.length }), { duration: 1500 });
+    } else {
+      showStatusToast(t('translate.toastModeSet', { mode: modeLabel }), { duration: 1400 });
     }
     renderPopupContent();
   }
@@ -937,8 +991,10 @@
       if (d.ok && d.results && d.results.length) {
         applyPreviewTranslation(d.results);
         state.previewStatusText = t('translate.previewSuccess', { count: d.results.length, ms: 120 });
+        showStatusToast(t('translate.previewSuccess', { count: d.results.length, ms: 120 }), { duration: 1800 });
       } else {
         state.previewStatusText = d.message || t('translate.actionRetry');
+        showStatusToast(d.message || t('translate.actionRetry'), { duration: 2600, isError: true });
       }
       renderPopupContent();
       return;
@@ -959,7 +1015,11 @@
       var sel = state.activeSelection;
       var ed = getEditor();
       var unchanged = !!(sel && ed && ed.value.substring(sel.start, sel.end) === sel.text);
-      if (state.currentResult && unchanged && applyResultToSelection('replace')) return;
+      if (state.currentResult && unchanged && applyResultToSelection('replace')) {
+        showStatusToast(t('translate.toastReplaced'), { duration: 1400 });
+        return;
+      }
+      hideStatusToast();
       showBubble();
       renderBubbleContent();
       return;
