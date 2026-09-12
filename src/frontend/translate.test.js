@@ -247,15 +247,6 @@ function loadHarness() {
   return { ctx, els, ipcMsgs, editor, preview, btnTranslate, workspaceSubs, registeredCommands, makeEl, storage, listeners, docListeners };
 }
 
-// 模拟浮层局部快捷键 keydown（走 document 级监听）
-function pressLocal(h, letter, extra) {
-  const handlers = h.docListeners.keydown || [];
-  handlers.forEach((fn) => fn(Object.assign({
-    key: letter, altKey: true, ctrlKey: false, metaKey: false, shiftKey: false,
-    preventDefault() {}, stopPropagation() {},
-  }, extra)));
-}
-
 test('TranslateUI 模块挂载与 API 完整暴露', () => {
   const h = loadHarness();
   assert.ok(h.ctx.TranslateUI, 'TranslateUI 已挂载');
@@ -270,6 +261,12 @@ test('TranslateUI 模块挂载与 API 完整暴露', () => {
   assert.equal(typeof h.ctx.TranslateUI.saveTargetLang, 'function');
   assert.ok(h.registeredCommands['translate.selection'], '已注册 translate.selection 命令');
   assert.ok(h.registeredCommands['translate.selectionReplace'], '已注册 translate.selectionReplace 命令');
+  assert.ok(h.registeredCommands['translate.bubble.replace'], '已注册 translate.bubble.replace 命令');
+  assert.ok(h.registeredCommands['translate.bubble.insert'], '已注册 translate.bubble.insert 命令');
+  assert.ok(h.registeredCommands['translate.bubble.copy'], '已注册 translate.bubble.copy 命令');
+  assert.ok(h.registeredCommands['translate.popup.toggle'], '已注册 translate.popup.toggle 命令');
+  assert.ok(h.registeredCommands['translate.popup.bilingual'], '已注册 translate.popup.bilingual 命令');
+  assert.ok(h.registeredCommands['translate.popup.replaceMode'], '已注册 translate.popup.replaceMode 命令');
   assert.ok(h.registeredCommands['translate.popup'], '已注册 translate.popup 命令');
   assert.ok(h.registeredCommands['translate.preview'], '已注册 translate.preview 命令');
   assert.ok(h.registeredCommands['translate.restore'], '已注册 translate.restore 命令');
@@ -437,37 +434,46 @@ test('未翻译时切换呈现模式仅记录状态，不发请求', () => {
 
 test('气泡局部快捷键：Alt+R 替换，Alt+I 插入，Alt+C 复制', () => {
   const h = loadHarness();
+  const cmds = h.registeredCommands;
+  assert.equal(cmds['translate.bubble.replace'].isEnabled(), false, '气泡未打开时禁用');
+
   h.editor.value = 'Hello world';
   h.editor.selectionStart = 0;
   h.editor.selectionEnd = 5;
   h.ctx.TranslateUI.openBubble();
+  assert.equal(cmds['translate.bubble.replace'].isEnabled(), false, '加载中（无结果）禁用');
   const req = h.ipcMsgs.find((m) => m.command === 'translate.request');
   h.ctx.TranslateUI.onTranslateResult({
     requestId: req.requestId,
     ok: true,
     results: [{ id: 's0', text: '世界' }],
   });
+  assert.equal(cmds['translate.bubble.replace'].isEnabled(), true);
+  assert.equal(cmds['translate.bubble.insert'].isEnabled(), true);
+  assert.equal(cmds['translate.bubble.copy'].isEnabled(), true);
 
-  pressLocal(h, 'r');
-  assert.equal(h.editor.value, '世界 world', 'Alt+R 等价替换按钮');
+  // Alt+R 对应命令执行替换
+  cmds['translate.bubble.replace'].run();
+  assert.equal(h.editor.value, '世界 world');
   assert.equal(h.ctx.TranslateUI.getState().isOpen, false);
+  assert.equal(cmds['translate.bubble.replace'].isEnabled(), false, '气泡关闭后禁用');
 
-  // Alt+I：重新选中并替换为"世界"，再插入
+  // Alt+I 对应命令执行插入
   h.editor.value = 'Hello world';
   h.editor.selectionStart = 0;
   h.editor.selectionEnd = 5;
   h.ctx.TranslateUI.openBubble();
-  const req2 = h.ipcMsgs.find((m) => m.command === 'translate.request' && m !== req);
+  const req2 = h.ipcMsgs.filter((m) => m.command === 'translate.request')[1];
   h.ctx.TranslateUI.onTranslateResult({
     requestId: req2.requestId,
     ok: true,
     results: [{ id: 's0', text: '世界' }],
   });
-  pressLocal(h, 'i');
-  assert.equal(h.editor.value, 'Hello\n\n世界 world', 'Alt+I 等价插入按钮');
+  cmds['translate.bubble.insert'].run();
+  assert.equal(h.editor.value, 'Hello\n\n世界 world');
 });
 
-test('气泡错误态局部快捷键：Alt+R 触发重试（重发请求）', () => {
+test('气泡错误态：Alt+R 对应命令触发重试（重发请求）', () => {
   const h = loadHarness();
   h.editor.value = 'Hello world';
   h.editor.selectionStart = 0;
@@ -476,34 +482,26 @@ test('气泡错误态局部快捷键：Alt+R 触发重试（重发请求）', ()
   const firstReq = h.ipcMsgs.find((m) => m.command === 'translate.request');
   h.ctx.TranslateUI.onTranslateResult({ requestId: firstReq.requestId, ok: false, message: '网络错误' });
   assert.equal(h.ctx.TranslateUI.getState().isOpen, true, '错误态气泡保持打开');
+  assert.equal(h.registeredCommands['translate.bubble.replace'].isEnabled(), true, '错误态同槽可用');
 
-  pressLocal(h, 'r');
+  h.registeredCommands['translate.bubble.replace'].run();
   const requestCount = h.ipcMsgs.filter((m) => m.command === 'translate.request').length;
   assert.equal(requestCount, 2, 'Alt+R 在错误态触发重试');
   assert.equal(h.ctx.TranslateUI.getState().isLoading, true);
 });
 
-test('气泡局部快捷键在无结果/加载中不误触发', () => {
-  const h = loadHarness();
-  h.editor.value = 'Hello world';
-  h.editor.selectionStart = 0;
-  h.editor.selectionEnd = 5;
-  h.ctx.TranslateUI.openBubble(); // isLoading
-  pressLocal(h, 'r');
-  pressLocal(h, 'i');
-  pressLocal(h, 'c');
-  assert.equal(h.editor.value, 'Hello world', '加载中局部键不改动编辑器');
-  assert.equal(h.ctx.TranslateUI.getState().isOpen, true);
-});
-
 test('Popup 局部快捷键：Alt+A 主操作，Alt+B/Alt+V 切呈现模式', () => {
   const h = loadHarness();
+  const cmds = h.registeredCommands;
   const p = h.makeEl('p');
   p.textContent = 'English paragraph.';
   h.preview.appendChild(p);
 
+  assert.equal(cmds['translate.popup.toggle'].isEnabled(), false, 'Popup 未打开时禁用');
   h.ctx.TranslateUI.openPopup();
-  pressLocal(h, 'a');
+  assert.equal(cmds['translate.popup.toggle'].isEnabled(), true);
+
+  cmds['translate.popup.toggle'].run();
   const req = h.ipcMsgs.find((m) => m.command === 'translate.request' && m.requestId.startsWith('prev_'));
   assert.ok(req, 'Alt+A 触发翻译当前预览');
   h.ctx.TranslateUI.onTranslateResult({
@@ -513,12 +511,54 @@ test('Popup 局部快捷键：Alt+A 主操作，Alt+B/Alt+V 切呈现模式', ()
   });
   assert.equal(h.ctx.TranslateUI.isCurrentTabTranslated(), true);
 
-  pressLocal(h, 'v');
+  cmds['translate.popup.replaceMode'].run();
   assert.equal(h.ctx.TranslateUI.getState().displayMode, 'replace', 'Alt+V 切纯译文');
-  pressLocal(h, 'b');
+  cmds['translate.popup.bilingual'].run();
   assert.equal(h.ctx.TranslateUI.getState().displayMode, 'bilingual', 'Alt+B 切双语对照');
   const requestCount = h.ipcMsgs.filter((m) => m.command === 'translate.request').length;
   assert.equal(requestCount, 1, '模式切换复用缓存，不发新请求');
+});
+
+test('直达替换使用输入翻译目标语言（默认 en），气泡使用默认目标语言', () => {
+  const h = loadHarness();
+  // 未配置该设置项时回落出厂默认 en
+  h.editor.value = '你好世界';
+  h.editor.selectionStart = 0;
+  h.editor.selectionEnd = 4;
+  h.ctx.TranslateUI.translateSelectionReplace();
+  const direct = h.ipcMsgs.find((m) => m.command === 'translate.request');
+  assert.equal(direct.targetLanguage, 'en', '直达替换默认译成英文');
+  h.ctx.TranslateUI.onTranslateResult({
+    requestId: direct.requestId,
+    ok: true,
+    results: [{ id: 's0', text: 'Hello world' }],
+  });
+  assert.equal(h.editor.value, 'Hello world');
+
+  // 设置项生效：配置为 ja 时直达替换带 ja
+  h.ctx.SettingsApply.get = () => ({
+    translation: { targetLanguage: 'zh-Hans', inputTargetLanguage: 'ja', selectionTriggerEnabled: true },
+  });
+  h.editor.value = '你好世界';
+  h.editor.selectionStart = 0;
+  h.editor.selectionEnd = 4;
+  h.ctx.TranslateUI.translateSelectionReplace();
+  const direct2 = h.ipcMsgs.filter((m) => m.command === 'translate.request')[1];
+  assert.equal(direct2.targetLanguage, 'ja', '设置项覆盖输入目标语言');
+  h.ctx.TranslateUI.onTranslateResult({
+    requestId: direct2.requestId,
+    ok: true,
+    results: [{ id: 's0', text: 'こんにちは' }],
+  });
+  assert.equal(h.editor.value, 'こんにちは');
+
+  // 气泡（阅读向）仍使用默认目标语言 zh-Hans
+  h.editor.value = 'Hello world';
+  h.editor.selectionStart = 0;
+  h.editor.selectionEnd = 11;
+  h.ctx.TranslateUI.openBubble();
+  const bubbleReq = h.ipcMsgs.filter((m) => m.command === 'translate.request')[2];
+  assert.equal(bubbleReq.targetLanguage, 'zh-Hans', '气泡仍用阅读向目标语言');
 });
 
 test('划词气泡锚定在选区旁（触发按钮位置）而非固定坐标', () => {

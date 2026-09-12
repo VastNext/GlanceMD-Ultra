@@ -191,6 +191,12 @@
       labelKey: 'settings.translationTargetLanguage',
       descKey: 'settings.translationTargetLanguageDesc'
     },
+    'translation.inputTargetLanguage': {
+      label: '输入翻译默认目标语言',
+      desc: '直达替换（Alt+Shift+X）把选区写回为该语言，适合"中文输入、译成英文"的输入场景；与阅读用的默认目标语言互相独立',
+      labelKey: 'settings.translationInputTargetLanguage',
+      descKey: 'settings.translationInputTargetLanguageDesc'
+    },
     'translation.selectionTriggerEnabled': {
       label: '选中文本时浮现翻译按钮',
       desc: '关闭后仅可通过快捷键（Alt+T）或命令面板触发翻译',
@@ -223,6 +229,7 @@
       model: '',
       apiKey: '',
       targetLanguage: 'zh-Hans',
+      inputTargetLanguage: 'en',
       selectionTriggerEnabled: true
     }
   };
@@ -269,6 +276,8 @@
       { value: 'ru', label: 'Русский (ru)' }
     ]
   };
+  // 输入翻译目标语言与阅读向目标语言共用同一份语言清单
+  ENUMS['translation.inputTargetLanguage'] = ENUMS['translation.targetLanguage'];
 
   function send(m) { if (window.ipc && window.ipc.postMessage) window.ipc.postMessage(JSON.stringify(m)); }
 

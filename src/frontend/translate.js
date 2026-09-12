@@ -134,6 +134,16 @@
     }
   }
 
+  // 输入翻译默认目标语言（设置项，出厂默认英文）：供"直达替换"（Alt+Shift+X）
+  // 等以写回为目的的输入场景使用，与阅读向的默认目标语言互相独立。
+  function getInputTargetLang() {
+    if (window.SettingsApply && typeof window.SettingsApply.get === 'function') {
+      var conf = window.SettingsApply.get().translation || {};
+      if (conf.inputTargetLanguage) return conf.inputTargetLanguage;
+    }
+    return 'en';
+  }
+
   function getSettings() {
     if (window.SettingsApply && typeof window.SettingsApply.get === 'function') {
       var s = window.SettingsApply.get();
@@ -525,7 +535,7 @@
     }, 1500);
   }
 
-  function startTranslate() {
+  function startTranslate(targetLang) {
     if (!state.activeSelection || !state.activeSelection.text) return;
     requestSeq += 1;
     var reqId = 'tr_' + requestSeq + '_' + Date.now();
@@ -540,7 +550,7 @@
       command: 'translate.request',
       requestId: reqId,
       engineKind: getSavedEngine(),
-      targetLanguage: getSavedTargetLang(),
+      targetLanguage: targetLang || getSavedTargetLang(),
       segments: [segment]
     });
   }
@@ -589,6 +599,14 @@
     return { x: 120, y: 120 };
   }
 
+  // 浮层 when 上下文键：供键位系统判断 Alt+R/I/C（气泡）与 Alt+A/B/V（Popup）
+  // 是否激活。走全局键位分派（与 Alt+T 同路），快捷键助手与设置页可见、可改键。
+  function setOverlayContext(key, on) {
+    if (window.contextKeys && typeof window.contextKeys.set === 'function') {
+      window.contextKeys.set(key, on);
+    }
+  }
+
   function showBubble() {
     var bubble = ensureBubble();
     var anchor = getBubbleAnchor();
@@ -597,6 +615,7 @@
     bubble.style.top = pos.y + 'px';
     bubble.hidden = false;
     state.isOpen = true;
+    setOverlayContext('translateBubbleOpen', true);
     hideTrigger();
   }
 
@@ -615,6 +634,7 @@
     state.isLoading = false;
     state.currentRequestId = null;
     state.pendingAutoReplace = false;
+    setOverlayContext('translateBubbleOpen', false);
     hideTrigger();
   }
 
@@ -627,7 +647,8 @@
     state.activeSelection = sel;
     state.pendingAutoReplace = true;
     hideTrigger();
-    startTranslate();
+    // 直达替换是"输入"场景（如中文译英文），使用设置里的输入翻译目标语言
+    startTranslate(getInputTargetLang());
   }
 
   /* ── 顶栏 Popup 浮窗渲染与交互 ── */
@@ -779,12 +800,14 @@
     popup.style.top = pos.y + 'px';
     popup.hidden = false;
     state.isPopupOpen = true;
+    setOverlayContext('translatePopupOpen', true);
     renderPopupContent();
   }
 
   function closePopup() {
     if (state.popupEl) state.popupEl.hidden = true;
     state.isPopupOpen = false;
+    setOverlayContext('translatePopupOpen', false);
   }
 
   /* ── 预览区全文与双语对照翻译 ── */
@@ -948,46 +971,10 @@
     }
   }
 
-  // 浮层局部快捷键：气泡/Popup 打开期间生效（capture 先于全局键位分派）。
-  // 不注册进全局键位系统——这些键是浮层按钮的键盘等价物，随浮层出现/消失，
-  // 避免污染用户键位方案；AltGr（ctrlKey+altKey 同真）不触发，防误触。
-  function isLocalCombo(e, letter) {
-    return Boolean(e.altKey) && !e.ctrlKey && !e.metaKey && !e.shiftKey
-      && typeof e.key === 'string' && e.key.toLowerCase() === letter;
-  }
-
   function onGlobalKeyDown(e) {
     if (e.key === 'Escape') {
       if (state.isOpen) { e.preventDefault(); e.stopPropagation(); closeBubble(); }
       if (state.isPopupOpen) { e.preventDefault(); e.stopPropagation(); closePopup(); }
-      return;
-    }
-    if (state.isOpen) {
-      if (isLocalCombo(e, 'r')) {
-        e.preventDefault(); e.stopPropagation();
-        if (state.currentError) startTranslate(); // 错误态同槽：Alt+R=重试
-        else if (state.currentResult) onActionReplace();
-      } else if (isLocalCombo(e, 'i')) {
-        e.preventDefault(); e.stopPropagation();
-        if (state.currentResult) onActionInsert();
-      } else if (isLocalCombo(e, 'c')) {
-        e.preventDefault(); e.stopPropagation();
-        if (state.currentResult) onActionCopy();
-      }
-      return;
-    }
-    if (state.isPopupOpen) {
-      if (isLocalCombo(e, 'a')) {
-        e.preventDefault(); e.stopPropagation();
-        if (isCurrentTabTranslated()) restorePreview();
-        else if (!state.previewLoading) translatePreview();
-      } else if (isLocalCombo(e, 'b')) {
-        e.preventDefault(); e.stopPropagation();
-        setPreviewDisplayMode('bilingual');
-      } else if (isLocalCombo(e, 'v')) {
-        e.preventDefault(); e.stopPropagation();
-        setPreviewDisplayMode('replace');
-      }
     }
   }
 
@@ -1069,6 +1056,63 @@
           category: 'View',
           description: t('translate.cmdPopup'),
           run: togglePopup
+        });
+        // 浮层按钮的命令化（配合默认绑定 + when 上下文键，快捷键助手与
+        // 设置页可见、可改键）：
+        window.Commands.register('translate.bubble.replace', {
+          label: t('translate.cmdBubbleReplace'),
+          category: 'Translate',
+          description: t('translate.cmdBubbleReplace'),
+          isEnabled: function() {
+            return state.isOpen && (Boolean(state.currentResult) || Boolean(state.currentError));
+          },
+          run: function() {
+            if (state.currentError) startTranslate(); // 错误态同槽：Alt+R=重试
+            else onActionReplace();
+          }
+        });
+        window.Commands.register('translate.bubble.insert', {
+          label: t('translate.cmdBubbleInsert'),
+          category: 'Translate',
+          description: t('translate.cmdBubbleInsert'),
+          isEnabled: function() {
+            return state.isOpen && Boolean(state.currentResult)
+              && !(state.activeSelection && state.activeSelection.source === 'preview');
+          },
+          run: onActionInsert
+        });
+        window.Commands.register('translate.bubble.copy', {
+          label: t('translate.cmdBubbleCopy'),
+          category: 'Translate',
+          description: t('translate.cmdBubbleCopy'),
+          isEnabled: function() {
+            return state.isOpen && Boolean(state.currentResult);
+          },
+          run: onActionCopy
+        });
+        window.Commands.register('translate.popup.toggle', {
+          label: t('translate.cmdPopupToggle'),
+          category: 'Translate',
+          description: t('translate.cmdPopupToggle'),
+          isEnabled: function() { return state.isPopupOpen; },
+          run: function() {
+            if (isCurrentTabTranslated()) restorePreview();
+            else if (!state.previewLoading) translatePreview();
+          }
+        });
+        window.Commands.register('translate.popup.bilingual', {
+          label: t('translate.cmdPopupBilingual'),
+          category: 'Translate',
+          description: t('translate.cmdPopupBilingual'),
+          isEnabled: function() { return state.isPopupOpen; },
+          run: function() { setPreviewDisplayMode('bilingual'); }
+        });
+        window.Commands.register('translate.popup.replaceMode', {
+          label: t('translate.cmdPopupReplaceMode'),
+          category: 'Translate',
+          description: t('translate.cmdPopupReplaceMode'),
+          isEnabled: function() { return state.isPopupOpen; },
+          run: function() { setPreviewDisplayMode('replace'); }
         });
         window.Commands.register('translate.selection', {
           label: t('translate.cmdSelection'),

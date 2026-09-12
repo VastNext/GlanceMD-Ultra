@@ -171,6 +171,7 @@ test('get() 未收到事件时返回内置默认值（与 Rust schema v2 Default
       model: '',
       apiKey: '',
       targetLanguage: 'zh-Hans',
+      inputTargetLanguage: 'en',
       selectionTriggerEnabled: true,
     },
     keybindings: { activeScheme: 'ultra.eclipse', schemes: {} },

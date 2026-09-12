@@ -189,6 +189,9 @@ pub struct Translation {
     pub api_key: String,
     /// 划词翻译目标语言（BCP-47；默认简体中文）。
     pub target_language: String,
+    /// 输入翻译默认目标语言（BCP-47；默认英文）。供"直达替换"（Alt+Shift+X）
+    /// 等以写回为目的的输入场景使用，与阅读向的 `target_language` 互相独立。
+    pub input_target_language: String,
     /// 选中编辑器文本时是否浮现翻译触发按钮（`Alt+T` 命令始终可用）。
     pub selection_trigger_enabled: bool,
 }
@@ -201,6 +204,7 @@ impl Default for Translation {
             model: String::new(),
             api_key: String::new(),
             target_language: "zh-Hans".to_string(),
+            input_target_language: "en".to_string(),
             selection_trigger_enabled: true,
         }
     }
@@ -1430,6 +1434,7 @@ const KNOWN_CATEGORY_FIELDS: &[(&str, &[&str])] = &[
             "model",
             "apiKey",
             "targetLanguage",
+            "inputTargetLanguage",
             "selectionTriggerEnabled",
         ],
     ),

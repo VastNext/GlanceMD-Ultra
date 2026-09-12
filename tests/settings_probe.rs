@@ -696,6 +696,7 @@ fn v1_roundtrip_自定义设置_保存加载零漂移() {
             model: "test-model".to_string(),
             api_key: "sk-test".to_string(),
             target_language: "en".to_string(),
+            input_target_language: "ja".to_string(),
             selection_trigger_enabled: false,
         },
     };

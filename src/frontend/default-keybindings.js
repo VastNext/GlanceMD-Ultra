@@ -71,8 +71,16 @@
     record('editor.toggleSplit', 'Ctrl+\\'),
     // translate.selection 不设 when：编辑区与预览区选中的文本都要能呼出划词气泡
     // （无选区时命令自身空转）；直接替换写入编辑区，保留 editorTextFocus。
+    // 浮层按钮键绑定 when 上下文键（translateBubbleOpen/translatePopupOpen），
+    // 仅浮层打开时激活，与全局键位互不干扰。
     record('translate.selection', 'Alt+T'),
-    record('translate.selectionReplace', 'Alt+Shift+X', 'editorTextFocus')
+    record('translate.selectionReplace', 'Alt+Shift+X', 'editorTextFocus'),
+    record('translate.bubble.replace', 'Alt+R', 'translateBubbleOpen'),
+    record('translate.bubble.insert', 'Alt+I', 'translateBubbleOpen'),
+    record('translate.bubble.copy', 'Alt+C', 'translateBubbleOpen'),
+    record('translate.popup.toggle', 'Alt+A', 'translatePopupOpen'),
+    record('translate.popup.bilingual', 'Alt+B', 'translatePopupOpen'),
+    record('translate.popup.replaceMode', 'Alt+V', 'translatePopupOpen')
   ];
 
   var vscode = [
@@ -88,7 +96,13 @@
     record('editor.toggleSplit', 'Ctrl+K V'),
     record('editor.focus', 'F12'),
     record('translate.selection', 'Alt+T'),
-    record('translate.selectionReplace', 'Alt+Shift+X', 'editorTextFocus')
+    record('translate.selectionReplace', 'Alt+Shift+X', 'editorTextFocus'),
+    record('translate.bubble.replace', 'Alt+R', 'translateBubbleOpen'),
+    record('translate.bubble.insert', 'Alt+I', 'translateBubbleOpen'),
+    record('translate.bubble.copy', 'Alt+C', 'translateBubbleOpen'),
+    record('translate.popup.toggle', 'Alt+A', 'translatePopupOpen'),
+    record('translate.popup.bilingual', 'Alt+B', 'translatePopupOpen'),
+    record('translate.popup.replaceMode', 'Alt+V', 'translatePopupOpen')
   ];
 
   var schemes = {

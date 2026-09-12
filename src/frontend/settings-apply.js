@@ -57,6 +57,7 @@
       model: '',
       apiKey: '',
       targetLanguage: 'zh-Hans',
+      inputTargetLanguage: 'en',
       selectionTriggerEnabled: true
     }
   };
