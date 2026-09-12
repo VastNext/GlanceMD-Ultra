@@ -599,8 +599,8 @@
     return { x: 120, y: 120 };
   }
 
-  // 浮层 when 上下文键：供键位系统判断 Alt+R/I/C（气泡）与 Alt+A/B/V（Popup）
-  // 是否激活。走全局键位分派（与 Alt+T 同路），快捷键助手与设置页可见、可改键。
+  // 气泡 when 上下文键：供键位系统判断 Alt+R/I/C（气泡局部键）是否激活。
+  // Alt+A/B/V 为全局键（Popup 只是鼠标入口，关闭后键位依旧可用），无需上下文键。
   function setOverlayContext(key, on) {
     if (window.contextKeys && typeof window.contextKeys.set === 'function') {
       window.contextKeys.set(key, on);
@@ -800,14 +800,12 @@
     popup.style.top = pos.y + 'px';
     popup.hidden = false;
     state.isPopupOpen = true;
-    setOverlayContext('translatePopupOpen', true);
     renderPopupContent();
   }
 
   function closePopup() {
     if (state.popupEl) state.popupEl.hidden = true;
     state.isPopupOpen = false;
-    setOverlayContext('translatePopupOpen', false);
   }
 
   /* ── 预览区全文与双语对照翻译 ── */
@@ -1094,7 +1092,6 @@
           label: t('translate.cmdPopupToggle'),
           category: 'Translate',
           description: t('translate.cmdPopupToggle'),
-          isEnabled: function() { return state.isPopupOpen; },
           run: function() {
             if (isCurrentTabTranslated()) restorePreview();
             else if (!state.previewLoading) translatePreview();
@@ -1104,14 +1101,12 @@
           label: t('translate.cmdPopupBilingual'),
           category: 'Translate',
           description: t('translate.cmdPopupBilingual'),
-          isEnabled: function() { return state.isPopupOpen; },
           run: function() { setPreviewDisplayMode('bilingual'); }
         });
         window.Commands.register('translate.popup.replaceMode', {
           label: t('translate.cmdPopupReplaceMode'),
           category: 'Translate',
           description: t('translate.cmdPopupReplaceMode'),
-          isEnabled: function() { return state.isPopupOpen; },
           run: function() { setPreviewDisplayMode('replace'); }
         });
         window.Commands.register('translate.selection', {

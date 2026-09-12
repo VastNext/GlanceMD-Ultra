@@ -71,16 +71,18 @@
     record('editor.toggleSplit', 'Ctrl+\\'),
     // translate.selection 不设 when：编辑区与预览区选中的文本都要能呼出划词气泡
     // （无选区时命令自身空转）；直接替换写入编辑区，保留 editorTextFocus。
-    // 浮层按钮键绑定 when 上下文键（translateBubbleOpen/translatePopupOpen），
-    // 仅浮层打开时激活，与全局键位互不干扰。
+    // 气泡键（Alt+R/I/C）when translateBubbleOpen：气泡是短暂浮层，关闭即失效。
+    // Popup 主操作键（Alt+A/B/V）不设 when：用户点过 Popup 外任意处 Popup 即
+    // 关闭，但"切换当前文档的翻译/呈现模式"必须随时可用（用户在预览区阅读时
+    // Popup 早已关闭）。
     record('translate.selection', 'Alt+T'),
     record('translate.selectionReplace', 'Alt+Shift+X', 'editorTextFocus'),
     record('translate.bubble.replace', 'Alt+R', 'translateBubbleOpen'),
     record('translate.bubble.insert', 'Alt+I', 'translateBubbleOpen'),
     record('translate.bubble.copy', 'Alt+C', 'translateBubbleOpen'),
-    record('translate.popup.toggle', 'Alt+A', 'translatePopupOpen'),
-    record('translate.popup.bilingual', 'Alt+B', 'translatePopupOpen'),
-    record('translate.popup.replaceMode', 'Alt+V', 'translatePopupOpen')
+    record('translate.popup.toggle', 'Alt+A'),
+    record('translate.popup.bilingual', 'Alt+B'),
+    record('translate.popup.replaceMode', 'Alt+V')
   ];
 
   var vscode = [
@@ -100,9 +102,9 @@
     record('translate.bubble.replace', 'Alt+R', 'translateBubbleOpen'),
     record('translate.bubble.insert', 'Alt+I', 'translateBubbleOpen'),
     record('translate.bubble.copy', 'Alt+C', 'translateBubbleOpen'),
-    record('translate.popup.toggle', 'Alt+A', 'translatePopupOpen'),
-    record('translate.popup.bilingual', 'Alt+B', 'translatePopupOpen'),
-    record('translate.popup.replaceMode', 'Alt+V', 'translatePopupOpen')
+    record('translate.popup.toggle', 'Alt+A'),
+    record('translate.popup.bilingual', 'Alt+B'),
+    record('translate.popup.replaceMode', 'Alt+V')
   ];
 
   var schemes = {

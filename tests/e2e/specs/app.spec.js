@@ -1072,11 +1072,7 @@ test('划词翻译专项：IME 接管 Alt 键（e.key=Process）时快捷键经 
   const preview = page.locator('#preview');
   await expect(preview.locator('p')).toContainText('GlanceMD Ultra is a lightweight');
 
-  // 打开 Popup（上下文键 translatePopupOpen 置位）
-  await page.click('#btn-translate');
-  const popup = page.locator('#translate-popup');
-  await expect(popup).toBeVisible();
-  await expect(page.evaluate(() => window.contextKeys.get('translatePopupOpen'))).resolves.toBe(true);
+  // 不打开 Popup：Alt+A/B/V 已是全局键，Popup 只是鼠标操作入口
 
   const countRequests = () => page.evaluate(() =>
     (window.__ipcLog || []).map((m) => JSON.parse(m)).filter((m) => m.command === 'translate.request').length);

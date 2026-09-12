@@ -490,17 +490,14 @@ test('气泡错误态：Alt+R 对应命令触发重试（重发请求）', () =>
   assert.equal(h.ctx.TranslateUI.getState().isLoading, true);
 });
 
-test('Popup 局部快捷键：Alt+A 主操作，Alt+B/Alt+V 切呈现模式', () => {
+test('Popup 主操作为全局键：不开 Popup 也能 Alt+A 翻译 / Alt+B·V 切模式', () => {
   const h = loadHarness();
   const cmds = h.registeredCommands;
   const p = h.makeEl('p');
   p.textContent = 'English paragraph.';
   h.preview.appendChild(p);
 
-  assert.equal(cmds['translate.popup.toggle'].isEnabled(), false, 'Popup 未打开时禁用');
-  h.ctx.TranslateUI.openPopup();
-  assert.equal(cmds['translate.popup.toggle'].isEnabled(), true);
-
+  // 不打开 Popup 直接执行（全局键语义）
   cmds['translate.popup.toggle'].run();
   const req = h.ipcMsgs.find((m) => m.command === 'translate.request' && m.requestId.startsWith('prev_'));
   assert.ok(req, 'Alt+A 触发翻译当前预览');
