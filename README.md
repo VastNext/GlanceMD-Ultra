@@ -1,150 +1,177 @@
-# 🚀 GlanceMD Ultra
+<div align="center">
 
-<p align="center">
-  <b>简体中文</b> · <a href="README.en.md">English</a>
-</p>
+<img src="assets/icon.png" width="96" alt="GlanceMD Ultra">
 
-<p align="center">
-  <a href="https://github.com/VastNext/GlanceMD-Ultra/releases/latest"><img src="https://img.shields.io/github/v/release/VastNext/GlanceMD-Ultra?style=flat-square&logo=github&color=a855f7" alt="release"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-ec4899?style=flat-square" alt="license"></a>
-  <a href="https://github.com/VastNext/GlanceMD-Ultra/stargazers"><img src="https://img.shields.io/github/stars/VastNext/GlanceMD-Ultra?style=flat-square&color=f59e0b" alt="stars"></a>
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6?style=flat-square" alt="platform">
-  <img src="https://img.shields.io/badge/built%20with-Rust-DEA584?style=flat-square&logo=rust" alt="rust">
-  <img src="https://img.shields.io/github/last-commit/VastNext/GlanceMD-Ultra?style=flat-square&color=8b5cf6" alt="last commit">
-</p>
+# ✨ GlanceMD Ultra
 
-一款面向本地 Markdown 与结构化文本项目的**轻量原生工作区编辑器**：项目树、文件监听与冲突保护、全文搜索、设置与快捷键体系。基于 [GlanceMD](https://github.com/VastNext/GlanceMD) v1.6.3 快照独立演进，保持原生轻量——二进制 2–8 MB，无 Electron/Monaco、无外部运行时依赖。
+**A lightweight, native Markdown workspace editor — as fast as Notepad, as pretty as Obsidian.**
 
-使用 Rust + 系统 WebView 构建，不含 Electron。Windows 使用 WebView2，macOS 使用系统 WebKit，Linux 使用 WebKitGTK。启动速度媲美记事本，渲染效果媲美 Obsidian。
+**English** · [简体中文](README.zh-CN.md)
 
-本项目的历史血脉：**[Peekdown](https://github.com/Mockitup/Peekdown)**（by Mockitup）→ **GlanceMD** → **GlanceMD Ultra**，并采用 **[Marco](https://github.com/Ranrar/Marco)** 阅读器的排版主题。详见[致谢](#-致谢)。
+<a href="https://github.com/VastNext/GlanceMD-Ultra/releases/latest"><img src="https://img.shields.io/github/v/release/VastNext/GlanceMD-Ultra?style=flat-square&logo=github&color=a855f7" alt="release"></a>
+<a href="https://github.com/VastNext/GlanceMD-Ultra/releases/latest"><img src="https://img.shields.io/github/downloads/VastNext/GlanceMD-Ultra/total?style=flat-square&color=ec4899" alt="downloads"></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-ec4899?style=flat-square" alt="license"></a>
+<a href="https://github.com/VastNext/GlanceMD-Ultra/stargazers"><img src="https://img.shields.io/github/stars/VastNext/GlanceMD-Ultra?style=flat-square&color=f59e0b" alt="stars"></a>
+<img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6?style=flat-square" alt="platform">
+<img src="https://img.shields.io/badge/built%20with-Rust-DEA584?style=flat-square&logo=rust" alt="rust">
 
-<p align="center">
-  <img src="screenshot-preview.png" alt="GlanceMD Ultra 预览（浅色主题）" width="820">
-</p>
+</div>
 
-<p align="center">
-  <img src="screenshot-preview_dark.png" alt="GlanceMD Ultra 预览（深色主题）" width="820">
-</p>
+---
 
-## 🧭 v0.1.0 当前工作区能力
+GlanceMD Ultra is a **lightweight, native workspace editor** for local Markdown & structured-text projects: a project tree with full file operations, file watching with conflict protection, project-wide search, a settings & keybinding system — plus **built-in translation (LexiLayer)** for reading and writing across languages.
 
-v0.1.0 已包含工作区、侧栏和设置的首批可用能力，但这不是主实施计划的完成声明，后续阶段仍在实施中。
+Built with **Rust + the system WebView** — no Electron, no Node, no bundler. Everything is embedded at compile time into a **single 2–8 MB binary** that starts as fast as Notepad.
 
-- **工作区** 🌲 — 可打开本地项目目录，扫描并懒加载项目树；支持项目内文件打开、树内新建/重命名/移动/复制/删除、撤销、在系统文件管理器中显示及在终端中打开。
-- **侧栏** 🧭 — 项目树与 Outline 可同时显示；支持折叠、拖动调整宽度、持久化布局，以及将 Outline 放在左侧或右侧；支持定位当前文件和项目级搜索面板。
-- **文件与恢复** 🛡️ — 已接入文件监听、外部变更提示/冲突处理、恢复相关工作区事件与基础恢复 UI；完整跨平台与异常退出门禁仍未完成。
-- **设置** ⚙️ — 设置 v1 提供外观、文件、监听、搜索、编辑器、快捷键、恢复七类设置；支持全局设置、`.glancemd/settings.json` 项目覆盖、设置搜索、语言（简体中文/English）、主题、侧栏字号、Outline 位置、终端和设置 JSON 入口。
-- **快捷键** ⌨️ — 当前是**基础快捷键/有限自定义**：支持已提供命令的单段快捷键录制、冲突提示、清除、恢复默认和持久化。v0.1.0 **不包含** chord、多上下文绑定（context）、多键位方案（multi-scheme）、Key Assist 或 Vim 模式。
+> 🧬 Lineage: **[Peekdown](https://github.com/Mockitup/Peekdown)** → **[GlanceMD](https://github.com/VastNext/GlanceMD)** → **GlanceMD Ultra**, wearing the beautiful **[Marco](https://github.com/Ranrar/Marco)** reading theme.
 
-以上能力以当前 v0.1.0 工作树为准；尚未实施的完整工作区事务、全键盘可达性、跨平台矩阵和强快捷键系统仍属于计划内容。
+<div align="center">
+  <img src="promo/05b-translate-result-en.png" alt="Split view with bilingual translation" width="860">
+  <p><sub>📖 Bilingual preview — the original article side-by-side with its translation, powered by the built-in LexiLayer engine.</sub></p>
+</div>
 
-## 🧭 后续工作区计划
+## ✨ Highlights
 
-- **文件监听与冲突保护** 🛡️ — 完整外部修改矩阵、原子保存与崩溃恢复
-- **全文搜索** 🔍 — 完整项目级搜索与性能门禁
-- **设置与快捷键** ⚙️ — 完整命令注册、上下文、chord、键位方案与键盘辅助
+- 🌲 **Workspace** — open a local folder as a project: lazy-loading tree, create / rename / move / copy / delete with undo, reveal in file manager, open in terminal
+- 🈯 **LexiLayer Translation** — translate the whole preview into **bilingual** or **translation-only** layouts, or translate a selection and write it back in place (`Alt+Shift+X`). Engines: Google, Bing, or any OpenAI-compatible endpoint
+- ⌨️ **Keybindings that fit you** — Eclipse & VS Code schemes out of the box, full rebind UI with conflict detection, and a **Key Assist** overlay (`Ctrl+Shift+L`)
+- 🧭 **Outline everywhere** — a side outline panel plus a quick-outline fuzzy jump over all headings (`Ctrl+O`)
+- 📑 **Real editor ergonomics** — multi-tabs, split view, in-document find, drag & drop, image lightbox, zoom with indicator, cross-mode selection keeping
+- 🔍 **Project search** — full-text search across the workspace in a dedicated panel
+- 🌍 **Bilingual UI** — 简体中文 / English, one-click switch
+- 🌙 **Dark & light themes** — one-key toggle with Marco-inspired gradient typography (`#a855f7 → #ec4899`)
+- ⚙️ **Settings done right** — categorized settings with search, global config plus per-project overrides, raw JSON escape hatch
+- 🛡️ **File watching & recovery** — external-change protection, atomic saves, crash-recovery snapshots
+- 🧪 **Optional Vim mode** — modal editing with a command line, when you want it
+- 💾 **Zero dependencies** — single executable, everything embedded; `gmdu .` CLI opens folders like `code .`
 
-## ✅ 功能特性（单文件编辑器基线）
+## 📸 Screenshots
 
-- **极速启动** ⚡ — 原生窗口，无框架开销
-- **实时预览** 👀 — 完整 GFM 支持（表格、任务列表、脚注）
-- **Marco 排版** 🎨 — 标题居左对齐，带紫→粉渐变配色（`#a855f7 → #ec4899`），内容与表格铺满全宽
-- **分屏模式** ↔️ — 编辑器与预览并排，实时同步（Ctrl+\）
-- **语法高亮** 🌈 — 30+ 种语言（highlight.js）
-- **多标签页** 📑 — 打开多个文件，单文件时自动隐藏标签栏
-- **深色/浅色主题** 🌙/☀️ — 一键切换
-- **文档内查找** 🔍 — Ctrl+F，高亮匹配并支持导航
-- **目录侧栏** 🧭 — 自动生成大纲（Ctrl+Shift+O）
-- **缩放** 🔎 — Ctrl+/- 或 Ctrl+滚轮，带缩放指示
-- **拖放打开** 📥 — 拖入 `.md` 文件即打开，可多选
-- **可调预览宽度** 📐 — 拖动边缘调整
-- **最近文件** 🕘 — 空标签页快速打开面板
-- **跨模式选区保持** 🔄 — 切换编辑/预览时选中文本不丢失
-- **文件关联** 📄 — 通过"打开方式"设为默认 `.md` 查看器
-- **单文件可执行** 💾 — 所有资源内嵌，无需安装
+<table>
+  <tr>
+    <td width="50%"><img src="promo/01-language-zh.png" alt="Language settings (zh)"></td>
+    <td width="50%"><img src="promo/01-language-en.png" alt="Language settings (en)"></td>
+  </tr>
+  <tr>
+    <td align="center">🌍 界面语言 · 简体中文 / English</td>
+    <td align="center">🌍 UI language switcher</td>
+  </tr>
+  <tr>
+    <td><img src="promo/02-shortcuts-zh.png" alt="Key Assist (zh)"></td>
+    <td><img src="promo/02-shortcuts-en.png" alt="Key Assist (en)"></td>
+  </tr>
+  <tr>
+    <td align="center">⌨️ 快捷键助手 · <code>Ctrl+Shift+L</code></td>
+    <td align="center">⌨️ Key Assist overlay — every command, searchable</td>
+  </tr>
+  <tr>
+    <td><img src="promo/03-folder-zh.png" alt="Context menu (zh)"></td>
+    <td><img src="promo/03-folder-en.png" alt="Context menu (en)"></td>
+  </tr>
+  <tr>
+    <td align="center">📁 项目树右键菜单 · 完整文件操作</td>
+    <td align="center">📁 Project tree context menu — full file ops</td>
+  </tr>
+  <tr>
+    <td><img src="promo/04-outline-zh.png" alt="Quick outline (zh)"></td>
+    <td><img src="promo/04-outline-en.png" alt="Quick outline (en)"></td>
+  </tr>
+  <tr>
+    <td align="center">🧭 快速大纲跳转 · <code>Ctrl+O</code></td>
+    <td align="center">🧭 Quick outline fuzzy jump over every heading</td>
+  </tr>
+  <tr>
+    <td><img src="promo/05-translate-popup-zh.png" alt="LexiLayer popup (zh)"></td>
+    <td><img src="promo/05-translate-popup-en.png" alt="LexiLayer popup (en)"></td>
+  </tr>
+  <tr>
+    <td align="center">🈯 语层翻译浮窗 · 引擎 / 目标语言 / 呈现模式</td>
+    <td align="center">🈯 LexiLayer popup — engine · target language · layout</td>
+  </tr>
+  <tr>
+    <td><img src="promo/06-selection-zh.png" alt="Selection translate (zh)"></td>
+    <td><img src="promo/06b-selection-replaced-en.png" alt="Replaced in place (en)"></td>
+  </tr>
+  <tr>
+    <td align="center">✍️ 划词翻译气泡 · 替换 / 插入 / 复制</td>
+    <td align="center">✍️ Selection translated & written back in place</td>
+  </tr>
+</table>
 
-## ⌨️ 基础键盘快捷键（v0.1.0）
+## 📥 Download
 
-以下是当前已提供的基础快捷键。快捷键自定义目前是有限的单段录制能力；v0.1.0 不含 chord、context、多键位方案、Key Assist 或 Vim。
+Grab the latest build from [**Releases**](https://github.com/VastNext/GlanceMD-Ultra/releases/latest) 🚀
 
-| 快捷键 | 功能 |
+| Platform | Artifact |
 |---|---|
-| Ctrl+O | 打开文件 |
-| Ctrl+S | 保存 |
-| Ctrl+Shift+S | 另存为 |
-| Ctrl+N | 新建标签页 |
-| Ctrl+W | 关闭标签页 |
-| Ctrl+Tab | 下一个标签页 |
-| Ctrl+Shift+Tab | 上一个标签页 |
-| Ctrl+E | 切换编辑/预览 |
-| Ctrl+\ | 切换分屏视图 |
-| Ctrl+F | 文档内查找 |
-| Ctrl+Shift+O | 切换大纲侧栏 |
-| Ctrl+= / Ctrl+- | 放大 / 缩小 |
-| Ctrl+0 | 重置缩放 |
+| 🪟 Windows x64 | `GlanceMD-Ultra-windows-x64.exe` |
+| 🍎 macOS (Apple Silicon) | `GlanceMD-Ultra-macos-arm64-unsigned.dmg` |
+| 🍎 macOS (Intel) | `GlanceMD-Ultra-macos-x64-unsigned.dmg` |
+| 🐧 Linux (deb) | `GlanceMD-Ultra_<version>_amd64.deb` |
+| 🐧 Linux (AppImage) | `GlanceMD-Ultra_<version>_x86_64.AppImage` |
 
-## 🛠️ 构建
+> ⚠️ macOS builds are not signed/notarized yet — right-click → **Open** on first launch, or allow it in *System Settings → Privacy & Security*.
 
-需要 Rust，以及目标系统对应的 WebView 开发环境。Windows 10/11 已预装 WebView2；Linux 构建还需要 GTK3 与 WebKitGTK 4.1 开发包。
+## ⌨️ Key bindings at a glance
+
+| Keys | Action |
+|---|---|
+| `Ctrl+N` / `Ctrl+S` / `Ctrl+W` | New tab · Save · Close tab |
+| `Ctrl+O` | 🔍 Quick outline fuzzy jump |
+| `Ctrl+Alt+O` / `Ctrl+Alt+P` | Open file · Open folder as workspace |
+| `Ctrl+Shift+L` | **Key Assist** — search every command & shortcut |
+| `Alt+T` | Translate selection (LexiLayer bubble) |
+| `Alt+Shift+X` | Translate selection & replace it in place |
+| `Alt+A` / `Alt+B` / `Alt+V` | Toggle preview translation · Bilingual · Translation-only |
+| `Ctrl+Shift+O` | Toggle outline panel |
+| `Ctrl+\` / `Ctrl+Shift+V` | Split view · Toggle edit / preview |
+| `Ctrl+=` / `Ctrl+-` / `Ctrl+0` | Zoom in · out · reset |
+
+Everything is rebindable — **Eclipse** and **VS Code** schemes included, with conflict detection and a full editor under *Settings → Shortcuts*.
+
+## 🛠️ Build from source
+
+Requires Rust and your platform's WebView runtime (Windows 10/11 ships WebView2; Linux needs GTK3 & WebKitGTK 4.1 dev packages).
 
 ```bash
 cargo build --release
 ```
 
-Windows 输出：`target/release/GlanceMD-Ultra.exe`。macOS 与 Linux 正式产物由 GitHub Actions 在对应系统的原生 Runner 上构建。
+Windows artifact: `target/release/GlanceMD-Ultra.exe`. macOS & Linux release artifacts are built by GitHub Actions on native runners.
 
-### 🚦 GitHub Actions 发布
+### 🚦 Release automation
 
-推送 `v*` 标签即自动构建并发布 Release：
+Pushing a `v*` tag builds and publishes a Release automatically:
 
 ```bash
-git tag v0.1.0 && git push origin v0.1.0
+git tag v0.6.1 && git push origin v0.6.1
 ```
 
-发布产物：
+## ⌨️ The `gmdu` CLI
 
-- Windows x64：`GlanceMD-Ultra-windows-x64.exe`
-- macOS：Apple Silicon 与 Intel 的未签名 `.dmg`
-- Linux x64：`.deb` 与 `.AppImage`
-
-> macOS 包尚未接入 Developer ID 签名与 Apple 公证，首次运行可能需要在“系统设置 → 隐私与安全性”中手动允许。
-
-## ⌨️ 命令行打开工作区（gmdu）
-
-在终端中用 `gmdu .` 以当前目录打开工作区（类似 `code .`）。`gmdu` 是唯一的官方短命令，安装方式二选一：
-
-- **设置页**：打开 设置 → 窗口与命令行，点击【安装 gmdu 命令】。
-- **命令行**：直接执行程序并带 `--install-cli` 参数，例如 `GlanceMD-Ultra --install-cli`。
-
-安装后**必须开新终端**再执行：
+Open a workspace from the terminal, just like `code .`:
 
 ```bash
 gmdu .
 ```
 
-其他参数：`--uninstall-cli`（移除 `gmdu` 入口）、`--cli-status`（查询安装状态）、`--version`（打印版本）。
+Install it from *Settings → Window & Command Line*, or run the executable once with `--install-cli`. Also available: `--uninstall-cli`, `--cli-status`, `--version`.
 
-> 平台说明：Windows 在程序同目录的 `bin/` 生成 `gmdu.cmd` 并把该目录加入用户级 PATH；macOS / Linux 在 `~/.local/bin` 生成 `gmdu` 软链接（需 `~/.local/bin` 已在 PATH）。这些只是入口 shim，不复制程序本体，体积不变。
+## ⚙️ Tech stack
 
-## ⚙️ 技术栈
+- **Rust** — windowing, file I/O, IPC ([tao](https://github.com/niceshell/niceshell) + [wry](https://github.com/niceshell/niceshell))
+- **System WebView** — WebView2 on Windows, WebKit on macOS, WebKitGTK on Linux
+- **marked.js + highlight.js** — Markdown rendering & syntax highlighting
+- **No Electron, no Node, no bundler** — all frontend assets embedded via `include_str!`
 
-- **Rust** — 窗口管理、文件读写、进程通信（[tao](https://github.com/niceshell/niceshell) + [wry](https://github.com/niceshell/niceshell)）
-- **系统 WebView** — Windows 使用 WebView2，macOS 使用 WebKit，Linux 使用 WebKitGTK
-- **marked.js** — Markdown 转 HTML
-- **highlight.js** — 代码语法高亮
-- **不含 Electron、不含 Node、不含打包器** — 全部前端资源通过 `include_str!` 在编译期嵌入
+## 🙏 Acknowledgments
 
-## 🙏 致谢
+Standing on the shoulders of:
 
-本项目基于以下开源项目构建，并从中汲取了大量养分：
+- **[Peekdown](https://github.com/Mockitup/Peekdown)** (by Mockitup) — where it all began: windowing, file I/O, multi-tab architecture
+- **[GlanceMD](https://github.com/VastNext/GlanceMD)** — the single-file edition this project evolved from
+- **[Marco](https://github.com/Ranrar/Marco)** / marco-core (by Kim Skov Rasmussen, MIT) — the gorgeous reading typography
 
-- **[Peekdown](https://github.com/Mockitup/Peekdown)**（by Mockitup）— 历史血脉的起点。窗口管理、文件 I/O、多标签架构与整体产品形态均源自它
-- **[GlanceMD](https://github.com/VastNext/GlanceMD)**（单文件轻量版）— 本项目基于其 v1.6.3 快照独立演进；两仓库保持独立发展，共同拥有的编辑内核缺陷修复双向同步
-- **[Marco](https://github.com/Ranrar/Marco)** / [marco-core](https://github.com/Ranrar/marco-core)（by Kim Skov Rasmussen，MIT）— 预览排版主题来自 Marco 的 Astro/Space 主题：渐变标题、铺满全屏、表格斑马纹等
+## 📄 License
 
-感谢各位作者的开源精神！🚀
-
-## 📄 许可证
-
-MIT（见 [LICENSE](LICENSE)）
+[MIT](LICENSE) © VastNext — free forever, built with 💜.
