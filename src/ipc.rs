@@ -155,6 +155,27 @@ pub fn handle_ipc_message(
                 "document.getElementById('drop-overlay').classList.remove('visible')",
             );
         }
+        "open_external" => {
+            // 关于对话框等入口的"系统浏览器打开"通道：仅放行 http/https，
+            // 且拒绝空白与引号类字符，防止经 start/cmd 的参数拼接逃逸
+            let url = parsed
+                .extra
+                .get("url")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            if url.starts_with("http://") || url.starts_with("https://") {
+                if !url
+                    .chars()
+                    .any(|c| c.is_whitespace() || matches!(c, '"' | '\'' | '<' | '>' | '%'))
+                {
+                    open_in_system_browser(url);
+                } else {
+                    crate::log_error!("ipc", "open_external 拒绝含危险字符的 URL");
+                }
+            } else {
+                crate::log_error!("ipc", "open_external 拒绝非 http(s) URL: {url}");
+            }
+        }
         "ready" => {
             let (pending_files, pending_content, pending_title) = {
                 let mut st = state.lock().unwrap();
@@ -262,6 +283,39 @@ pub(crate) fn send_to_js(webview: &WebView, event: &str, data: &serde_json::Valu
         serde_json::to_string(data).unwrap(),
     );
     let _ = webview.evaluate_script(&script);
+}
+
+/// 用系统默认浏览器打开 http/https URL（零依赖：各平台系统 opener）。
+/// 调用方已做协议与字符白名单校验；失败仅记日志，不影响前端。
+fn open_in_system_browser(url: &str) {
+    #[cfg(target_os = "windows")]
+    {
+        // CREATE_NO_WINDOW：避免后台闪现 cmd 窗口；URL 由调用方保证无引号/空白
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let result = std::process::Command::new("cmd")
+            .args(["/C", "start", "", url])
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn();
+        log_open_external(url, result);
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let result = std::process::Command::new("open").arg(url).spawn();
+        log_open_external(url, result);
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        let result = std::process::Command::new("xdg-open").arg(url).spawn();
+        log_open_external(url, result);
+    }
+}
+
+fn log_open_external(url: &str, result: std::io::Result<std::process::Child>) {
+    match result {
+        Ok(_) => crate::log_info!("ipc", "已交由系统浏览器打开: {url}"),
+        Err(e) => crate::log_error!("ipc", "系统浏览器打开失败: {url}, {e}"),
+    }
 }
 
 #[cfg(test)]

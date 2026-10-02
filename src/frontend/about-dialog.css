@@ -1,0 +1,205 @@
+/* about-dialog.css — 「关于 GlanceMD Ultra」对话框样式
+ * 视觉基准对齐 confirm-dialog（style.css）：磨砂遮罩、居中卡片、紫粉发光描边；
+ * 品牌渐变统一取 --heading-gradient（--mk-heading → --mk-heading-end）。
+ * 暗色为默认值，亮色经 [data-theme="light"] 覆盖。
+ */
+
+.about-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 10002;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease-out;
+  -webkit-app-region: no-drag;
+}
+
+.about-dialog-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.about-dialog-card {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  background: var(--bg-surface, #18181b);
+  color: var(--text, #c8c8d0);
+  border: 1px solid var(--border, #252529);
+  border-radius: 12px;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(168, 85, 247, 0.18);
+  padding: 28px 24px 20px;
+  text-align: center;
+  transform: scale(0.96);
+  transition: transform 0.15s ease-out;
+  box-sizing: border-box;
+  font-family: var(--font-body, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+}
+
+.about-dialog-overlay.open .about-dialog-card {
+  transform: scale(1);
+}
+
+/* 品牌渐变 Logo 块 */
+.about-dialog-logo {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 14px;
+  border-radius: 16px;
+  background: var(--heading-gradient, linear-gradient(180deg, #a855f7, #ec4899));
+  box-shadow: 0 4px 16px rgba(168, 85, 247, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+}
+
+.about-dialog-logo svg {
+  width: 34px;
+  height: 34px;
+}
+
+.about-dialog-name {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text, #c8c8d0);
+  font-family: var(--font-heading, inherit);
+}
+
+/* 版本徽章：紫粉渐变 pill */
+.about-dialog-version-badge {
+  display: inline-block;
+  padding: 2px 12px;
+  border-radius: 999px;
+  background: var(--heading-soft, rgba(168, 85, 247, 0.16));
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  color: var(--mk-heading, #a855f7);
+  font-size: 11.5px;
+  font-weight: 600;
+  font-family: var(--font-mono, monospace);
+  letter-spacing: 0.04em;
+  margin-bottom: 12px;
+}
+
+.about-dialog-desc {
+  margin: 0 0 16px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-secondary, #9494a4);
+}
+
+/* 链接行 */
+.about-dialog-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.about-dialog-link {
+  background: none;
+  border: none;
+  padding: 2px 0;
+  font-size: 12.5px;
+  font-family: inherit;
+  color: var(--mk-heading, #a855f7);
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+  transition: color 0.12s, border-color 0.12s;
+}
+
+.about-dialog-link:hover {
+  color: var(--mk-heading-end, #ec4899);
+  border-bottom-color: var(--mk-heading-end, #ec4899);
+}
+
+.about-dialog-link:focus-visible {
+  outline: 1px solid var(--mk-heading, #a855f7);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.about-dialog-link-sep {
+  color: var(--text-dim, #6a6a78);
+  font-size: 12px;
+}
+
+.about-dialog-copyright {
+  font-size: 11px;
+  color: var(--text-dim, #6a6a78);
+  letter-spacing: 0.02em;
+}
+
+/* 关闭按钮（卡片右上角） */
+.about-dialog-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-dim, #6a6a78);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.about-dialog-close:hover {
+  background: rgba(128, 128, 128, 0.12);
+  color: var(--text, #c8c8d0);
+}
+
+.about-dialog-close:focus-visible {
+  outline: 1px solid var(--mk-heading, #a855f7);
+  outline-offset: -1px;
+}
+
+/* ── 帮助菜单（help-menu.js 复用 .ctx-menu 体系，此处仅补充间距微调）── */
+.help-menu .help-menu-label {
+  flex: 1;
+  text-align: left;
+}
+
+/* ── 亮色主题覆盖 ── */
+[data-theme="light"] .about-dialog-overlay {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="light"] .about-dialog-card {
+  background: #ffffff;
+  border-color: var(--border, #e5e5ea);
+  box-shadow: 0 20px 48px rgba(35, 25, 55, 0.18), 0 0 0 1px rgba(168, 85, 247, 0.14);
+}
+
+[data-theme="light"] .about-dialog-name {
+  color: var(--text, #2a2a33);
+}
+
+[data-theme="light"] .about-dialog-desc {
+  color: var(--text-secondary, #5c5c6b);
+}
+
+[data-theme="light"] .about-dialog-close {
+  color: var(--text-dim, #8a8a99);
+}
+
+[data-theme="light"] .about-dialog-close:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text, #2a2a33);
+}

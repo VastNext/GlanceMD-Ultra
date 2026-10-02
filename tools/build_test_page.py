@@ -76,6 +76,8 @@ SCRIPT_ORDER = (
     "recovery.js",
     "settings-apply.js",
     "translate.js",
+    "about-dialog.js",
+    "help-menu.js",
 )
 
 
@@ -97,7 +99,18 @@ PANEL_CSS_ORDER = (
     "keybindings-settings.css",
     "recovery.css",
     "translate.css",
+    "about-dialog.css",
 )
+
+
+def cargo_version() -> str:
+    """与 main.rs 的 env!(CARGO_PKG_VERSION) 同源：解析 Cargo.toml package.version。"""
+    cargo = (REPO_ROOT / "Cargo.toml").read_text(encoding="utf-8")
+    for line in cargo.splitlines():
+        line = line.strip()
+        if line.startswith("version ="):
+            return line.split("=", 1)[1].strip().strip('"')
+    raise SystemExit("[error] Cargo.toml 未找到 package.version")
 
 
 def build_html(platform: str, mock_bootstrap: str) -> str:
@@ -111,7 +124,11 @@ def build_html(platform: str, mock_bootstrap: str) -> str:
     if "<body>" not in index_html:
         raise SystemExit("[error] index.html 缺少 <body> 标签，与 main.rs::build_html 假设不符")
 
-    scripts = f"<script>{escape_for_script_tag(mock_bootstrap)}</script>\n" + "\n".join(
+    # 版本引导与 main.rs 同序（最前），mock-bootstrap 仍须先于全部产品脚本
+    version_bootstrap = (
+        f'<script>window.__APP_VERSION__="{cargo_version()}";</script>\n'
+    )
+    scripts = f"<script>{escape_for_script_tag(mock_bootstrap)}</script>\n" + version_bootstrap + "\n".join(
         f"<script>{escape_for_script_tag((FRONTEND_DIR / name).read_text(encoding='utf-8'))}</script>"
         for name in SCRIPT_ORDER
     )

@@ -143,6 +143,8 @@
 | `window.Keybindings` | `src/frontend/keybindings.js` | [计划中] 阶段 5 | 快捷键录制与解析（命令 ID 触发经 `Commands.run`） |
 | `window.CommandPalette` | `src/frontend/command-palette.js` | [计划中] 阶段 5 | Ctrl+Shift+P 命令面板（枚举 `Commands.ids()`） |
 | `window.RecoveryUI` | `src/frontend/recovery.js` | [计划中] 阶段 6 | 崩溃恢复 / 冲突横幅 |
+| `window.HelpMenu` | `src/frontend/help-menu.js` | 已实现 | 顶栏「更多」下拉菜单：`open()` / `close()` / `toggle()` / `isOpen()` / `refresh()`；菜单项只引用命令 ID，快捷键提示取 `Keybindings.effective()`；入口 `#btn-more`（`aria-expanded` 同步开合） |
+| `window.AboutDialog` | `src/frontend/about-dialog.js` | 已实现 | 「关于」对话框：`show()` / `close()` / `isOpen()` / `refresh()`；版本徽章读 `window.__APP_VERSION__`（main.rs 注入 `env!(CARGO_PKG_VERSION)`）；链接经上行 IPC `open_external`（http/https 白名单，ipc.rs match 直连）交系统浏览器 |
 
 既有模块维持现状：`window.TabManager`（tabs.js，IIFE）；`app.js` / `editor.js` / `preview.js` 为既有全局脚本，仅在做既有功能改动时顺带迁移，不强制重写。
 
@@ -154,6 +156,7 @@
 - Tab 可见性：`#tab-bar` 为横向滚动容器；每次活动 tab 切换或 tab 栏重绘后，必须把 `.tab.active` 保持在容器可视区内，不改变用户主动滚动时的其他 tab 顺序。
 - 单文档规则：即使只有一个文件 tab，tab 栏仍显示；关闭最后一个文档后回到可编辑的 Untitled tab。
 - Toggle Preview：`#btn-toggle.active` 仅表示纯 Preview 模式；其紫→粉背景复用 `--heading-glow`，是工具栏 active 状态，不是预览内容区背景；split 模式不把按钮标成纯预览 active。
+- 「更多」菜单入口：`#btn-more`（titlebar-actions 末尾，跨平台可见——`#window-controls` 在非 Windows 隐藏故不可作全局入口）执行 `HelpMenu.toggle()`；菜单视觉复用 project-tree.css 的 `.ctx-menu/.ctx-item/.ctx-sep/.kbd`。「关于」经 `Commands.run('help.about')` → `AboutDialog.show()`。
 
 ## 5. 前端新文件接入 build_html
 
@@ -181,3 +184,4 @@ highlight.min.js → marked.min.js → preview.js → tabs.js → editor.js → 
 ## 7. 变更记录
 
 - 2026-09-04（阶段 0 / A2 流）：初版。上行命令表（file.open、workspace.open 迁入注册表）、下行事件全集（§3.1–3.3）、JS 命名空间（Commands、Workspace 已实现 + 后续预留）、build_html 接入与脚本顺序、Rust 模块接线与事件桥通道、可信项目根约束。
+- 2026-10-03（顶栏「更多」菜单与「关于」对话框）：新增 `window.HelpMenu` / `window.AboutDialog`（§4.2）；上行 wire 命令 `open_external`（ipc.rs match 直连，http/https 白名单，§2.2 类别）；`#btn-more` 入口 DOM 契约（§4.3）；`window.__APP_VERSION__` 由 build_html 注入（§5 装配惯例同前，追加在 translate.js 之后）。

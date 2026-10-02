@@ -308,6 +308,7 @@
       'command.window.zoomOut': '缩小',
       'command.window.zoomReset': '重置缩放',
       'command.appearance.toggleTheme': '切换主题',
+      'command.help.about': '关于 GlanceMD Ultra',
       'command.palette.open': '打开命令面板',
       'command.palette.close': '关闭命令面板',
       'command.palette.selectNext': '命令面板下一项',
@@ -560,6 +561,7 @@
       'toolbar.wordWrapOn': '自动换行：已开启 (Alt+Shift+Y)',
       'toolbar.wordWrapOff': '自动换行：已关闭 (Alt+Shift+Y)',
       'toolbar.outline': '大纲',
+      'toolbar.more': '更多',
       'toast.wordWrapOn': '自动换行已开启',
       'toast.wordWrapOff': '自动换行已关闭',
       'toolbar.toggleTheme': '切换主题',
@@ -578,6 +580,20 @@
       'toolbar.resizeTreeAria': '调整项目树面板宽度',
       'toolbar.resizeOutlineAria': '调整 Outline 面板宽度',
       'toolbar.expandTreeAria': '展开项目树面板',
+
+      // help-menu / about：顶栏「更多」菜单与「关于」对话框
+      'help.menuAria': '应用菜单',
+      'help.menu.palette': '命令面板',
+      'help.menu.quickOpen': '快速打开文件…',
+      'help.menu.search': '全文搜索',
+      'help.menu.settings': '设置',
+      'help.menu.keyassist': '快捷键速查',
+      'help.menu.about': '关于 GlanceMD Ultra',
+      'about.description': '轻量原生 Markdown 工作区编辑器',
+      'about.website': '官方网站',
+      'about.source': '源代码',
+      'about.copyright': '© {year} VastNext · GlanceMD Ultra',
+      'about.close': '关闭',
 
       // outline：Outline 面板骨架（空态会被 outline.js 运行时覆盖，见报告边界）
       'outline.ariaPanel': '大纲',
@@ -866,6 +882,7 @@
       'command.window.zoomOut': 'Zoom Out',
       'command.window.zoomReset': 'Reset Zoom',
       'command.appearance.toggleTheme': 'Toggle Theme',
+      'command.help.about': 'About GlanceMD Ultra',
       'command.palette.open': 'Open Command Palette',
       'command.palette.close': 'Close Command Palette',
       'command.palette.selectNext': 'Command Palette: Next Item',
@@ -1118,6 +1135,7 @@
       'toolbar.wordWrapOn': 'Word Wrap: On (Alt+Shift+Y)',
       'toolbar.wordWrapOff': 'Word Wrap: Off (Alt+Shift+Y)',
       'toolbar.outline': 'Outline',
+      'toolbar.more': 'More',
       'toast.wordWrapOn': 'Word wrap enabled',
       'toast.wordWrapOff': 'Word wrap disabled',
       'toolbar.toggleTheme': 'Toggle Theme',
@@ -1136,6 +1154,20 @@
       'toolbar.resizeTreeAria': 'Resize project tree panel',
       'toolbar.resizeOutlineAria': 'Resize outline panel',
       'toolbar.expandTreeAria': 'Expand project tree panel',
+
+      // help-menu / about
+      'help.menuAria': 'App menu',
+      'help.menu.palette': 'Command Palette',
+      'help.menu.quickOpen': 'Quick Open File…',
+      'help.menu.search': 'Search in Project',
+      'help.menu.settings': 'Settings',
+      'help.menu.keyassist': 'Key Assist',
+      'help.menu.about': 'About GlanceMD Ultra',
+      'about.description': 'Lightweight native Markdown workspace editor',
+      'about.website': 'Website',
+      'about.source': 'Source Code',
+      'about.copyright': '© {year} VastNext · GlanceMD Ultra',
+      'about.close': 'Close',
 
       // outline
       'outline.ariaPanel': 'Outline',
