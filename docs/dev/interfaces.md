@@ -143,8 +143,8 @@
 | `window.Keybindings` | `src/frontend/keybindings.js` | [计划中] 阶段 5 | 快捷键录制与解析（命令 ID 触发经 `Commands.run`） |
 | `window.CommandPalette` | `src/frontend/command-palette.js` | [计划中] 阶段 5 | Ctrl+Shift+P 命令面板（枚举 `Commands.ids()`） |
 | `window.RecoveryUI` | `src/frontend/recovery.js` | [计划中] 阶段 6 | 崩溃恢复 / 冲突横幅 |
-| `window.HelpMenu` | `src/frontend/help-menu.js` | 已实现 | 顶栏「更多」下拉菜单：`open()` / `close()` / `toggle()` / `isOpen()` / `refresh()`；菜单项只引用命令 ID，快捷键提示取 `Keybindings.effective()`；入口 `#btn-more`（`aria-expanded` 同步开合） |
-| `window.AboutDialog` | `src/frontend/about-dialog.js` | 已实现 | 「关于」对话框：`show()` / `close()` / `isOpen()` / `refresh()`；版本徽章读 `window.__APP_VERSION__`（main.rs 注入 `env!(CARGO_PKG_VERSION)`）；链接经上行 IPC `open_external`（http/https 白名单，ipc.rs match 直连）交系统浏览器 |
+| `window.HelpMenu` | `src/frontend/help-menu.js` | 已实现 | 顶栏「应用菜单」下拉（☰ `#btn-menu`，titlebar-actions 第一位）：`open()` / `close()` / `toggle()` / `isOpen()` / `refresh()`；菜单项只引用命令 ID，快捷键提示取 `Keybindings.effective()`；「扩展」为二级子菜单（MENU_DEFS `children` 项，hover 150ms / 点击 / → 展开）；子菜单与 chevron 样式见 help-menu.css |
+| `window.SettingsUI`（关于分类） | `src/frontend/settings.js` | 已实现 | 「关于」为设置面板末位分类（`about`，无 schema 配置项，`renderAboutPage` 专属分支）：渐变 Logo + 版本徽章（读 `window.__APP_VERSION__`，main.rs 注入 `env!(CARGO_PKG_VERSION)`）+ 官网/源码链接（经上行 IPC `open_external`，http/https 白名单，ipc.rs match 直连）+ 版权；`help.about` 命令由此注册（`open()+setCategory('about')`） |
 
 既有模块维持现状：`window.TabManager`（tabs.js，IIFE）；`app.js` / `editor.js` / `preview.js` 为既有全局脚本，仅在做既有功能改动时顺带迁移，不强制重写。
 
@@ -156,7 +156,7 @@
 - Tab 可见性：`#tab-bar` 为横向滚动容器；每次活动 tab 切换或 tab 栏重绘后，必须把 `.tab.active` 保持在容器可视区内，不改变用户主动滚动时的其他 tab 顺序。
 - 单文档规则：即使只有一个文件 tab，tab 栏仍显示；关闭最后一个文档后回到可编辑的 Untitled tab。
 - Toggle Preview：`#btn-toggle.active` 仅表示纯 Preview 模式；其紫→粉背景复用 `--heading-glow`，是工具栏 active 状态，不是预览内容区背景；split 模式不把按钮标成纯预览 active。
-- 「更多」菜单入口：`#btn-more`（titlebar-actions 末尾，跨平台可见——`#window-controls` 在非 Windows 隐藏故不可作全局入口）执行 `HelpMenu.toggle()`；菜单视觉复用 project-tree.css 的 `.ctx-menu/.ctx-item/.ctx-sep/.kbd`。「关于」经 `Commands.run('help.about')` → `AboutDialog.show()`。
+- 「应用菜单」入口：`#btn-menu`（☰，titlebar-actions **第一位**）执行 `HelpMenu.toggle()`；菜单视觉复用 project-tree.css 的 `.ctx-menu/.ctx-item/.ctx-sep/.kbd`，二级子菜单样式见 help-menu.css。「关于」经 `Commands.run('help.about')` → 设置面板「关于」分类（`SettingsUI.open()+setCategory('about')`）。
 
 ## 5. 前端新文件接入 build_html
 
@@ -185,3 +185,4 @@ highlight.min.js → marked.min.js → preview.js → tabs.js → editor.js → 
 
 - 2026-09-04（阶段 0 / A2 流）：初版。上行命令表（file.open、workspace.open 迁入注册表）、下行事件全集（§3.1–3.3）、JS 命名空间（Commands、Workspace 已实现 + 后续预留）、build_html 接入与脚本顺序、Rust 模块接线与事件桥通道、可信项目根约束。
 - 2026-10-03（顶栏「更多」菜单与「关于」对话框）：新增 `window.HelpMenu` / `window.AboutDialog`（§4.2）；上行 wire 命令 `open_external`（ipc.rs match 直连，http/https 白名单，§2.2 类别）；`#btn-more` 入口 DOM 契约（§4.3）；`window.__APP_VERSION__` 由 build_html 注入（§5 装配惯例同前，追加在 translate.js 之后）。
+- 2026-10-03（应用菜单重构：☰ + 二级子菜单 + 关于融入设置）：`window.AboutDialog` 移除（about-dialog.js/css/test 删除），「关于」改为设置面板分类（`SettingsUI` 扩展，见 §4.2）；`window.HelpMenu` 升级二级子菜单（MENU_DEFS `children` 结构），入口由 `#btn-more`（⋯）改为 `#btn-menu`（☰，titlebar-actions 第一位）；`help.about` 命令注册点迁至 settings.js（open+setCategory）；`window.__APP_VERSION__` 注入保留（消费方改为 settings.js 关于页）；`open_external` wire 命令沿用。

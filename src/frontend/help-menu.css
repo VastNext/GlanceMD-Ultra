@@ -1,0 +1,51 @@
+/* help-menu.css — 顶栏「应用菜单」（help-menu.js）补充样式
+ * 基础菜单视觉复用 project-tree.css 的 .ctx-menu/.ctx-item/.ctx-sep/.kbd
+ * （全局注入，含明暗主题 --tree-menu-* token），此处仅补充：
+ *   .help-menu-label  菜单行主标签（占满剩余宽度）
+ *   .ctx-item-sub     二级子菜单父项（右侧 chevron）
+ *   .ctx-submenu      二级子菜单容器（与主菜单同级浮层）
+ */
+
+/* 主标签：占满 .ctx-item 的 flex 剩余宽度，左对齐 */
+.help-menu .help-menu-label,
+.ctx-submenu .help-menu-label {
+  flex: 1;
+  text-align: left;
+}
+
+/* 二级子菜单父项：chevron 置右（替代普通项的 .kbd 快捷键位） */
+.ctx-item-sub .help-menu-chevron {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  padding-left: 12px;
+  color: var(--text-dim, #6a6a78);
+}
+
+.ctx-item-sub .help-menu-chevron svg {
+  width: 10px;
+  height: 10px;
+}
+
+/* 展开/悬停态：父项高亮持续（与 .ctx-item:hover 同色），chevron 随主题色 */
+.ctx-item-sub:hover,
+.ctx-item-sub.expanded,
+.ctx-item-sub:focus-visible {
+  background: var(--tree-menu-hover, rgba(126, 72, 190, 0.13));
+}
+
+.ctx-item-sub.expanded .help-menu-chevron,
+.ctx-item-sub:focus-visible .help-menu-chevron {
+  color: var(--mk-heading, #a855f7);
+}
+
+/* 二级子菜单：与主菜单同款表面（.ctx-menu 基类），层级略高，出现时不整块闪烁 */
+.ctx-submenu {
+  z-index: 1001;
+  animation: help-menu-sub-in 0.1s ease-out;
+}
+
+@keyframes help-menu-sub-in {
+  from { opacity: 0; transform: translateX(-3px); }
+  to { opacity: 1; transform: translateX(0); }
+}

@@ -311,14 +311,14 @@ test('receive 保存 effective 设置', () => {
   assert.equal(h.ctx.SettingsUI.getState().effective.appearance.theme, 'dark');
 });
 
-test('分类导航中文化：十个中文分类、每类一句描述、点击切换', () => {
+test('分类导航中文化：十一个中文分类、每类一句描述、点击切换', () => {
   const h = load();
   h.ctx.SettingsUI.open();
   const panel = h.els['settings-panel'];
   const nav = panel.querySelector('#settings-categories');
   assert.deepEqual(
     nav.children.map((b) => b.textContent),
-    ['外观', '文件', '监听', '搜索', '编辑器', '窗口与命令行', '网络', '翻译', '快捷键', '恢复'],
+    ['外观', '文件', '监听', '搜索', '编辑器', '窗口与命令行', '网络', '翻译', '快捷键', '恢复', '关于'],
   );
   assert.equal(nav.children[0].dataset.category, 'appearance');
   const bodyText = () => panel.querySelector('#settings-body').textContent;
@@ -326,6 +326,51 @@ test('分类导航中文化：十个中文分类、每类一句描述、点击�
   assert.match(bodyText(), /主题与界面配色/, '每类一句中文描述');
   nav.children[2].onclick(); // 监听
   assert.match(bodyText(), /文件监听与自动保存行为/);
+});
+
+test('关于分类：版本徽章与 Cargo 同源、简介与链接、版权渲染', () => {
+  const h = load();
+  h.ctx.__APP_VERSION__ = '0.7.0';
+  h.ctx.SettingsUI.open();
+  const panel = h.els['settings-panel'];
+  const nav = panel.querySelector('#settings-categories');
+  const aboutBtn = nav.children.find((b) => b.dataset.category === 'about');
+  assert.ok(aboutBtn, '侧栏应含「关于」分类');
+  aboutBtn.onclick();
+
+  const body = panel.querySelector('#settings-body');
+  const text = body.textContent;
+  assert.match(text, /GlanceMD Ultra/);
+  assert.match(text, /v0\.7\.0/, '版本徽章读 window.__APP_VERSION__');
+  assert.match(text, /轻量原生 Markdown 工作区编辑器/);
+  assert.match(text, /官方网站/);
+  assert.match(text, /源代码/);
+  assert.match(text, /© \d{4} VastNext · GlanceMD Ultra/);
+  const links = body.querySelectorAll('.settings-about-link');
+  assert.equal(links.length, 2);
+  assert.match(links[0].attributes['data-url'], /^https:\/\/vastnext\.com/);
+  assert.match(links[1].attributes['data-url'], /^https:\/\/github\.com\/VastNext/);
+});
+
+test('关于页链接点击：http(s) URL 经 open_external 上行，危险 URL 拒绝', () => {
+  const h = load();
+  const ipcLog = [];
+  h.ctx.ipc = { postMessage: (msg) => ipcLog.push(JSON.parse(msg)) };
+  h.ctx.SettingsUI.open();
+  const panel = h.els['settings-panel'];
+  panel.querySelector('#settings-categories').children
+    .find((b) => b.dataset.category === 'about').onclick();
+
+  const links = panel.querySelector('#settings-body').querySelectorAll('.settings-about-link');
+  const extMsgs = () => ipcLog.filter((m) => m.command === 'open_external');
+  links[0].listeners.click[0]();
+  assert.equal(extMsgs().length, 1, '仅产生一条 open_external 上行');
+  assert.equal(extMsgs()[0].url, 'https://vastnext.com/glance-md-ultra');
+
+  // 伪链接：篡改 data-url 为 javascript: 后点击不产生上行
+  links[1].attributes['data-url'] = 'javascript:alert(1)';
+  links[1].listeners.click[0]();
+  assert.equal(extMsgs().length, 1, '非 http(s) URL 被拒绝');
 });
 
 test('控件按值类型渲染：theme→select、bool→switch、number→number、array→逗号文本', () => {

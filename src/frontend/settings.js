@@ -108,6 +108,14 @@
       labelKey: 'settings.cat.recovery',
       descKey: 'settings.cat.recoveryDesc',
       icon: '<svg class="svg-icon nav-icon" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>'
+    },
+    {
+      key: 'about',
+      label: '关于',
+      desc: '版本与项目信息',
+      labelKey: 'settings.cat.about',
+      descKey: 'settings.cat.aboutDesc',
+      icon: '<svg class="svg-icon nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>'
     }
   ];
 
@@ -1086,7 +1094,7 @@
     var html = warningsHTML() + '<h2>' + esc(t('settings.searchHeading', { q: q })) + '</h2>';
     var total = 0;
     CATEGORIES.forEach(function (c) {
-      if (c.key === 'keybindings') return;
+      if (c.key === 'keybindings' || c.key === 'about') return;
       var obj = Object.assign({}, DEFAULT_SETTINGS[c.key] || {}, state.effective[c.key] || {});
       var hits = Object.keys(obj).filter(function (k) {
         if (c.key === 'files' && k === 'terminalArgs') return false;
@@ -1132,6 +1140,58 @@
   }
 
   // ── 分类视图：分类标题 + 描述 + 覆盖横幅 + 过滤后的设置行 ──
+  // ── 「关于」分类：版本徽章与项目信息（无 schema 配置项，专属渲染分支）──
+  // 版本号读启动引导注入的 window.__APP_VERSION__（main.rs env!(CARGO_PKG_VERSION)），
+  // 与 Cargo.toml 同源；链接经 open_external 上行交系统浏览器。
+  var ABOUT_LINKS = [
+    { url: 'https://vastnext.com/glance-md-ultra', labelKey: 'about.website' },
+    { url: 'https://github.com/VastNext/GlanceMD-Ultra', labelKey: 'about.source' }
+  ];
+
+  function aboutVersion() {
+    var v = window.__APP_VERSION__;
+    return (typeof v === 'string' && v) ? v : '0.0.0-dev';
+  }
+
+  function isSafeExternalUrl(url) {
+    return typeof url === 'string' && /^https?:\/\//i.test(url) && !/[\s"'<>]/.test(url);
+  }
+
+  function renderAboutPage(body, prefixHtml) {
+    var version = aboutVersion().replace(/^v/, '');
+    var year = new Date().getFullYear();
+    var html = prefixHtml
+      + '<div class="settings-about">'
+      + '<div class="settings-about-hero">'
+      + '<div class="settings-about-logo" aria-hidden="true">'
+      + '<svg viewBox="0 0 16 16" fill="none"><path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.2"/></svg>'
+      + '</div>'
+      + '<div class="settings-about-name">GlanceMD Ultra</div>'
+      + '<div class="settings-about-version">v' + esc(version) + '</div>'
+      + '</div>'
+      + '<p class="settings-about-desc">' + esc(t('about.description')) + '</p>'
+      + '<div class="settings-about-links">'
+      + ABOUT_LINKS.map(function (link, i) {
+          return (i > 0 ? '<span class="settings-about-link-sep" aria-hidden="true">·</span>' : '')
+            + '<button type="button" class="settings-about-link" data-url="' + esc(link.url) + '">'
+            + esc(t(link.labelKey))
+            + '</button>';
+        }).join('')
+      + '</div>'
+      + '<div class="settings-about-copyright">' + esc(t('about.copyright', { year: year })) + '</div>'
+      + '</div>';
+    body.innerHTML = html;
+    Array.prototype.forEach.call(body.querySelectorAll('.settings-about-link'), function (btn) {
+      btn.addEventListener('click', function () {
+        var url = btn.getAttribute('data-url');
+        if (!isSafeExternalUrl(url)) return;
+        if (window.ipc && typeof window.ipc.postMessage === 'function') {
+          window.ipc.postMessage(JSON.stringify({ command: 'open_external', url: url }));
+        }
+      });
+    });
+  }
+
   function renderCategory(catKey) {
     closeCustomSelect();
     var p = ensure();
@@ -1153,6 +1213,7 @@
     var body = p.querySelector('#settings-body');
     if (!body) return;
     if (catKey === 'keybindings') { renderKbList(body, html, q); return; }
+    if (catKey === 'about') { renderAboutPage(body, html); return; }
     if (catKey === 'window') {
       var obj = Object.assign({}, DEFAULT_SETTINGS.window || {}, state.effective.window || {});
       var keys = Object.keys(obj).filter(function (k) {
@@ -1635,20 +1696,36 @@
     if (e.key === 'Escape' && state.open) close();
   });
 
+  // 分类切换（IIFE 内函数：help.about 命令与 SettingsUI.setCategory 共用）
+  function setCategory(category) {
+    if (CATEGORIES.some(function (item) { return item.key === category; })) {
+      state.category = category;
+      if (state.open) {
+        renderCategories();
+        render();
+      }
+    }
+  }
+
+  // help.about：打开设置面板并定位到「关于」分类（同 commands.js 里 settings.keybindings 模式）。
+  // 本模块晚于 commands.js 装载，可直接登记；has 门控防重复注册。
+  if (window.Commands && typeof window.Commands.register === 'function' && !window.Commands.has('help.about')) {
+    window.Commands.register('help.about', {
+      label: '关于 GlanceMD Ultra',
+      category: 'Help',
+      run: function () {
+        open();
+        setCategory('about');
+      }
+    });
+  }
+
   window.SettingsUI = {
     open: open,
     close: close,
     toggle: function () { state.open ? close() : open(); },
     refresh: refresh,
-    setCategory: function (category) {
-      if (CATEGORIES.some(function (item) { return item.key === category; })) {
-        state.category = category;
-        if (state.open) {
-          renderCategories();
-          render();
-        }
-      }
-    },
+    setCategory: setCategory,
     receive: receive,
     getState: function () { return state; }
   };

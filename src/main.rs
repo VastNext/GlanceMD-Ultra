@@ -76,7 +76,6 @@ const OVERLAY_HELPER_JS: &str = include_str!("frontend/overlay-helper.js");
 const RECOVERY_JS: &str = include_str!("frontend/recovery.js");
 const SETTINGS_APPLY_JS: &str = include_str!("frontend/settings-apply.js");
 const TRANSLATE_JS: &str = include_str!("frontend/translate.js");
-const ABOUT_DIALOG_JS: &str = include_str!("frontend/about-dialog.js");
 const HELP_MENU_JS: &str = include_str!("frontend/help-menu.js");
 const ICON_PNG: &[u8] = include_bytes!("../assets/icon.png");
 
@@ -997,14 +996,13 @@ fn build_html() -> String {
         escape_for_script_tag(TRANSLATE_JS),
     );
 
-    // 「更多」菜单与「关于」对话框（顶栏 #btn-more 入口；about-dialog 先于
-    // help-menu 装载，菜单项 help.about 运行时解析 window.AboutDialog）。
-    // 最前的版本引导脚本与 Cargo.toml package.version 同源，AboutDialog 读它渲染徽章
+    // 顶栏「应用菜单」（☰ #btn-menu 入口；help.about → 设置面板「关于」分类，
+    // 命令由 settings.js 注册）。最前的版本引导脚本与 Cargo.toml package.version
+    // 同源，settings.js 的关于页读它渲染徽章
     let scripts = format!(
-        "<script>window.__APP_VERSION__=\"{}\";</script>\n{}\n<script>{}</script>\n<script>{}</script>",
+        "<script>window.__APP_VERSION__=\"{}\";</script>\n{}\n<script>{}</script>",
         env!("CARGO_PKG_VERSION"),
         scripts,
-        escape_for_script_tag(ABOUT_DIALOG_JS),
         escape_for_script_tag(HELP_MENU_JS),
     );
 
@@ -1033,8 +1031,8 @@ fn build_html() -> String {
         include_str!("frontend/recovery.css"),
         "\n/* ── translate.css ── */\n",
         include_str!("frontend/translate.css"),
-        "\n/* ── about-dialog.css ── */\n",
-        include_str!("frontend/about-dialog.css"),
+        "\n/* ── help-menu.css ── */\n",
+        include_str!("frontend/help-menu.css"),
     );
     let full_css = format!("{STYLE_CSS}{PANEL_CSS}");
 

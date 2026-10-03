@@ -76,7 +76,6 @@ SCRIPT_ORDER = (
     "recovery.js",
     "settings-apply.js",
     "translate.js",
-    "about-dialog.js",
     "help-menu.js",
 )
 
@@ -99,7 +98,7 @@ PANEL_CSS_ORDER = (
     "keybindings-settings.css",
     "recovery.css",
     "translate.css",
-    "about-dialog.css",
+    "help-menu.css",
 )
 
 

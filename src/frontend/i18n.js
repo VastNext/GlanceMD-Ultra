@@ -178,6 +178,8 @@
       'settings.cat.keybindingsDesc': '查看并修改命令快捷键',
       'settings.cat.recovery': '恢复',
       'settings.cat.recoveryDesc': '未保存确认与崩溃恢复',
+      'settings.cat.about': '关于',
+      'settings.cat.aboutDesc': '版本与项目信息',
 
       // settings 各字段 label & desc
       'settings.meta.appearance.theme': '主题',
@@ -561,7 +563,7 @@
       'toolbar.wordWrapOn': '自动换行：已开启 (Alt+Shift+Y)',
       'toolbar.wordWrapOff': '自动换行：已关闭 (Alt+Shift+Y)',
       'toolbar.outline': '大纲',
-      'toolbar.more': '更多',
+      'toolbar.appMenu': '应用菜单',
       'toast.wordWrapOn': '自动换行已开启',
       'toast.wordWrapOff': '自动换行已关闭',
       'toolbar.toggleTheme': '切换主题',
@@ -581,19 +583,27 @@
       'toolbar.resizeOutlineAria': '调整 Outline 面板宽度',
       'toolbar.expandTreeAria': '展开项目树面板',
 
-      // help-menu / about：顶栏「更多」菜单与「关于」对话框
+      // help-menu / about：顶栏「应用菜单」下拉与设置「关于」分类
       'help.menuAria': '应用菜单',
-      'help.menu.palette': '命令面板',
+      'help.menu.newFile': '新建文件',
+      'help.menu.openFile': '打开文件…',
+      'help.menu.openFolder': '打开文件夹…',
+      'help.menu.save': '保存',
+      'help.menu.saveAs': '另存为…',
+      'help.menu.saveAll': '保存全部',
       'help.menu.quickOpen': '快速打开文件…',
       'help.menu.search': '全文搜索',
-      'help.menu.settings': '设置',
+      'help.menu.outline': '大纲',
+      'help.menu.extensions': '扩展',
+      'help.menu.translate': '语层翻译面板',
+      'help.menu.palette': '命令面板',
       'help.menu.keyassist': '快捷键速查',
+      'help.menu.settings': '设置',
       'help.menu.about': '关于 GlanceMD Ultra',
       'about.description': '轻量原生 Markdown 工作区编辑器',
       'about.website': '官方网站',
       'about.source': '源代码',
       'about.copyright': '© {year} VastNext · GlanceMD Ultra',
-      'about.close': '关闭',
 
       // outline：Outline 面板骨架（空态会被 outline.js 运行时覆盖，见报告边界）
       'outline.ariaPanel': '大纲',
@@ -755,6 +765,8 @@
       'settings.cat.keybindingsDesc': 'View and customize keyboard shortcuts',
       'settings.cat.recovery': 'Recovery',
       'settings.cat.recoveryDesc': 'Unsaved confirmations and crash recovery',
+      'settings.cat.about': 'About',
+      'settings.cat.aboutDesc': 'Version and project info',
 
       // settings meta
       'settings.meta.appearance.theme': 'Theme',
@@ -1135,7 +1147,7 @@
       'toolbar.wordWrapOn': 'Word Wrap: On (Alt+Shift+Y)',
       'toolbar.wordWrapOff': 'Word Wrap: Off (Alt+Shift+Y)',
       'toolbar.outline': 'Outline',
-      'toolbar.more': 'More',
+      'toolbar.appMenu': 'App Menu',
       'toast.wordWrapOn': 'Word wrap enabled',
       'toast.wordWrapOff': 'Word wrap disabled',
       'toolbar.toggleTheme': 'Toggle Theme',
@@ -1157,17 +1169,25 @@
 
       // help-menu / about
       'help.menuAria': 'App menu',
-      'help.menu.palette': 'Command Palette',
+      'help.menu.newFile': 'New File',
+      'help.menu.openFile': 'Open File…',
+      'help.menu.openFolder': 'Open Folder…',
+      'help.menu.save': 'Save',
+      'help.menu.saveAs': 'Save As…',
+      'help.menu.saveAll': 'Save All',
       'help.menu.quickOpen': 'Quick Open File…',
       'help.menu.search': 'Search in Project',
-      'help.menu.settings': 'Settings',
+      'help.menu.outline': 'Outline',
+      'help.menu.extensions': 'Extensions',
+      'help.menu.translate': 'LexiLayer Translation Panel',
+      'help.menu.palette': 'Command Palette',
       'help.menu.keyassist': 'Key Assist',
+      'help.menu.settings': 'Settings',
       'help.menu.about': 'About GlanceMD Ultra',
       'about.description': 'Lightweight native Markdown workspace editor',
       'about.website': 'Website',
       'about.source': 'Source Code',
       'about.copyright': '© {year} VastNext · GlanceMD Ultra',
-      'about.close': 'Close',
 
       // outline
       'outline.ariaPanel': 'Outline',
