@@ -2228,6 +2228,23 @@ body.panel-resizing * { cursor: col-resize !important; }
   height: auto !important;
 }
 
+/* mermaid 图表排版隔离：预览区的 line-height:1.6、p 外边距与 font-family(Inter)
+ * 会继承进 htmlLabels（foreignObject 内的 span/div），而 mermaid 度量文本时
+ * 用 body 上下文（--font-body 字体栈 + 浏览器 normal 行高），节点宽度/高度按
+ * 度量值分配 → 字体不同文本变宽换行、行高更高，两行标签下半被裁切。
+ * 钉住图表内字体/行高与度量上下文一致、清除 p 外边距。 */
+.mermaid-chart svg,
+.mermaid-chart svg span,
+.mermaid-chart svg div,
+.mermaid-chart svg p {
+  font-family: var(--font-body);
+  line-height: normal;
+}
+
+.mermaid-chart svg p {
+  margin: 0;
+}
+
 .mermaid-error {
   width: 100%;
   padding: 12px 16px;
