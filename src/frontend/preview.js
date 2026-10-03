@@ -148,6 +148,7 @@ function renderMermaidCharts(container) {
       if (!chartEl.isConnected || chartEl.mermaidRequest !== request) return;
       chartEl.innerHTML = res.svg;
       applyMermaidSvgSize(chartEl.querySelector('svg'));
+      updateMermaidPanState(chartEl);
       chartEl.setAttribute('data-rendered', 'true');
       chartEl.classList.add('rendered');
     }).catch(function(err) {
@@ -182,12 +183,62 @@ function applyMermaidSvgSize(svg) {
   }
 }
 
+/* ── Mermaid 图表拖拽平移 ──
+ * 图表溢出容器（宽图横向 / 高图受 max-height 约束纵向）时标记 .pannable：
+ * 手掌光标提示可拖，左键按住拖动即滚动图表视口，拖动中变抓紧光标。
+ * 事件委托挂在 document 上，图表随文档/主题重渲染后无需重复绑定；
+ * 纯点击（无位移）不拦截默认行为。 */
+var mermaidPan = null;
+
+function updateMermaidPanState(chartEl) {
+  if (!chartEl) return;
+  var scrollable = chartEl.scrollWidth > chartEl.clientWidth + 1 ||
+    chartEl.scrollHeight > chartEl.clientHeight + 1;
+  chartEl.classList.toggle('pannable', scrollable);
+}
+
+document.addEventListener('mousedown', function (e) {
+  if (e.button !== 0) return;
+  var chart = e.target && e.target.closest ? e.target.closest('.mermaid-chart') : null;
+  if (!chart || !chart.classList.contains('pannable')) return;
+  mermaidPan = {
+    chart: chart,
+    startX: e.clientX,
+    startY: e.clientY,
+    scrollLeft: chart.scrollLeft,
+    scrollTop: chart.scrollTop,
+    moved: false
+  };
+  chart.classList.add('panning');
+  if (e.preventDefault) e.preventDefault(); /* 阻止图内文本选择，光标保持抓紧 */
+});
+
+document.addEventListener('mousemove', function (e) {
+  if (!mermaidPan) return;
+  var dx = e.clientX - mermaidPan.startX;
+  var dy = e.clientY - mermaidPan.startY;
+  if (!mermaidPan.moved && Math.abs(dx) + Math.abs(dy) > 2) mermaidPan.moved = true;
+  mermaidPan.chart.scrollLeft = mermaidPan.scrollLeft - dx;
+  mermaidPan.chart.scrollTop = mermaidPan.scrollTop - dy;
+});
+
+document.addEventListener('mouseup', function () {
+  if (!mermaidPan) return;
+  mermaidPan.chart.classList.remove('panning');
+  mermaidPan = null;
+});
+
+window.addEventListener('resize', function () {
+  document.querySelectorAll('.mermaid-chart').forEach(updateMermaidPanState);
+});
+
 function reRenderAllMermaid() {
   if (typeof mermaid === 'undefined') return Promise.resolve();
   var root = document.getElementById('preview');
   if (!root) return Promise.resolve();
   root.querySelectorAll('.mermaid-block .mermaid-chart').forEach(function(chartEl) {
     chartEl.mermaidTheme = null;
+    updateMermaidPanState(chartEl); /* 主题重渲染路径同步可拖拽标记 */
   });
   return renderMermaidCharts(root);
 }

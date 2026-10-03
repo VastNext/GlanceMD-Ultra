@@ -77,7 +77,7 @@ function loadPreview(options = {}) {
       addEventListener(type, handler) { listeners['document:' + type] = handler; },
       execCommand() {},
     },
-    window: {},
+    window: { addEventListener() {}, removeEventListener() {} },
     navigator: options.navigator || {},
     setTimeout() {},
     showError(message) {
@@ -269,7 +269,7 @@ test('Mermaid 语言代码块被渲染为专用 mermaid-block 容器', () => {
       querySelector() { return null; },
       addEventListener() {},
     },
-    window: {},
+    window: { addEventListener() {}, removeEventListener() {} },
     navigator: {},
     setTimeout() {},
   };

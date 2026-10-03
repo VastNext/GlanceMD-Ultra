@@ -2218,8 +2218,21 @@ body.panel-resizing * { cursor: col-resize !important; }
    svg 显式 px 宽度与 aspect-ratio 由 preview.js 渲染后写入 */
 .mermaid-chart {
   padding: 24px 16px;
-  overflow-x: auto;
+  overflow: auto;
+  max-height: 70vh;
   min-height: 60px;
+}
+
+/* 拖拽平移（preview.js mermaid pan）：图表可滚动时显示手掌光标，
+ * 按住拖动平移；拖动中变抓紧光标并禁用选中 */
+.mermaid-chart.pannable svg {
+  cursor: grab;
+}
+
+.mermaid-chart.panning,
+.mermaid-chart.panning svg {
+  cursor: grabbing;
+  user-select: none;
 }
 
 .mermaid-chart svg {
