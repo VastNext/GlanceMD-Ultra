@@ -84,6 +84,8 @@ pub struct Settings {
     pub http: Http,
     /// 翻译（FEAT-005：划词翻译引擎配置）。
     pub translation: Translation,
+    /// Pandoc 文档导出（FEAT-006：外置二进制路径配置）。
+    pub pandoc: Pandoc,
 }
 
 impl Default for Settings {
@@ -100,6 +102,7 @@ impl Default for Settings {
             window: Window::default(),
             http: Http::default(),
             translation: Translation::default(),
+            pandoc: Pandoc::default(),
         }
     }
 }
@@ -226,6 +229,23 @@ pub enum TranslationEngine {
 impl Default for TranslationEngine {
     fn default() -> Self {
         TranslationEngine::Google
+    }
+}
+
+/// Pandoc 文档导出（FEAT-006："内置扩展 + 外置二进制"，不打包 pandoc）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Pandoc {
+    /// pandoc 可执行文件路径；留空时按 PATH 与平台兜底路径探测。
+    /// 设置后检测固定使用该二进制、不回退其他来源。
+    pub path: String,
+}
+
+impl Default for Pandoc {
+    fn default() -> Self {
+        Pandoc {
+            path: String::new(),
+        }
     }
 }
 
@@ -766,6 +786,8 @@ pub fn effective(global: &Settings, project: &SettingsPatch) -> Settings {
         http: global.http.clone(),
         // 翻译引擎为全局限定分类（与 http 同处理）：引擎与密钥不随项目切换。
         translation: global.translation.clone(),
+        // pandoc 路径为全局限定分类（与 http 同处理）：外置二进制是本机概念。
+        pandoc: global.pandoc.clone(),
     }
 }
 
@@ -1381,6 +1403,7 @@ const KNOWN_TOP_LEVEL: &[&str] = &[
     "window",
     "http",
     "translation",
+    "pandoc",
 ];
 
 /// 已知类内字段（JSON 键名）。快捷键 schemes 内层为方案 ID，命令记录字段另行校验。
@@ -1439,6 +1462,7 @@ const KNOWN_CATEGORY_FIELDS: &[(&str, &[&str])] = &[
             "selectionTriggerEnabled",
         ],
     ),
+    ("pandoc", &["path"]),
 ];
 
 /// 收集未知键告警（向后兼容优先：不拒绝、不删除，serde 默认忽略之）。

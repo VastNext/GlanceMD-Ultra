@@ -1,0 +1,66 @@
+/* export-menu.css — 顶栏「导出」下拉（export.js，FEAT-006）补充样式
+ * 基础菜单视觉复用 project-tree.css 的 .ctx-menu/.ctx-item/.ctx-sep/.kbd
+ * （全局注入，含明暗主题 --tree-menu-* token），此处仅补充：
+ *   .export-menu-status   菜单顶部状态行（pandoc 版本与来源 / 未检测到指引）
+ *   .export-menu-link     状态行与上次导出行的文字链接按钮
+ *   .export-menu-lastexport  上次导出行（打开所在文件夹入口）
+ */
+
+/* 项内主标签占满剩余宽度（与 help-menu-label 同款布局） */
+.export-menu .help-menu-label {
+  flex: 1;
+  text-align: left;
+}
+
+/* 状态行：与菜单项区分的次级信息带 */
+.export-menu-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--tree-menu-border);
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.export-menu-status-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 文字链接按钮：主题高亮色（紫→粉渐变语言的实色主色 --mk-heading） */
+.export-menu-link {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 11px;
+  color: var(--mk-heading);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.export-menu-link:hover {
+  text-decoration: underline;
+}
+
+/* 上次导出行：路径省略 + 打开所在文件夹 */
+.export-menu-lastexport {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 2px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.export-menu-lastexport-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -178,6 +178,10 @@ pub fn register_builtin() {
         ("net.testProxy", net_test_proxy),
         ("translate.request", translate_request),
         ("translate.test", translate_test),
+        ("pandoc.detect", pandoc_detect),
+        ("pandoc.export", pandoc_export),
+        ("pandoc.reveal", pandoc_reveal),
+        ("file.pickPandoc", file_pick_pandoc),
         ("workspace.recovery.snapshot", recovery_snapshot),
         ("workspace.recovery.list", recovery_list),
         ("workspace.recovery.restore", recovery_restore),
@@ -1961,6 +1965,150 @@ fn translate_test(_: &CommandContext, p: &CommandPayload) {
             }
         }
     });
+}
+
+// ── Pandoc 导出命令（FEAT-006）──
+
+/// 从全局设置读取 pandoc 自定义路径（空串归一为 None）。
+fn pandoc_path_hint(settings: &workspace::settings::Settings) -> Option<String> {
+    let path = settings.pandoc.path.trim().to_string();
+    if path.is_empty() {
+        None
+    } else {
+        Some(path)
+    }
+}
+
+/// `pandoc.detect`（FEAT-006）：探测 pandoc 与 PDF 引擎可用性。
+///
+/// 允许前端传 `pathHint`（表单草稿值，未保存也能测）；未传时回退全局设置
+/// `pandoc.path`。探测在后台线程执行，结果经 `workspace:pandoc-detect-result`
+/// 事件回执（探测含多次 spawn `--version`，同步会阻塞主线程）。
+fn pandoc_detect(_: &CommandContext, p: &CommandPayload) {
+    let request_id = string(p, &["requestId"]).unwrap_or_else(|| "anon".into());
+    let path_hint = string(p, &["pathHint"])
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    std::thread::spawn(move || {
+        let global = workspace::settings::load_global(&settings_base());
+        let hint = path_hint.or_else(|| pandoc_path_hint(&global));
+        let pdf_engine = crate::pandoc::detect_pdf_engine();
+        let payload = match crate::pandoc::detect(hint.as_deref()) {
+            Ok(info) => {
+                crate::log_info!(
+                    "pandoc",
+                    "检测成功: version={}, path={}, source={}, pdf_engine={:?}",
+                    info.version,
+                    info.path,
+                    info.source,
+                    pdf_engine
+                );
+                serde_json::to_value(crate::pandoc::DetectOutcome::found(
+                    request_id, info, pdf_engine,
+                ))
+            }
+            Err(e) => {
+                crate::log_warn!("pandoc", "检测失败: {e}");
+                serde_json::to_value(crate::pandoc::DetectOutcome::missing(
+                    request_id, pdf_engine,
+                ))
+            }
+        };
+        emit(workspace::events::Event::PandocDetectResult {
+            payload: payload.unwrap_or_default(),
+        });
+    });
+}
+
+/// `pandoc.export`（FEAT-006）：导出当前文档。
+///
+/// 流程：先在主线程弹原生另存为对话框（按格式带过滤器，取消则以
+/// `cancelled` 回执复位前端状态），再于后台线程执行导出，结果经
+/// `workspace:pandoc-export-result` 事件回执。
+fn pandoc_export(_: &CommandContext, p: &CommandPayload) {
+    let request_id = string(p, &["requestId"]).unwrap_or_else(|| "anon".into());
+    let format = string(p, &["format"]).unwrap_or_default();
+    let suggest_name = string(p, &["suggestName"]).unwrap_or_default();
+    let mut request = crate::pandoc::ExportRequest {
+        request_id: request_id.clone(),
+        format: format.clone(),
+        out_path: String::new(),
+        source_dir: string(p, &["sourceDir"]).unwrap_or_default(),
+        markdown: string(p, &["markdown"]).unwrap_or_default(),
+    };
+    if let Err(e) = crate::pandoc::validate_format(&format) {
+        emit(workspace::events::Event::PandocExportResult {
+            payload: serde_json::to_value(crate::pandoc::ExportOutcome::failure(request_id, e))
+                .unwrap_or_default(),
+        });
+        return;
+    }
+    let Some(out_path) = file_ops::pick_export_file(&format, &suggest_name) else {
+        emit(workspace::events::Event::PandocExportResult {
+            payload: serde_json::json!({
+                "requestId": request_id,
+                "ok": false,
+                "cancelled": true,
+                "message": "已取消导出",
+            }),
+        });
+        return;
+    };
+    request.out_path = out_path;
+    crate::log_info!(
+        "pandoc",
+        "收到导出请求: format='{}', out='{}'",
+        format,
+        request.out_path
+    );
+    std::thread::spawn(move || {
+        let global = workspace::settings::load_global(&settings_base());
+        let hint = pandoc_path_hint(&global);
+        let outcome = crate::pandoc::run_export(&request, hint.as_deref());
+        if outcome.ok {
+            crate::log_info!(
+                "pandoc",
+                "导出成功: out={}, elapsed={}ms",
+                outcome.out_path.as_deref().unwrap_or(""),
+                outcome.elapsed_ms.unwrap_or(0)
+            );
+        } else {
+            crate::log_warn!(
+                "pandoc",
+                "导出失败: {}",
+                outcome.message.as_deref().unwrap_or("")
+            );
+        }
+        emit(workspace::events::Event::PandocExportResult {
+            payload: serde_json::to_value(outcome).unwrap_or_default(),
+        });
+    });
+}
+
+/// `pandoc.reveal`（FEAT-006）：在系统文件管理器中定位导出产物。
+///
+/// 与 `workspace.fs.reveal` 不同：导出目标由用户经另存为对话框自由选择，
+/// 可在工作区之外，故不走 `require_root`/`resolve_in_root`，只要求绝对路径。
+fn pandoc_reveal(c: &CommandContext, p: &CommandPayload) {
+    let Some(path) = string(p, &["path"]).filter(|s| std::path::Path::new(s).is_absolute()) else {
+        return;
+    };
+    if let Err(e) = crate::platform::revealer().reveal(&std::path::PathBuf::from(&path)) {
+        crate::log_warn!("pandoc", "定位导出产物失败: {path}, {e}");
+        ipc::send_to_js(c.webview, "error", &json!({"message": e.to_string()}));
+    }
+}
+
+/// `file.pickPandoc`（FEAT-006）：设置页「浏览…」选择 pandoc 可执行文件。
+///
+/// 原生文件对话框必须在主线程打开（与 save_as 同款纪律）；选取结果经
+/// `workspace:pandoc-binary-picked` 事件回执（走 workspace.js 分发器）。
+fn file_pick_pandoc(c: &CommandContext, _: &CommandPayload) {
+    let payload = match file_ops::pick_pandoc_binary() {
+        Some(path) => serde_json::json!({ "path": path }),
+        None => serde_json::json!({ "cancelled": true }),
+    };
+    ipc::send_to_js(c.webview, "workspace:pandoc-binary-picked", &payload);
 }
 
 fn settings_set_keybindings(_: &CommandContext, p: &CommandPayload) {

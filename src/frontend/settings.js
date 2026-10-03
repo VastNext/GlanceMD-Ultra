@@ -25,7 +25,7 @@
   'use strict';
   function t(key, params) { return window.I18n ? window.I18n.t(key, params) : key; }
 
-  var state = { open: false, category: 'appearance', global: {}, effective: {}, project: {}, kbRecording: null, kbError: null, pendingTheme: null, warnings: [], overridden: [], terminals: null, terminalsScanning: false, terminalsScanned: false, customTerminalSelected: false, cliShim: { installed: false, dir: '', message: '' }, proxyTesting: false, proxyTestResult: null, proxyTestTimer: null, translateTesting: false, translateTestResult: null, translateTestTimer: null };
+  var state = { open: false, category: 'appearance', global: {}, effective: {}, project: {}, kbRecording: null, kbError: null, pendingTheme: null, warnings: [], overridden: [], terminals: null, terminalsScanning: false, terminalsScanned: false, customTerminalSelected: false, cliShim: { installed: false, dir: '', message: '' }, proxyTesting: false, proxyTestResult: null, proxyTestTimer: null, translateTesting: false, translateTestResult: null, translateTestTimer: null, pandocDetecting: false, pandocDetect: null, pandocDetectTimer: null };
 
   // 分类（与 Rust settings schema 一一对应）：中文标签 + 每类一句描述 + SVG 图标。
   var CATEGORIES = [
@@ -92,6 +92,14 @@
       labelKey: 'settings.cat.translation',
       descKey: 'settings.cat.translationDesc',
       icon: '<svg class="svg-icon nav-icon" viewBox="0 0 24 24"><path d="M5 8l6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"></path></svg>'
+    },
+    {
+      key: 'pandoc',
+      label: '导出',
+      desc: '文档导出（Pandoc）路径配置与检测状态',
+      labelKey: 'settings.cat.export',
+      descKey: 'settings.cat.exportDesc',
+      icon: '<svg class="svg-icon nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>'
     },
     {
       key: 'keybindings',
@@ -210,6 +218,12 @@
       desc: '关闭后仅可通过快捷键（Alt+T）或命令面板触发翻译',
       labelKey: 'settings.translationSelectionTrigger',
       descKey: 'settings.translationSelectionTriggerDesc'
+    },
+    'pandoc.path': {
+      label: 'pandoc 路径',
+      desc: '留空按 PATH 与常见安装位置自动探测；指定后固定使用该文件（便携版解压目录适用）',
+      labelKey: 'settings.pandoc.path',
+      descKey: 'settings.pandoc.pathDesc'
     }
   };
 
@@ -239,7 +253,8 @@
       targetLanguage: 'zh-Hans',
       inputTargetLanguage: 'en',
       selectionTriggerEnabled: true
-    }
+    },
+    pandoc: { path: '' }
   };
 
   // 枚举键：取值清单（渲染 <select>；当前值不在清单内时补一项兜底）。
@@ -845,6 +860,158 @@
     };
   }
 
+  // ── 导出分类（FEAT-006）：pandoc 版本常量与平台下载直链 ──
+  // 升级 pandoc 只需改 PANDOC_VERSION（GitHub Release 资产命名固定；
+  // deb 资产带打包修订号 -1）。链接经 open_external 上行（http/https 白名单）。
+  var PANDOC_VERSION = '3.7.0.2';
+  var PANDOC_RELEASE_URL = 'https://github.com/jgm/pandoc/releases/tag/' + PANDOC_VERSION;
+  var PANDOC_DOWNLOAD_BASE = 'https://github.com/jgm/pandoc/releases/download/' + PANDOC_VERSION + '/';
+  var PANDOC_DOWNLOADS = {
+    windows: 'pandoc-' + PANDOC_VERSION + '-windows-x86_64.msi',
+    macos: 'pandoc-' + PANDOC_VERSION + '-arm64-macOS.pkg',
+    macosIntel: 'pandoc-' + PANDOC_VERSION + '-x86_64-macOS.pkg',
+    linux: 'pandoc-' + PANDOC_VERSION + '-1-amd64.deb'
+  };
+
+  function openExternalUrl(url) {
+    if (window.ipc && typeof window.ipc.postMessage === 'function') {
+      window.ipc.postMessage(JSON.stringify({ command: 'open_external', url: url }));
+    }
+  }
+
+  function pandocPlatform() {
+    return (typeof document !== 'undefined' && document.body && document.body.dataset && document.body.dataset.platform) || 'windows';
+  }
+
+  function pandocPrimaryDownload() {
+    var platform = pandocPlatform();
+    if (platform === 'macos') return PANDOC_DOWNLOADS.macos;
+    if (platform === 'linux') return PANDOC_DOWNLOADS.linux;
+    return PANDOC_DOWNLOADS.windows;
+  }
+
+  // 状态行：检测中 / 版本+来源+PDF 引擎 / 未检测到（与代理测试行同款结果样式）
+  function renderPandocStatusRow() {
+    var detecting = Boolean(state.pandocDetecting);
+    var res = state.pandocDetect;
+    var resClass = 'setting-proxy-result';
+    var statusText;
+    if (detecting) {
+      statusText = t('settings.pandoc.detecting');
+      resClass += ' setting-proxy-testing';
+    } else if (res && res.found) {
+      var source = t('settings.pandoc.source.' + (res.source || 'path'));
+      statusText = 'pandoc ' + (res.version || '') + '（' + source + '）';
+      resClass += ' setting-proxy-ok';
+    } else if (res && res.ok === false && res.message) {
+      statusText = res.message;
+      resClass += ' setting-proxy-fail';
+    } else {
+      statusText = t('settings.pandoc.notFound');
+      resClass += ' setting-proxy-fail';
+    }
+    var pdfText = (res && res.found)
+      ? (res.pdfEngine ? res.pdfEngine : t('settings.pandoc.pdfEngineNone'))
+      : '';
+    return '<div class="setting-row setting-row-pandoc-status">'
+      + '<div class="setting-info">'
+      + '<span class="setting-label">' + esc(t('settings.pandoc.status')) + '</span>'
+      + '<span class="setting-desc">' + esc(t('settings.pandoc.statusDesc')) + '</span>'
+      + '</div>'
+      + '<div class="setting-control">'
+      + '<button type="button" class="btn" id="setting-pandoc-redetect"' + (detecting ? ' disabled' : '') + '>' + esc(t('settings.pandoc.redetect')) + '</button>'
+      + '<div class="' + resClass + '" id="setting-pandoc-status-result">' + esc(statusText) + '</div>'
+      + (pdfText ? '<div class="setting-proxy-result">' + esc(t('settings.pandoc.pdfEngine') + '：' + pdfText) + '</div>' : '')
+      + '</div>'
+      + '</div>';
+  }
+
+  // 路径行：文本输入（data-setting 走通用 wire 保存）+ 「浏览…」原生选择器
+  function renderPandocPathRow(objPandoc) {
+    var m = metaOf('pandoc', 'path');
+    return '<div class="setting-row setting-row-pandoc-path">'
+      + '<div class="setting-info">'
+      + '<span class="setting-label">' + esc(m.label) + '</span>'
+      + '<span class="setting-desc">' + esc(m.desc) + '</span>'
+      + '</div>'
+      + '<div class="setting-control">'
+      + '<input type="text" id="setting-pandoc-path" data-setting="path" data-category="pandoc" value="' + esc(objPandoc.path || '') + '" spellcheck="false" />'
+      + '<button type="button" class="btn" id="setting-pandoc-browse">' + esc(t('settings.pandoc.browse')) + '</button>'
+      + '<div class="setting-proxy-result" id="setting-pandoc-path-result"></div>'
+      + '</div>'
+      + '</div>';
+  }
+
+  // 下载直链行：按平台主链接 + 全部平台入口（版本常量收敛一处，提案 D6）
+  function renderPandocDownloadRow() {
+    var asset = pandocPrimaryDownload();
+    return '<div class="setting-row setting-row-pandoc-download">'
+      + '<div class="setting-info">'
+      + '<span class="setting-label">' + esc(t('settings.pandoc.download')).replace('{version}', PANDOC_VERSION) + '</span>'
+      + '<span class="setting-desc">' + esc(t('settings.pandoc.downloadHint')) + '</span>'
+      + '</div>'
+      + '<div class="setting-control">'
+      + '<button type="button" class="btn" id="setting-pandoc-download" data-url="' + esc(PANDOC_DOWNLOAD_BASE + asset) + '">' + esc(asset) + '</button>'
+      + '<button type="button" class="btn" id="setting-pandoc-download-all" data-url="' + esc(PANDOC_RELEASE_URL) + '">' + esc(t('settings.pandoc.downloadAll')) + '</button>'
+      + '</div>'
+      + '</div>';
+  }
+
+  function requestPandocDetect(pathHint) {
+    state.pandocDetecting = true;
+    state.pandocDetect = null;
+    if (state.pandocDetectTimer) clearTimeout(state.pandocDetectTimer);
+    state.pandocDetectTimer = setTimeout(function () {
+      if (state.pandocDetecting) {
+        state.pandocDetecting = false;
+        state.pandocDetect = { ok: false, found: false, message: t('settings.pandoc.detectTimeout') };
+        if (state.open) render();
+      }
+    }, 20000);
+    var payload = { requestId: 'settings-detect' };
+    if (pathHint) payload.pathHint = pathHint;
+    send(Object.assign({ command: 'pandoc.detect' }, payload));
+    render();
+  }
+
+  function wirePandoc(container, objPandoc) {
+    var redetectBtn = container.querySelector('#setting-pandoc-redetect');
+    if (redetectBtn) {
+      redetectBtn.onclick = function () {
+        if (state.pandocDetecting) return;
+        // 用当前输入框草稿值检测（未保存也能测，与代理测试同款体验）
+        var input = container.querySelector('#setting-pandoc-path');
+        var draft = input ? input.value.trim() : '';
+        requestPandocDetect(draft || undefined);
+      };
+    }
+    var browseBtn = container.querySelector('#setting-pandoc-browse');
+    if (browseBtn) {
+      browseBtn.onclick = function () {
+        send({ command: 'file.pickPandoc' });
+      };
+    }
+    container.querySelectorAll('#setting-pandoc-download, #setting-pandoc-download-all').forEach(function (btn) {
+      btn.onclick = function () {
+        openExternalUrl(btn.getAttribute('data-url') || '');
+      };
+    });
+    var pathInput = container.querySelector('#setting-pandoc-path');
+    if (pathInput && !pathInput.dataset.pandocWired) {
+      pathInput.dataset.pandocWired = '1';
+      // onchange 已由通用 wire() 提交保存；这里追加"保存后立即校验"体验
+      pathInput.addEventListener('change', function () {
+        var v = pathInput.value.trim();
+        if (!v) {
+          // 清空路径：恢复自动探测，静默重测
+          requestPandocDetect(undefined);
+          return;
+        }
+        requestPandocDetect(v);
+      });
+    }
+  }
+
   // ── 设置行：左（中文标签 + 说明 + 项目覆盖徽标）/ 右（控件）──
   function rowHTML(cat, key, v) {
     if (cat === 'files' && key === 'terminalPath') {
@@ -1280,6 +1447,28 @@
       wireTranslateTest(body, objTrans);
       return;
     }
+    if (catKey === 'pandoc') {
+      // 导出分类专用渲染（FEAT-006）：检测状态行 + 自定义路径（浏览…）+ 下载直链
+      var objPandoc = Object.assign({}, DEFAULT_SETTINGS.pandoc || {}, state.effective.pandoc || {});
+      var pathVisible = !q || (function () {
+        var m = metaOf('pandoc', 'path');
+        return ('path ' + m.label + ' ' + m.desc).toLowerCase().indexOf(q) >= 0;
+      })();
+      var extrasVisible = !q || ('pandoc 导出 状态 检测 下载 status detect download install')
+        .toLowerCase().indexOf(q) >= 0;
+      if (!pathVisible && !extrasVisible) {
+        html += '<p class="settings-empty">' + (q ? t('settings.noMatch') : t('settings.categoryEmpty')) + '</p>';
+      } else {
+        if (extrasVisible) html += renderPandocStatusRow();
+        if (pathVisible) html += renderPandocPathRow(objPandoc);
+        if (extrasVisible) html += renderPandocDownloadRow();
+      }
+      body.innerHTML = html;
+      Array.prototype.forEach.call(p.querySelectorAll('[data-setting]'), wire);
+      enhanceSelects(body);
+      wirePandoc(body, objPandoc);
+      return;
+    }
     var obj = Object.assign({}, DEFAULT_SETTINGS[catKey] || {}, state.effective[catKey] || {});
     var keys = Object.keys(obj).filter(function (k) {
       if (catKey === 'files' && k === 'terminalArgs') return false;
@@ -1647,6 +1836,30 @@
         }
       }
     }
+    else if (e === 'workspace:pandoc-detect-result') {
+      if (d && d.requestId === 'settings-detect') {
+        if (state.pandocDetectTimer) {
+          clearTimeout(state.pandocDetectTimer);
+          state.pandocDetectTimer = null;
+        }
+        state.pandocDetecting = false;
+        state.pandocDetect = d;
+        if (state.open) {
+          render();
+        }
+      }
+    }
+    else if (e === 'workspace:pandoc-binary-picked') {
+      // 「浏览…」选择结果：回填输入框 → 走通用保存 → 立即用该路径检测
+      if (d && d.path) {
+        var pandocInput = document.getElementById('setting-pandoc-path');
+        if (pandocInput) {
+          pandocInput.value = d.path;
+          commit('pandoc', 'path', d.path);
+        }
+        requestPandocDetect(d.path);
+      }
+    }
   }
 
   if (window.Workspace && Workspace.on) {
@@ -1659,6 +1872,8 @@
     Workspace.on('workspace:proxy-test-result', function (d) { receive('workspace:proxy-test-result', d); });
     Workspace.on('net:test-proxy-result', function (d) { receive('net:test-proxy-result', d); });
     Workspace.on('workspace:translate-result', function (d) { receive('workspace:translate-result', d); });
+    Workspace.on('workspace:pandoc-detect-result', function (d) { receive('workspace:pandoc-detect-result', d); });
+    Workspace.on('workspace:pandoc-binary-picked', function (d) { receive('workspace:pandoc-binary-picked', d); });
   }
 
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {

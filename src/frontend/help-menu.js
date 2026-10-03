@@ -37,7 +37,8 @@
     {
       labelKey: 'help.menu.extensions',
       children: [
-        { commandId: 'translate.popup', labelKey: 'help.menu.translate' }
+        { commandId: 'translate.popup', labelKey: 'help.menu.translate' },
+        { commandId: 'export.menu', labelKey: 'help.menu.export' }
       ]
     },
     { sep: true },

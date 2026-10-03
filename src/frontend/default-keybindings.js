@@ -82,7 +82,9 @@
     record('translate.bubble.copy', 'Alt+C', 'translateBubbleOpen'),
     record('translate.popup.toggle', 'Alt+A'),
     record('translate.popup.bilingual', 'Alt+B'),
-    record('translate.popup.replaceMode', 'Alt+V')
+    record('translate.popup.replaceMode', 'Alt+V'),
+    // 文档导出（FEAT-006）：E 组唯一默认键，呼出导出菜单；每格式命令不占默认键
+    record('export.menu', 'Ctrl+Shift+E')
   ];
 
   var vscode = [
@@ -104,7 +106,8 @@
     record('translate.bubble.copy', 'Alt+C', 'translateBubbleOpen'),
     record('translate.popup.toggle', 'Alt+A'),
     record('translate.popup.bilingual', 'Alt+B'),
-    record('translate.popup.replaceMode', 'Alt+V')
+    record('translate.popup.replaceMode', 'Alt+V'),
+    record('export.menu', 'Ctrl+Shift+E')
   ];
 
   var schemes = {

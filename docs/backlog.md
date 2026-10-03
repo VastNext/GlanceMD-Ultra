@@ -54,6 +54,7 @@
 | FEAT-003 | 2026-09-07 | 网络 / 系统设置 | 设置页支持配置 HTTP/HTTPS/SOCKS5 网络代理，支持系统代理跟随与自定义覆盖（FEAT-002 前置） | 中 (P2) | ✅ 已完成 |
 | FEAT-004 | 2026-09-09 | 体积 / 发布 | 二进制减重：内嵌前端资产 gzip 预压缩 + `opt-level="z"`，使 Windows 产物回到 5 MB 以内（预算放宽后的偿还计划） | 中 (P2) | ⏳ 待排期 |
 | FEAT-005 | 2026-09-09 | 翻译 / 编辑器 | 集成翻译功能：选中文本划词翻译，复用 VastTranslator 引擎层（Google/Bing/自定义 AI），Rust IPC 代理网络请求 | 中 (P2) | ⏳ 待排期 |
+| FEAT-006 | 2026-10-04 | 导出 / 扩展 | 集成 Pandoc 文档导出（"内置扩展 + 外置二进制"）：当前文件导出 Word/EPUB/HTML/PDF/ODT，PDF 按引擎检测启用；顶栏导出图标 + 二级菜单分类型；设置页提供平台指定版本下载直链与自定义路径（免重启生效） | 中 (P2) | ⏳ 待排期 |
 
 ### 需求详细记录
 
@@ -157,6 +158,19 @@
   5. v1 明确不做：SSE 流式、上下文消歧、专家提示词、翻译缓存、请求取消（后续另行立项）。
 - **工作量**：约 6–7.5 理想人天（产品代码 ~1540 行 + 测试 ~730 行），建议排期 1.5–2 周；产物增量 ≤ 200 KB，预算内。
 - **协同关系**：FEAT-003 已完成（v0.4.0），`net.rs` 与异步 IPC 模式直接复用；v0.5.2 的 `logger.rs` 供网络诊断日志复用。
+- **处理状态**：⏳ 待排期 (`backlog`)
+
+#### FEAT-006: 集成 Pandoc 文档导出——"内置扩展 + 外置二进制"（当前文件导出 Word/EPUB/HTML/PDF/ODT）
+- **立项提案**：详见 `docs/proposals/2026-10-04-文档导出Pandoc扩展提案.md`（2026-10-04 用户已拍板六项决策：v1 仅单文件、PDF 引擎检测驱动、对外文案「导出」、顶栏翻译图标旁加导出图标、免重启检测、设置页指定版本下载直链）
+- **需求背景**：用户需要把 Markdown 交付为 Word / EPUB / PDF 等格式。产品二进制预算 2–8MB（FEAT-004），不内置转换引擎；pandoc 为三平台事实标准（当前稳定版 3.7.0.2），采用与 FEAT-005 语层翻译相同的"功能内置、依赖外置"模式——功能模块编译期内置，检测并调用用户机器上的 pandoc，未装时提供安装指引。属 Ultra 特有，不进共享内核，无 `[sync]`。
+- **方案要点**：
+  1. Rust 新模块 `src/pandoc.rs`：detect（自定义路径 > PATH > 各平台兜底绝对路径清单，spawn `pandoc --version` 解析版本）+ export（markdown buffer 经 stdin，`--resource-path=<源文件目录>`，固定参数模板按格式分派，120s 超时）；PDF 需检测到 xelatex/tectonic/typst 之一才启用。
+  2. IPC 新增 `pandoc.detect` / `pandoc.export`（异步照搬 `translate.request` 回执模式）；`ipc.rs` 通配清单补 `pandoc.` 前缀（BUG-001 教训）。
+  3. 前端 `export.js` / `export.css`（IIFE）：顶栏 `#btn-export`（`#btn-translate` 旁）→ 按类型分项下拉（Word/EPUB/HTML/PDF/ODT + 导出设置…），未装 pandoc 时禁用并引导；☰「扩展」子菜单加「导出…」；命令面板注册 6 命令，默认键 `Ctrl+Shift+E`（E 组空闲已核对）。
+  4. 设置新增「导出」分类：版本状态 + 自定义路径（手动输入或「浏览…」原生文件选择器——覆盖已装但探测不到的及便携版 pandoc；保存即校验生效，**全程免重启**——兜底探测为绝对路径，不依赖进程 PATH 快照，覆盖 macOS/Linux GUI 不继承 shell PATH 的同源问题）+ 按平台显示的指定版本下载直链（open_external，版本常量收敛一处）。
+  5. v1 明确不做：批量/整文件夹导出（v2）、用户自定义 pandoc 参数（固定模板，攻击面为零）、导出取消按钮（超时即终态）。
+- **工作量**：约 4.5–5 理想人天（产品代码 ~1100 行 + 测试 ~550 行），建议排期 1 周；产物增量 ≤ 15 KB，零新增 crate。
+- **协同关系**：异步 IPC 复用 FEAT-005 的 `translate.request` 模式；另存为复用 `file_ops::pick_save_file`；外链复用 `open_external`；`std::process::Command` 安全纪律沿用 `open_external`（CREATE_NO_WINDOW + 参数数组）。
 - **处理状态**：⏳ 待排期 (`backlog`)
 
 ---

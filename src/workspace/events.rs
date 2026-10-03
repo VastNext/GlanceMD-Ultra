@@ -98,6 +98,12 @@ pub enum Event {
     /// 翻译结果回执（FEAT-005，`translate.request`/`translate.test` 命令的
     /// 异步结果）：`requestId` + `ok` + `results`/`message`。
     TranslateResult { payload: serde_json::Value },
+    /// Pandoc 检测回执（FEAT-006，`pandoc.detect` 命令的异步结果）：
+    /// `requestId` + `ok` + `found` + `version/path/source/pdfEngine`/`message`。
+    PandocDetectResult { payload: serde_json::Value },
+    /// Pandoc 导出回执（FEAT-006，`pandoc.export` 命令的异步结果）：
+    /// `requestId` + `ok` + `outPath`/`message`/`elapsedMs`；取消时带 `cancelled`。
+    PandocExportResult { payload: serde_json::Value },
 }
 
 impl Event {
@@ -124,6 +130,8 @@ impl Event {
             Event::CliShimStatus { .. } => "workspace:cli-shim-status",
             Event::ProxyTestResult { .. } => "workspace:proxy-test-result",
             Event::TranslateResult { .. } => "workspace:translate-result",
+            Event::PandocDetectResult { .. } => "workspace:pandoc-detect-result",
+            Event::PandocExportResult { .. } => "workspace:pandoc-export-result",
         }
     }
 
@@ -190,6 +198,8 @@ impl Event {
             }
             Event::ProxyTestResult { payload } => payload.clone(),
             Event::TranslateResult { payload } => payload.clone(),
+            Event::PandocDetectResult { payload } => payload.clone(),
+            Event::PandocExportResult { payload } => payload.clone(),
         }
     }
 }

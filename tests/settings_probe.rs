@@ -422,6 +422,7 @@ fn 全字段v1文档_迁移无告警且逐字段相等_守护已知键表不失�
             window: settings::Window::default(),
             http: settings::Http::default(),
             translation: settings::Translation::default(),
+            pandoc: settings::Pandoc::default(),
         }
     );
 }
@@ -698,6 +699,9 @@ fn v1_roundtrip_自定义设置_保存加载零漂移() {
             target_language: "en".to_string(),
             input_target_language: "ja".to_string(),
             selection_trigger_enabled: false,
+        },
+        pandoc: settings::Pandoc {
+            path: "D:/tools/pandoc.exe".to_string(),
         },
     };
     save(&dir, &original).unwrap();

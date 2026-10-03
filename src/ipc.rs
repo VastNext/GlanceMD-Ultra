@@ -42,7 +42,8 @@ fn registry_command_id(wire_command: &str) -> Option<String> {
             || wire_command.starts_with("palette.")
             || wire_command.starts_with("settings.")
             || wire_command.starts_with("net.")
-            || wire_command.starts_with("translate.") =>
+            || wire_command.starts_with("translate.")
+            || wire_command.starts_with("pandoc.") =>
         {
             Some(wire_command.to_string())
         }
@@ -349,6 +350,20 @@ mod tests {
         assert_eq!(
             registry_command_id("translate.test"),
             Some("translate.test".to_string())
+        );
+        // FEAT-006：pandoc.* 通配（BUG-001 教训：新前缀必须登记，否则被
+        // legacy 分支当未知命令静默丢弃）
+        assert_eq!(
+            registry_command_id("pandoc.detect"),
+            Some("pandoc.detect".to_string())
+        );
+        assert_eq!(
+            registry_command_id("pandoc.export"),
+            Some("pandoc.export".to_string())
+        );
+        assert_eq!(
+            registry_command_id("pandoc.reveal"),
+            Some("pandoc.reveal".to_string())
         );
         assert_eq!(
             registry_command_id("open_file"),

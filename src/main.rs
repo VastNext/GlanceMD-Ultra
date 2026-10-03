@@ -25,6 +25,7 @@ mod file_ops;
 mod ipc;
 mod logger;
 mod net;
+mod pandoc;
 mod platform;
 #[cfg(target_os = "windows")]
 mod single_instance;
@@ -76,6 +77,7 @@ const OVERLAY_HELPER_JS: &str = include_str!("frontend/overlay-helper.js");
 const RECOVERY_JS: &str = include_str!("frontend/recovery.js");
 const SETTINGS_APPLY_JS: &str = include_str!("frontend/settings-apply.js");
 const TRANSLATE_JS: &str = include_str!("frontend/translate.js");
+const EXPORT_JS: &str = include_str!("frontend/export.js");
 const HELP_MENU_JS: &str = include_str!("frontend/help-menu.js");
 const ICON_PNG: &[u8] = include_bytes!("../assets/icon.png");
 
@@ -990,10 +992,11 @@ fn build_html() -> String {
     // workspace:settings-effective 落到 CSS 变量与编辑器 DOM，开机即拉取一次；
     // 只依赖 workspace.js 的事件分发器与 ipc，晚于全部面板脚本无装载顺序问题）
     let scripts = format!(
-        "{}\n<script>{}</script>\n<script>{}</script>",
+        "{}\n<script>{}</script>\n<script>{}</script>\n<script>{}</script>",
         scripts,
         escape_for_script_tag(SETTINGS_APPLY_JS),
         escape_for_script_tag(TRANSLATE_JS),
+        escape_for_script_tag(EXPORT_JS),
     );
 
     // 顶栏「应用菜单」（☰ #btn-menu 入口；help.about → 设置面板「关于」分类，
@@ -1031,6 +1034,8 @@ fn build_html() -> String {
         include_str!("frontend/recovery.css"),
         "\n/* ── translate.css ── */\n",
         include_str!("frontend/translate.css"),
+        "\n/* ── export.css ── */\n",
+        include_str!("frontend/export.css"),
         "\n/* ── help-menu.css ── */\n",
         include_str!("frontend/help-menu.css"),
     );

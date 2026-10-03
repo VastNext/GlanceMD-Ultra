@@ -241,7 +241,7 @@ test('快捷键提示按 Keybindings.effective 注入，未绑定的项隐藏 kb
   assert.equal(about.querySelector('.kbd').style.display, 'none');
 });
 
-test('点击「扩展」父项展开二级子菜单（语层翻译面板），再点收起', () => {
+test('点击「扩展」父项展开二级子菜单（语层翻译面板 + 导出），再点收起', () => {
   const { c, doc } = load();
   c.HelpMenu.toggle();
   const menu = currentMenu(doc);
@@ -250,8 +250,9 @@ test('点击「扩展」父项展开二级子菜单（语层翻译面板），�
   const sub = doc.body.children.find(el => el.className && el.className.includes('ctx-submenu'));
   assert.ok(sub, '子菜单应挂载到 body');
   const subItems = sub.querySelectorAll('.ctx-item');
-  assert.equal(subItems.length, 1);
+  assert.equal(subItems.length, 2);
   assert.equal(subItems[0].dataset.commandId, 'translate.popup');
+  assert.equal(subItems[1].dataset.commandId, 'export.menu');
   assert.equal(ext.attrs['aria-expanded'], 'true');
 
   clickEl(ext);
