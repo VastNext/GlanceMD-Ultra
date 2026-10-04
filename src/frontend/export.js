@@ -42,7 +42,8 @@
     { format: 'docx', labelKey: 'export.format.docx' },
     { format: 'epub', labelKey: 'export.format.epub' },
     { format: 'html', labelKey: 'export.format.html' },
-    { format: 'pdf', labelKey: 'export.format.pdf' },
+    { format: 'pdf-print', labelKey: 'export.format.pdfPrint' },
+    { format: 'pdf', labelKey: 'export.format.pdfEngine' },
     { format: 'odt', labelKey: 'export.format.odt' }
   ];
 
@@ -154,6 +155,7 @@
 
   function itemDisabledReason(format) {
     if (!getExportTarget()) return t('export.noDocument');
+    if (format === 'pdf-print') return ''; // 打印路线零依赖，不需要 pandoc（FEAT-007）
     var d = state.detect;
     if (state.detecting || !d) return t('export.status.checking');
     if (!d.found) return t('export.status.missing');
@@ -178,7 +180,7 @@
     }
     html += '</div>';
 
-    // 格式项（二级按类型分项，提案 D3）
+    // 格式项（二级按类型分项，提案 D3；PDF 拆打印/排版引擎双路线，FEAT-007）
     FORMATS.forEach(function(item) {
       var reason = itemDisabledReason(item.format);
       var exporting = state.exportingFormat === item.format;
@@ -187,12 +189,13 @@
       if (item.format === 'pdf' && state.detect && state.detect.found && state.detect.pdfEngine) {
         pdfBadge = ' (' + state.detect.pdfEngine + ')';
       }
+      var kbd = item.format === 'pdf' ? '.' + item.format : '';
       html += '<div class="ctx-item' + (disabled ? ' disabled' : '') + '" role="menuitem"'
         + ' data-export-format="' + item.format + '"'
         + (disabled ? ' title="' + escapeHtml(exporting ? t('export.exporting') : reason) + '"' : '')
         + ' aria-disabled="' + (disabled ? 'true' : 'false') + '">'
         + '<span class="help-menu-label">' + escapeHtml(t(item.labelKey)) + escapeHtml(pdfBadge) + '</span>'
-        + '<span class="kbd">.' + item.format + '</span>'
+        + (kbd ? '<span class="kbd">' + kbd + '</span>' : '')
         + '</div>';
     });
 
@@ -303,7 +306,37 @@
   }
 
   // ── 导出流程 ──
+  // 打印导出（FEAT-007）：以浅色主题强制重渲染预览 DOM（纯编辑模式下预览
+  // 是陈旧的；mermaid/hljs 随浅色主题出浅色版，深色图在纸张上不可读），
+  // 然后交由 app.print 弹系统打印对话框。主题保持浅色，用户可随时切回。
+  function renderPreviewForPrint(markdown) {
+    var previewEl = (typeof document !== 'undefined') ? document.getElementById('preview') : null;
+    if (!previewEl) return;
+    if (typeof document.documentElement.setAttribute === 'function') {
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+    previewEl.innerHTML = window.marked ? window.marked.parse(markdown) : '';
+    if (typeof resolveLocalImages === 'function') resolveLocalImages();
+    if (typeof renderMermaidCharts === 'function') renderMermaidCharts(previewEl);
+  }
+
+  function printPreviewPdf() {
+    var target = getExportTarget();
+    if (!target) {
+      toast(t('export.noDocument'));
+      return;
+    }
+    closeMenu();
+    renderPreviewForPrint(target.content);
+    toast(t('export.printOpening'));
+    sendToRust('app.print');
+  }
+
   function startExport(format) {
+    if (format === 'pdf-print') {
+      printPreviewPdf();
+      return;
+    }
     var target = getExportTarget();
     if (!target) {
       toast(t('export.noDocument'));

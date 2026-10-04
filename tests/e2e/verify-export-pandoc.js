@@ -91,7 +91,12 @@ fs.mkdirSync(outDir, { recursive: true });
   const detectSent = (await ipcLog()).some((m) => m.command === 'pandoc.detect');
   check('打开菜单触发 pandoc.detect', detectSent);
   check('未检测到：状态行文案', (missing.statusText || '').includes('未检测到 pandoc'), missing.statusText);
-  check('未检测到：五个格式项全部禁用', missing.total === 5 && missing.disabled === 5, JSON.stringify(missing));
+  check('未检测到：除打印项外全部禁用', missing.total === 6 && missing.disabled === 5, JSON.stringify(missing));
+  const printEnabledMissing = await page.evaluate(() => {
+    const el = document.querySelector('#export-menu [data-export-format="pdf-print"]');
+    return el && el.getAttribute('aria-disabled') === 'false';
+  });
+  check('未检测到 pandoc：打印项仍可用（零依赖）', printEnabledMissing);
   check('未检测到：给安装指引', missing.hasGuide);
   await page.screenshot({ path: path.join(outDir, 'light-menu-missing.png') });
 
@@ -111,7 +116,7 @@ fs.mkdirSync(outDir, { recursive: true });
     };
   });
   check('检测到：状态行含版本与来源', (found.statusText || '').includes('3.7.0.2'), found.statusText);
-  check('检测到：五个格式项全部可用', found.enabled === 5, 'enabled=' + found.enabled);
+  check('检测到：六个格式项全部可用', found.enabled === 6, 'enabled=' + found.enabled);
   check('PDF 项带引擎徽标', found.pdfBadge.includes('xelatex'), found.pdfBadge);
   await page.screenshot({ path: path.join(outDir, 'light-menu-found.png') });
 
@@ -154,9 +159,21 @@ fs.mkdirSync(outDir, { recursive: true });
       othersEnabled: items.filter((el) => el.dataset.exportFormat !== 'pdf' && el.getAttribute('aria-disabled') === 'false').length,
     };
   });
-  check('无引擎：PDF 禁用', noengine.pdfDisabled === 'true');
+  check('无引擎：排版引擎项禁用', noengine.pdfDisabled === 'true');
   check('无引擎：禁用原因 tooltip', (noengine.pdfTitle || '').includes('PDF'), noengine.pdfTitle);
-  check('无引擎：其余四项可用', noengine.othersEnabled === 4);
+  check('无引擎：其余五项（含打印路线）可用', noengine.othersEnabled === 5);
+
+  // ── 4.5 打印导出路线：点击 → 预览刷新 + app.print 上行 ──
+  const beforePrint = (await ipcLog()).filter((m) => m.command === 'app.print').length;
+  await page.click('#export-menu [data-export-format="pdf-print"]');
+  await page.waitForTimeout(200);
+  const afterPrint = (await ipcLog()).filter((m) => m.command === 'app.print').length;
+  const previewRendered = await page.evaluate(() => {
+    const p = document.getElementById('preview');
+    return !!p && p.innerHTML.length > 0;
+  });
+  check('打印项点击上行 app.print', afterPrint === beforePrint + 1);
+  check('打印前预览 DOM 已强制刷新', previewRendered);
   await page.screenshot({ path: path.join(outDir, 'light-menu-noengine.png') });
   await page.evaluate(() => document.body.click());
 

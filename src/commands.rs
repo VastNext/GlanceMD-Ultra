@@ -182,6 +182,7 @@ pub fn register_builtin() {
         ("pandoc.export", pandoc_export),
         ("pandoc.reveal", pandoc_reveal),
         ("file.pickPandoc", file_pick_pandoc),
+        ("app.print", app_print),
         ("workspace.recovery.snapshot", recovery_snapshot),
         ("workspace.recovery.list", recovery_list),
         ("workspace.recovery.restore", recovery_restore),
@@ -2109,6 +2110,19 @@ fn file_pick_pandoc(c: &CommandContext, _: &CommandPayload) {
         None => serde_json::json!({ "cancelled": true }),
     };
     ipc::send_to_js(c.webview, "workspace:pandoc-binary-picked", &payload);
+}
+
+/// `app.print`（FEAT-007）：调起系统打印对话框，打印当前 WebView 内容。
+///
+/// 打印对象是整页 DOM，前端负责在调用前把 `@media print` 样式外的应用
+/// chrome 隐藏并刷新预览（见 print.css 与 export.js 打印流程）。wry 的
+/// `print()` 在三平台分别走 WebView2 ShowPrintUI / WKWebView 打印面板 /
+/// WebKitGTK 打印对话框，各系统打印栈均自带 PDF 输出。
+fn app_print(c: &CommandContext, _: &CommandPayload) {
+    if let Err(e) = c.webview.print() {
+        crate::log_error!("app", "打开系统打印对话框失败: {e}");
+        ipc::send_to_js(c.webview, "error", &json!({"message": e.to_string()}));
+    }
 }
 
 fn settings_set_keybindings(_: &CommandContext, p: &CommandPayload) {

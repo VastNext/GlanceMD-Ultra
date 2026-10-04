@@ -100,6 +100,7 @@ PANEL_CSS_ORDER = (
     "recovery.css",
     "translate.css",
     "export.css",
+    "print.css",
     "help-menu.css",
 )
 

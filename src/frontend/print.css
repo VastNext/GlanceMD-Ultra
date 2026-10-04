@@ -1,0 +1,84 @@
+/* print.css — 打印导出 PDF（FEAT-007）：@media print 只保留预览内容链。
+ *
+ * 三平台系统打印对话框均自带 PDF 输出（Windows: Microsoft Print to PDF、
+ * macOS: PDF → 存储为 PDF、Linux GTK: 打印到文件），wry::print 弹原生对话
+ * 框后由系统分页。本文件职责：
+ *   1. 隐藏预览内容链之外的一切应用 chrome（titlebar/标签栏/侧栏/编辑器/
+ *      状态栏/浮层）；
+ *   2. 预览容器脱离应用内滚动与定位，完整铺开交由打印引擎分页；
+ *   3. [data-theme] 同特异性后序覆盖 --mk-* token 为浅色纸张配色（兜底：
+ *      正常路径下 export.js 打印流程已先切浅色重渲染，mermaid/hljs 随主题
+ *      出浅色版）；
+ *   4. 分页规则：标题不孤行、代码/引用/表格/mermaid 不跨页截断。
+ */
+
+@media print {
+  /* ── 1. 只保留 body > #content > #editor-column > #preview-container ── */
+  body > *:not(#content) { display: none !important; }
+  #content > *:not(#editor-column) { display: none !important; }
+  #editor-column > *:not(#preview-container) { display: none !important; }
+
+  #content,
+  #editor-column {
+    display: block !important;
+    overflow: visible !important;
+    height: auto !important;
+    background: #fff !important;
+  }
+
+  /* ── 2. 预览链脱离应用内滚动/定位，完整铺开 ── */
+  #preview-container {
+    display: block !important;
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  #preview-wrapper {
+    display: block !important;
+    overflow: visible !important;
+    width: auto !important;
+    height: auto !important;
+    max-width: none !important;
+    background: #fff !important;
+  }
+  #preview {
+    display: block !important;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    padding: 0 !important;
+    background: #fff !important;
+    color: var(--mk-text) !important;
+  }
+
+  /* ── 3. 浅色纸张配色兜底（与 style.css [data-theme="light"] 同值）── */
+  [data-theme] {
+    --mk-bg: #ffffff;
+    --mk-bg-secondary: #f7fafc;
+    --mk-bg-code: #edf2f7;
+    --mk-bg-pre: #f7fafc;
+    --mk-text: #2d3748;
+    --mk-text-secondary: #4a5568;
+    --mk-text-muted: #718096;
+    --mk-strong: #2d3748;
+    --mk-border: #e2e8f0;
+    --mk-border-strong: #cbd5e0;
+    --mk-blockquote-bg: #f7fafc;
+    --mk-blockquote-border: #a855f7;
+    --mk-blockquote-text: #4a5568;
+    --mk-table-border: #e2e8f0;
+    --mk-link: #7c3aed;
+    --mk-link-hover: #7c3aed;
+    --zoom: 1;
+  }
+  html, body { background: #fff !important; }
+
+  /* ── 4. 分页规则 ── */
+  @page { margin: 16mm 14mm; }
+  h1, h2, h3, h4, h5, h6 { break-after: avoid; page-break-after: avoid; }
+  pre, blockquote, table, img, .mermaid-block { break-inside: avoid; page-break-inside: avoid; }
+  pre { white-space: pre-wrap !important; word-break: break-word; }
+  a { text-decoration: none; }
+}

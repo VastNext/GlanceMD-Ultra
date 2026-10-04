@@ -1036,6 +1036,8 @@ fn build_html() -> String {
         include_str!("frontend/translate.css"),
         "\n/* ── export.css ── */\n",
         include_str!("frontend/export.css"),
+        "\n/* ── print.css ── */\n",
+        include_str!("frontend/print.css"),
         "\n/* ── help-menu.css ── */\n",
         include_str!("frontend/help-menu.css"),
     );

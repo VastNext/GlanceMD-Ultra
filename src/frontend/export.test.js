@@ -4,8 +4,8 @@
  * 1. 模块导出与初始化：window.ExportUI 暴露完整 API，#btn-export 绑定；
  * 2. 菜单生命周期：toggleMenu 打开时懒发 pandoc.detect，再开不重复请求；
  * 3. 未检测到 pandoc：菜单项全部禁用并给安装指引入口；
- * 4. 已检测到（含 PDF 引擎）：状态行展示版本，五项可用，PDF 项带引擎徽标；
- * 5. 无 PDF 引擎：仅 PDF 项禁用（title 说明原因），其余可导；
+ * 4. 已检测到（含 PDF 引擎）：状态行展示版本，六项可用，PDF 引擎项带徽标；
+ * 5. 无 PDF 引擎：仅「排版引擎」项禁用（title 说明原因），打印项始终可用；
  * 6. 导出流程：点击格式项 → pandoc.export（requestId/format/markdown 来自
  *    编辑器内存 buffer/sourceDir/suggestName）；导出中防重入；无文档拒绝；
  * 7. 回执处理：成功记 lastExport（菜单出现「打开所在文件夹」）、失败 toast
@@ -262,7 +262,7 @@ test('ExportUI 模块挂载与 API 完整暴露', () => {
     (k) => assert.equal(typeof h.ctx.ExportUI[k], 'function', 'API: ' + k),
   );
   assert.ok(h.registeredCommands['export.menu'], 'export.menu 命令已注册');
-  ['docx', 'epub', 'html', 'pdf', 'odt'].forEach((f) => {
+  ['docx', 'epub', 'html', 'pdf', 'pdf-print', 'odt'].forEach((f) => {
     assert.ok(h.registeredCommands['export.' + f], 'export.' + f + ' 命令已注册');
   });
 });
@@ -279,15 +279,18 @@ test('打开菜单懒发 pandoc.detect，再次打开不重复请求', () => {
   assert.equal(h.ipcMsgs.filter((m) => m.command === 'pandoc.detect').length, 1, '会话内已请求过不再重发');
 });
 
-test('未检测到 pandoc：菜单项全部禁用并给安装指引', () => {
+test('未检测到 pandoc：引擎项禁用，打印项可用，并给安装指引', () => {
   const h = loadHarness();
   h.ctx.ExportUI.openMenu();
   emitDetect(h, { requestId: h.ipcMsgs.find((m) => m.command === 'pandoc.detect').requestId, ok: true, found: false });
   const items = menuItems(h);
-  assert.equal(items.length, 5);
-  items.forEach((el) => {
-    assert.equal(el.attrs['aria-disabled'], 'true', el.attrs['data-export-format'] + ' 应禁用');
+  assert.equal(items.length, 6);
+  const byFormat = (f) => items.find((el) => el.attrs['data-export-format'] === f);
+  ['docx', 'epub', 'html', 'odt'].forEach((f) => {
+    assert.equal(byFormat(f).attrs['aria-disabled'], 'true', f + ' 未装 pandoc 应禁用');
   });
+  assert.equal(byFormat('pdf').attrs['aria-disabled'], 'true', '排版引擎项应禁用');
+  assert.equal(byFormat('pdf-print').attrs['aria-disabled'], 'false', '打印项不依赖 pandoc，应可用');
   const guide = h.els['export-menu'].querySelector('[data-export-action="guide"]');
   assert.ok(guide, '未检测到时给安装指引入口');
   const redetect = h.els['export-menu'].querySelector('[data-export-action="redetect"]');
@@ -299,11 +302,11 @@ test('设置页的检测结果也刷新菜单缓存（settings-detect）', () =>
   h.ctx.ExportUI.openMenu();
   emitDetect(h, { requestId: 'settings-detect', ok: true, found: true, version: '3.7.0.2', source: 'hint', pdfEngine: 'tectonic' });
   const items = menuItems(h);
-  assert.equal(items.filter((el) => el.attrs['aria-disabled'] === 'false').length, 5, '设置页检测到后菜单立即全部可用');
+  assert.equal(items.filter((el) => el.attrs['aria-disabled'] === 'false').length, 6, '设置页检测到后菜单立即全部可用');
   assert.equal(h.ctx.ExportUI.getState().detect.pdfEngine, 'tectonic');
 });
 
-test('检测到 pandoc（含 PDF 引擎）：五项可用，PDF 带引擎徽标', () => {
+test('检测到 pandoc（含 PDF 引擎）：六项可用，PDF 引擎项带徽标', () => {
   const h = loadHarness();
   h.ctx.ExportUI.openMenu();
   emitDetect(h, {
@@ -311,7 +314,7 @@ test('检测到 pandoc（含 PDF 引擎）：五项可用，PDF 带引擎徽标'
     ok: true, found: true, version: '3.7.0.2', source: 'path', pdfEngine: 'xelatex',
   });
   const items = menuItems(h);
-  assert.equal(items.length, 5);
+  assert.equal(items.length, 6);
   items.forEach((el) => assert.equal(el.attrs['aria-disabled'], 'false', el.attrs['data-export-format'] + ' 应可用'));
   const statusText = h.els['export-menu'].querySelector('.export-menu-status-text').textContent;
   assert.ok(statusText.includes('3.7.0.2'), '状态行展示版本号');
@@ -434,5 +437,5 @@ test('i18n 完整性：导出相关键在 zh-CN 与 en 键集合一致', () => {
   assert.deepEqual(enKeys, zhKeys, 'zh/en 导出相关键集合一致');
   assert.ok(zhKeys.includes('toolbar.export'), '顶栏按钮词条存在');
   assert.ok(zhKeys.includes('settings.pandoc.downloadHint'), '下载直链词条存在');
-  assert.ok(zhKeys.filter((k) => k.startsWith('command.export.')).length === 6, '六条命令词条');
+  assert.ok(zhKeys.filter((k) => k.startsWith('command.export.')).length === 7, '七条命令词条（含打印路线）');
 });

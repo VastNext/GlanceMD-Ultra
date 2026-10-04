@@ -55,6 +55,7 @@
 | FEAT-004 | 2026-09-09 | 体积 / 发布 | 二进制减重：内嵌前端资产 gzip 预压缩 + `opt-level="z"`，使 Windows 产物回到 5 MB 以内（预算放宽后的偿还计划） | 中 (P2) | ⏳ 待排期 |
 | FEAT-005 | 2026-09-09 | 翻译 / 编辑器 | 集成翻译功能：选中文本划词翻译，复用 VastTranslator 引擎层（Google/Bing/自定义 AI），Rust IPC 代理网络请求 | 中 (P2) | ⏳ 待排期 |
 | FEAT-006 | 2026-10-04 | 导出 / 扩展 | 集成 Pandoc 文档导出（"内置扩展 + 外置二进制"）：当前文件导出 Word/EPUB/HTML/PDF/ODT，PDF 按引擎检测启用；顶栏导出图标 + 二级菜单分类型；设置页提供平台指定版本下载直链与自定义路径（免重启生效） | 中 (P2) | ✅ 已完成 |
+| FEAT-007 | 2026-10-05 | 导出 / 扩展 | 打印导出 PDF（零依赖）：预览内容走系统打印对话框（三平台打印栈均自带 PDF 输出），PDF 菜单项拆为「打印」+「排版引擎」双路线 | 中 (P2) | 🚧 进行中 |
 
 ### 需求详细记录
 
@@ -172,6 +173,17 @@
 - **工作量**：约 4.5–5 理想人天（产品代码 ~1100 行 + 测试 ~550 行），建议排期 1 周；产物增量 ≤ 15 KB，零新增 crate。
 - **协同关系**：异步 IPC 复用 FEAT-005 的 `translate.request` 模式；另存为复用 `file_ops::pick_save_file`；外链复用 `open_external`；`std::process::Command` 安全纪律沿用 `open_external`（CREATE_NO_WINDOW + 参数数组）。
 - **处理状态**：✅ 已完成 (`resolved`) 2026-10-04（feat/pandoc-export，v0.9.0 发布）
+
+#### FEAT-007: 打印导出 PDF——零依赖的 PDF 导出路线（系统打印对话框）
+- **立项提案**：详见 `docs/proposals/2026-10-05-打印导出PDF提案.md`
+- **需求背景**：FEAT-006 的 PDF 导出依赖外部引擎（xelatex/tectonic/typst），未装引擎的用户无 PDF 可用（v0.9.0 用户反馈：本机只有 pandoc，设置报"PDF 引擎未检测到"）。调查确认 pandoc 不内置 PDF 引擎（思源的 PDF 走自渲染打印），而三平台系统打印栈均自带 PDF 输出（Windows: Microsoft Print to PDF；macOS: PDF→存储为 PDF；Linux GTK: 打印到文件），且 wry 0.49 统一暴露 `WebView::print()`。
+- **方案要点**：
+  1. 导出菜单 PDF 拆双路线：「导出为 PDF（打印）」始终可用（`export.pdf.print`，经 `app.print` IPC → `webview.print()` 弹系统对话框）；「导出为 PDF（排版引擎）」保持引擎检测驱动（`export.pdf` 不变）。
+  2. 打印流程强制刷新预览：纯编辑模式下预览 DOM 陈旧，打印前以浅色主题重渲染（marked.parse + resolveLocalImages + renderMermaidCharts），mermaid 暗色图在浅色纸张不可读，浅色渲染是刻意行为并保持。
+  3. `print.css`（@media print）：只保留 #preview-container 链，浅色 token 覆盖兜底，@page 页边距 + 分页规则（标题不孤行、代码/表格/mermaid 不跨页截断）。
+  4. v1 只做对话框式（三平台一致零依赖）；静默导出（WebView2 PrintToPdf / WKWebView createPDF / GTK 打印设置三套 API）留 v2。
+- **工作量**：约 1–1.5 理想人天；零新增依赖。
+- **处理状态**：🚧 进行中 (`in_progress`) 2026-10-05（feat/print-pdf）
 
 ---
 
