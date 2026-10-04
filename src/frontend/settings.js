@@ -860,34 +860,15 @@
     };
   }
 
-  // ── 导出分类（FEAT-006）：pandoc 版本常量与平台下载直链 ──
-  // 升级 pandoc 只需改 PANDOC_VERSION（GitHub Release 资产命名固定；
-  // deb 资产带打包修订号 -1）。链接经 open_external 上行（http/https 白名单）。
-  var PANDOC_VERSION = '3.7.0.2';
-  var PANDOC_RELEASE_URL = 'https://github.com/jgm/pandoc/releases/tag/' + PANDOC_VERSION;
-  var PANDOC_DOWNLOAD_BASE = 'https://github.com/jgm/pandoc/releases/download/' + PANDOC_VERSION + '/';
-  var PANDOC_DOWNLOADS = {
-    windows: 'pandoc-' + PANDOC_VERSION + '-windows-x86_64.msi',
-    macos: 'pandoc-' + PANDOC_VERSION + '-arm64-macOS.pkg',
-    macosIntel: 'pandoc-' + PANDOC_VERSION + '-x86_64-macOS.pkg',
-    linux: 'pandoc-' + PANDOC_VERSION + '-1-amd64.deb'
-  };
+  // ── 导出分类（FEAT-006）：pandoc 下载入口 ──
+  // 不钉版本与平台资产名（会随 pandoc 升级失效），直接指向其 GitHub Releases
+  // 最新页，由用户选择适合平台的安装包；链接经 open_external 上行（http/https 白名单）。
+  var PANDOC_RELEASES_URL = 'https://github.com/jgm/pandoc/releases/latest';
 
   function openExternalUrl(url) {
     if (window.ipc && typeof window.ipc.postMessage === 'function') {
       window.ipc.postMessage(JSON.stringify({ command: 'open_external', url: url }));
     }
-  }
-
-  function pandocPlatform() {
-    return (typeof document !== 'undefined' && document.body && document.body.dataset && document.body.dataset.platform) || 'windows';
-  }
-
-  function pandocPrimaryDownload() {
-    var platform = pandocPlatform();
-    if (platform === 'macos') return PANDOC_DOWNLOADS.macos;
-    if (platform === 'linux') return PANDOC_DOWNLOADS.linux;
-    return PANDOC_DOWNLOADS.windows;
   }
 
   // 状态行：检测中 / 版本+来源+PDF 引擎 / 未检测到（与代理测试行同款结果样式）
@@ -942,17 +923,15 @@
       + '</div>';
   }
 
-  // 下载直链行：按平台主链接 + 全部平台入口（版本常量收敛一处，提案 D6）
+  // 下载入口行：单一「去下载 pandoc」按钮，指向 GitHub Releases 最新页
   function renderPandocDownloadRow() {
-    var asset = pandocPrimaryDownload();
     return '<div class="setting-row setting-row-pandoc-download">'
       + '<div class="setting-info">'
-      + '<span class="setting-label">' + esc(t('settings.pandoc.download')).replace('{version}', PANDOC_VERSION) + '</span>'
+      + '<span class="setting-label">' + esc(t('settings.pandoc.download')) + '</span>'
       + '<span class="setting-desc">' + esc(t('settings.pandoc.downloadHint')) + '</span>'
       + '</div>'
       + '<div class="setting-control">'
-      + '<button type="button" class="btn" id="setting-pandoc-download" data-url="' + esc(PANDOC_DOWNLOAD_BASE + asset) + '">' + esc(asset) + '</button>'
-      + '<button type="button" class="btn" id="setting-pandoc-download-all" data-url="' + esc(PANDOC_RELEASE_URL) + '">' + esc(t('settings.pandoc.downloadAll')) + '</button>'
+      + '<button type="button" class="btn" id="setting-pandoc-download" data-url="' + esc(PANDOC_RELEASES_URL) + '">' + esc(t('settings.pandoc.download')) + '</button>'
       + '</div>'
       + '</div>';
   }
@@ -991,11 +970,12 @@
         send({ command: 'file.pickPandoc' });
       };
     }
-    container.querySelectorAll('#setting-pandoc-download, #setting-pandoc-download-all').forEach(function (btn) {
-      btn.onclick = function () {
-        openExternalUrl(btn.getAttribute('data-url') || '');
+    var downloadBtn = container.querySelector('#setting-pandoc-download');
+    if (downloadBtn) {
+      downloadBtn.onclick = function () {
+        openExternalUrl(downloadBtn.getAttribute('data-url') || '');
       };
-    });
+    }
     var pathInput = container.querySelector('#setting-pandoc-path');
     if (pathInput && !pathInput.dataset.pandocWired) {
       pathInput.dataset.pandocWired = '1';

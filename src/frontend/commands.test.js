@@ -70,7 +70,7 @@ test('装载后暴露 window.Commands 并注册阶段 0 内置命令', () => {
   const { commands } = loadCommands();
   assert.ok(commands);
   // ids() 返回 vm 沙箱内的数组（原型与宿主不同），展开为宿主数组后比较
-  assert.deepEqual([...commands.ids()], ['file.open', 'workspace.open', 'settings.toggle', 'settings.keybindings', 'outline.focus', 'resource.open', 'editor.focus', 'focus.next', 'focus.previous']);
+  assert.deepEqual([...commands.ids()], ['file.open', 'workspace.open', 'settings.toggle', 'home.welcome', 'settings.keybindings', 'outline.focus', 'resource.open', 'editor.focus', 'focus.next', 'focus.previous']);
   assert.equal(commands.get('file.open').label, '打开文件…');
 });
 

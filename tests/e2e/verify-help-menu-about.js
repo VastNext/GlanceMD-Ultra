@@ -51,13 +51,13 @@ const outDir = path.join(root, 'tests', '.tmp');
     };
   });
   check('☰ 菜单展开', menuInfo.open);
-  check('13 个命令项齐全', JSON.stringify(menuInfo.commandIds) === JSON.stringify([
+  check('12 个命令项齐全（关于已迁设置，菜单不再保留）', JSON.stringify(menuInfo.commandIds) === JSON.stringify([
     'file.new', 'file.open', 'workspace.open', 'file.save', 'file.saveAs', 'file.saveAll',
     'resource.open', 'search.toggle', 'outline.toggle',
-    'palette.toggle', 'keyassist.toggle', 'settings.toggle', 'help.about'
+    'palette.toggle', 'keyassist.toggle', 'settings.toggle'
   ]), JSON.stringify(menuInfo.commandIds));
   check('「扩展」父项存在', JSON.stringify(menuInfo.subParents) === JSON.stringify(['扩展']), JSON.stringify(menuInfo.subParents));
-  check('分隔线 4 条', menuInfo.seps === 4);
+  check('分隔线 3 条', menuInfo.seps === 3);
   check('aria-expanded 同步', menuInfo.ariaExpanded === 'true');
   check('快捷键提示注入 (Ctrl+N)', menuInfo.kbdSample === 'Ctrl+N', menuInfo.kbdSample);
   await page.screenshot({ path: path.join(outDir, 'app-menu-dark.png') });
@@ -89,22 +89,21 @@ const outDir = path.join(root, 'tests', '.tmp');
   await page.evaluate(() => window.TranslateUI && window.TranslateUI.closePopup && window.TranslateUI.closePopup());
   await page.waitForTimeout(80);
 
-  // ── 4. 菜单 → 关于 → 设置面板「关于」分类 ──
-  await page.click('#btn-menu');
-  await page.waitForTimeout(100);
-  await page.click('.help-menu .ctx-item[data-command-id="help.about"]');
+  // ── 4. 设置面板「关于」分类（菜单项已移除，关于只从设置进入）──
+  await page.evaluate(() => { window.SettingsUI.open(); window.SettingsUI.setCategory('about'); });
   await page.waitForTimeout(200);
   const aboutInfo = await page.evaluate(() => ({
     settingsOpen: !!document.getElementById('settings-panel') && !document.getElementById('settings-panel').hidden,
     aboutPage: !!document.querySelector('.settings-about'),
     version: document.querySelector('.settings-about-version')?.textContent,
+    appVersion: window.__APP_VERSION__ || '',
     desc: document.querySelector('.settings-about-desc')?.textContent,
     links: Array.from(document.querySelectorAll('.settings-about-link')).map(b => b.getAttribute('data-url')),
     menuClosed: !document.querySelector('.help-menu')
   }));
   check('菜单已关闭', aboutInfo.menuClosed);
   check('设置面板打开且定位「关于」分类', aboutInfo.settingsOpen && aboutInfo.aboutPage);
-  check('版本徽章 v0.7.0', aboutInfo.version === 'v0.7.0', aboutInfo.version);
+  check('版本徽章与 Cargo 同源 (v' + aboutInfo.appVersion + ')', aboutInfo.version === 'v' + aboutInfo.appVersion, aboutInfo.version);
   check('简介文案', aboutInfo.desc === '轻量原生 Markdown 工作区编辑器', aboutInfo.desc);
   check('官网/源码链接', aboutInfo.links.length === 2 && /^https:\/\/vastnext\.com/.test(aboutInfo.links[0]) && /^https:\/\/github\.com\/VastNext/.test(aboutInfo.links[1]), JSON.stringify(aboutInfo.links));
   await page.screenshot({ path: path.join(outDir, 'settings-about-dark.png') });
@@ -147,9 +146,10 @@ const outDir = path.join(root, 'tests', '.tmp');
   await page.waitForTimeout(150);
   const lightAbout = await page.evaluate(() => ({
     aboutPage: !!document.querySelector('.settings-about'),
-    version: document.querySelector('.settings-about-version')?.textContent
+    version: document.querySelector('.settings-about-version')?.textContent,
+    appVersion: window.__APP_VERSION__ || ''
   }));
-  check('亮色下设置「关于」分类可用', lightAbout.aboutPage && lightAbout.version === 'v0.7.0', lightAbout.version);
+  check('亮色下设置「关于」分类可用', lightAbout.aboutPage && lightAbout.version === 'v' + lightAbout.appVersion, lightAbout.version);
   await page.screenshot({ path: path.join(outDir, 'settings-about-light.png') });
   await page.keyboard.press('Escape');
   await page.waitForTimeout(60);
@@ -161,11 +161,11 @@ const outDir = path.join(root, 'tests', '.tmp');
   await page.waitForTimeout(100);
   const enMenu = await page.evaluate(() => ({
     extensions: document.querySelector('.help-menu .ctx-item-sub .help-menu-label')?.textContent,
-    about: document.querySelector('.help-menu .ctx-item[data-command-id="help.about"] .help-menu-label')?.textContent,
+    aboutGone: !document.querySelector('.help-menu .ctx-item[data-command-id="help.about"]'),
     newFile: document.querySelector('.help-menu .ctx-item[data-command-id="file.new"] .help-menu-label')?.textContent
   }));
   check('英文菜单：Extensions', enMenu.extensions === 'Extensions', enMenu.extensions);
-  check('英文菜单：About GlanceMD Ultra', enMenu.about === 'About GlanceMD Ultra', enMenu.about);
+  check('英文菜单：About 项已移除', enMenu.aboutGone === true);
   check('英文菜单：New File', enMenu.newFile === 'New File', enMenu.newFile);
   await page.screenshot({ path: path.join(outDir, 'app-menu-en.png') });
   await page.keyboard.press('Escape');

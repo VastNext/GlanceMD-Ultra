@@ -44,9 +44,7 @@
     { sep: true },
     { commandId: 'palette.toggle', labelKey: 'help.menu.palette' },
     { commandId: 'keyassist.toggle', labelKey: 'help.menu.keyassist' },
-    { commandId: 'settings.toggle', labelKey: 'help.menu.settings' },
-    { sep: true },
-    { commandId: 'help.about', labelKey: 'help.menu.about' }
+    { commandId: 'settings.toggle', labelKey: 'help.menu.settings' }
   ];
 
   var state = {

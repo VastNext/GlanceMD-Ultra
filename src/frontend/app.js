@@ -668,6 +668,21 @@ function updateWelcome() {
   if (legacyPanel) legacyPanel.classList.remove('visible');
 }
 
+// 「主页」按钮：欢迎页切换。有标签时覆盖显示（#welcome-view 为 inset:0 覆盖层），
+// 再次点击或任意标签事件后由 updateWelcome 按"有 tab 即隐藏"收敛回编辑区。
+function toggleWelcomeView() {
+  var welcomeView = document.getElementById('welcome-view');
+  if (!welcomeView) return;
+  var tab = typeof TabManager !== 'undefined' ? TabManager.getActiveTab() : null;
+  if (welcomeView.classList.contains('visible') && tab) {
+    updateWelcome();
+    return;
+  }
+  welcomeView.classList.add('visible');
+  welcomeView.style.display = 'flex';
+  setWelcomeTab(welcomeActiveTab);
+}
+
 function showRecentPanel() {
   updateWelcome();
 }

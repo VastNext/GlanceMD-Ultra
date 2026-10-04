@@ -200,14 +200,14 @@ fs.mkdirSync(outDir, { recursive: true });
       hasPath: !!body.querySelector('#setting-pandoc-path'),
       hasBrowse: !!body.querySelector('#setting-pandoc-browse'),
       downloadUrl: body.querySelector('#setting-pandoc-download')?.getAttribute('data-url'),
-      downloadAllUrl: body.querySelector('#setting-pandoc-download-all')?.getAttribute('data-url'),
+      downloadLabel: body.querySelector('#setting-pandoc-download')?.textContent,
     };
   });
   check('设置侧栏定位导出分类', (settingsCat.label || '').includes('导出'), settingsCat.label);
   check('状态行 + 重新检测', settingsCat.hasStatus);
   check('路径输入 + 浏览…', settingsCat.hasPath && settingsCat.hasBrowse);
-  check('下载直链为当前平台指定版本资产', (settingsCat.downloadUrl || '') === 'https://github.com/jgm/pandoc/releases/download/3.7.0.2/pandoc-3.7.0.2-windows-x86_64.msi', settingsCat.downloadUrl);
-  check('全部平台链接指向 Release 页', (settingsCat.downloadAllUrl || '').includes('/releases/tag/3.7.0.2'), settingsCat.downloadAllUrl);
+  check('「去下载 pandoc」指向 GitHub Releases 最新页', (settingsCat.downloadUrl || '') === 'https://github.com/jgm/pandoc/releases/latest', settingsCat.downloadUrl);
+  check('按钮文案为「去下载 pandoc」', (settingsCat.downloadLabel || '').includes('去下载 pandoc'), settingsCat.downloadLabel);
   await page.screenshot({ path: path.join(outDir, 'light-settings-export.png') });
 
   // 路径填写 → 精确派发一次 change（Playwright fill 只派 input）→ 保存 + 带 pathHint 的检测

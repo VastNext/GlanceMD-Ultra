@@ -134,6 +134,16 @@
       }
     }
   });
+  register('home.welcome', {
+    label: '打开欢迎页',
+    category: 'Navigation',
+    description: '显示欢迎页（新建、打开与最近文件入口）',
+    run: function() {
+      if (typeof window.toggleWelcomeView === 'function') {
+        return window.toggleWelcomeView();
+      }
+    }
+  });
   register('settings.keybindings', {
     label: '打开快捷键设置', category: 'Settings',
     run: function() {
@@ -242,6 +252,7 @@
   bindButton('btn-open', 'workspace.open', true);
   bindButton('btn-open-file', 'file.open', false);
   bindButton('btn-settings', 'settings.toggle', false);
+  bindButton('btn-home', 'home.welcome', false);
 
   window.Commands = {
     register: register,

@@ -163,7 +163,7 @@ function load(options = {}) {
   const COMMAND_IDS = [
     'file.new', 'file.open', 'workspace.open', 'file.save', 'file.saveAs', 'file.saveAll',
     'resource.open', 'search.toggle', 'outline.toggle',
-    'palette.toggle', 'keyassist.toggle', 'settings.toggle', 'help.about'
+    'palette.toggle', 'keyassist.toggle', 'settings.toggle'
   ];
   c.Commands = {
     registry: {},
@@ -202,12 +202,12 @@ test('打开菜单：13 个命令项 + 1 个扩展父项 + 4 条分隔线，顺�
   const menu = currentMenu(doc);
   assert.ok(menu, '菜单应挂载到 body');
   const items = menu.querySelectorAll('.ctx-item');
-  assert.equal(items.length, 14);
+  assert.equal(items.length, 13);
   const expected = [
     'file.new', 'file.open', 'workspace.open', 'file.save', 'file.saveAs', 'file.saveAll',
     'resource.open', 'search.toggle', 'outline.toggle',
     null, /* 扩展父项：无 commandId，有子菜单 */
-    'palette.toggle', 'keyassist.toggle', 'settings.toggle', 'help.about'
+    'palette.toggle', 'keyassist.toggle', 'settings.toggle'
   ];
   expected.forEach((id, i) => {
     if (id === null) {
@@ -216,7 +216,7 @@ test('打开菜单：13 个命令项 + 1 个扩展父项 + 4 条分隔线，顺�
       assert.equal(items[i].dataset.commandId, id);
     }
   });
-  assert.equal(menu.querySelectorAll('.ctx-sep').length, 4);
+  assert.equal(menu.querySelectorAll('.ctx-sep').length, 3);
   assert.equal(menu.querySelectorAll('.ctx-item-sub').length, 1);
 });
 
@@ -230,15 +230,16 @@ test('点击普通菜单项触发对应命令并关闭菜单', () => {
   assert.equal(c.HelpMenu.isOpen(), false);
 });
 
-test('快捷键提示按 Keybindings.effective 注入，未绑定的项隐藏 kbd', () => {
+test('快捷键提示按 Keybindings.effective 注入，未绑定的项隐藏 kbd，关于项已移除', () => {
   const { c, doc } = load();
   c.HelpMenu.toggle();
   const menu = currentMenu(doc);
   const items = menu.querySelectorAll('.ctx-item');
   const newFile = items.find(el => el.dataset.commandId === 'file.new');
-  const about = items.find(el => el.dataset.commandId === 'help.about');
+  const save = items.find(el => el.dataset.commandId === 'file.save');
   assert.equal(newFile.querySelector('.kbd').textContent, 'Ctrl+N');
-  assert.equal(about.querySelector('.kbd').style.display, 'none');
+  assert.equal(save.querySelector('.kbd').style.display, 'none');
+  assert.ok(!items.find(el => el.dataset.commandId === 'help.about'), '「关于」已迁移到设置面板，菜单不再保留');
 });
 
 test('点击「扩展」父项展开二级子菜单（语层翻译面板 + 导出），再点收起', () => {
