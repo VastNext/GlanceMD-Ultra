@@ -328,6 +328,33 @@ test('分类导航中文化：十二个中文分类、每类一句描述、点�
   assert.match(bodyText(), /文件监听与自动保存行为/);
 });
 
+test('导出分类：pandoc 状态结果区独立于按钮列（竖排 bug 回归）', () => {
+  const h = load();
+  h.ctx.SettingsUI.open();
+  const nav = h.els['settings-panel'].querySelector('#settings-categories');
+  const pandocBtn = nav.children.find((b) => b.dataset.category === 'pandoc');
+  assert.ok(pandocBtn, '侧栏应含「导出」分类');
+  pandocBtn.onclick();
+  // 模拟检测回执：found + 无 PDF 引擎——长文案正是把左列挤成竖排的场景
+  (h.subs['workspace:pandoc-detect-result'] || []).forEach((fn) => fn({
+    requestId: 'settings-detect', ok: true, found: true,
+    version: '3.7.0.2', source: 'hint', pdfEngine: null,
+  }));
+  const panel = h.els['settings-panel'];
+  const row = panel.querySelector('.setting-row-pandoc-status');
+  assert.ok(row, 'pandoc 状态行存在');
+  // 结构回归断言：结果区必须独立于 .setting-control（放进去会挤竖排左列）
+  const results = row.querySelector('.pandoc-status-results');
+  assert.ok(results, '存在全宽结果区 .pandoc-status-results');
+  assert.ok(results.querySelector('#setting-pandoc-status-result'), '结果文本位于结果区内');
+  assert.equal(row.querySelector('.setting-control #setting-pandoc-status-result'), null,
+    '结果文本不得放回 .setting-control（竖排回归）');
+  const controlCol = row.querySelector('.setting-control');
+  assert.equal(controlCol.querySelectorAll('.btn').length, 1, '右列仅重新检测按钮');
+  assert.ok(row.textContent.includes('3.7.0.2'), '版本号回显');
+  assert.ok(row.textContent.includes('PDF 导出需另装'), 'PDF 引擎缺失文案回显（settings.test 装真实 i18n，断言中文文案）');
+});
+
 test('关于分类：版本徽章与 Cargo 同源、简介与链接、版权渲染', () => {
   const h = load();
   h.ctx.__APP_VERSION__ = '0.7.0';
