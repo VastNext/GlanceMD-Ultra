@@ -986,6 +986,21 @@
   opacity: 0.7;
 }
 
+/* ── 导出分类：pandoc 状态行（FEAT-006/007）——按钮列 + 全宽结果区两段式 ──
+ * .setting-control 是 flex-shrink:0 的内容宽列：结果文本放里面会把左侧标签
+ * 列挤压成一字宽（竖排 bug 根因），因此结果区独立占整行（flex-basis:100%）
+ * 自然折行，不受右列宽度约束。 */
+.setting-row-pandoc-status { flex-wrap: wrap; }
+.pandoc-status-results {
+  flex-basis: 100%;
+  display: block;
+}
+/* 全宽展示下换用自然断行：中文可断、英文单词不撕裂（覆盖全局 break-all） */
+.setting-row-pandoc-status .setting-proxy-result {
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
 .setting-hint {
   display: block;
   margin-top: 4px;

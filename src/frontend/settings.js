@@ -871,7 +871,9 @@
     }
   }
 
-  // 状态行：检测中 / 版本+来源+PDF 引擎 / 未检测到（与代理测试行同款结果样式）
+  // 状态行两段式：左列标签+说明、右列仅「重新检测」按钮；检测结果独占整行。
+  // .setting-control 是 flex-shrink:0 的内容宽列，长结果文本放里面会把左列
+  // 挤成一字宽竖排（竖排 bug 根因），故移到 flex-basis:100% 的全宽结果区。
   function renderPandocStatusRow() {
     var detecting = Boolean(state.pandocDetecting);
     var res = state.pandocDetect;
@@ -901,8 +903,11 @@
       + '</div>'
       + '<div class="setting-control">'
       + '<button type="button" class="btn" id="setting-pandoc-redetect"' + (detecting ? ' disabled' : '') + '>' + esc(t('settings.pandoc.redetect')) + '</button>'
-      + '<div class="' + resClass + '" id="setting-pandoc-status-result">' + esc(statusText) + '</div>'
-      + (pdfText ? '<div class="setting-proxy-result">' + esc(t('settings.pandoc.pdfEngine') + '：' + pdfText) + '</div>' : '')
+      + '</div>'
+      + '<div class="pandoc-status-results">'
+      + '<div class="' + resClass + '" id="setting-pandoc-status-result">' + esc(statusText)
+      + (pdfText ? ' · ' + esc(t('settings.pandoc.pdfEngine') + '：' + pdfText) : '')
+      + '</div>'
       + '</div>'
       + '</div>';
   }
