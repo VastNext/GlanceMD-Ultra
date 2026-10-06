@@ -13,6 +13,19 @@
  */
 
 @media print {
+  /* ── 0. 重置应用外壳的碎片根（竖排/单页 bug 家族根因）──
+   * style.css 把 html/body 钉死为 position:fixed + 100vh + overflow:hidden
+   * （桌面应用布局）。打印分页以 body 为碎片根：不重置则内容被裁到一屏，
+   * 导出恰好只有第一页。 */
+  html,
+  body {
+    position: static !important;
+    inset: auto !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
   /* ── 1. 只保留 body > #content > #editor-column > #preview-container ── */
   body > *:not(#content) { display: none !important; }
   #content > *:not(#editor-column) { display: none !important; }
