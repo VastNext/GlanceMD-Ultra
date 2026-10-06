@@ -30,6 +30,9 @@ pub mod macos;
 pub mod terminal;
 pub mod windows;
 
+/// Windows 静默导出 PDF（FEAT-008）；非 Windows 为返回错误的占位实现。
+pub mod pdf_print;
+
 /// 平台能力调用失败的原因。
 #[derive(Debug)]
 pub enum PlatformError {

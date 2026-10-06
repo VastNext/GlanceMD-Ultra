@@ -56,6 +56,7 @@
 | FEAT-005 | 2026-09-09 | 翻译 / 编辑器 | 集成翻译功能：选中文本划词翻译，复用 VastTranslator 引擎层（Google/Bing/自定义 AI），Rust IPC 代理网络请求 | 中 (P2) | ⏳ 待排期 |
 | FEAT-006 | 2026-10-04 | 导出 / 扩展 | 集成 Pandoc 文档导出（"内置扩展 + 外置二进制"）：当前文件导出 Word/EPUB/HTML/PDF/ODT，PDF 按引擎检测启用；顶栏导出图标 + 二级菜单分类型；设置页提供平台指定版本下载直链与自定义路径（免重启生效） | 中 (P2) | ✅ 已完成 |
 | FEAT-007 | 2026-10-05 | 导出 / 扩展 | 打印导出 PDF（零依赖）：预览内容走系统打印对话框（三平台打印栈均自带 PDF 输出），PDF 菜单项拆为「打印」+「排版引擎」双路线 | 中 (P2) | ✅ 已完成 |
+| FEAT-008 | 2026-10-05 | 导出 / 扩展 | Windows 静默导出 PDF（WebView2 PrintToPdf）：另存为对话框预填 md 文件名直写 PDF，免去打印对话框选打印机步骤 | 中 (P2) | 🚧 进行中 |
 
 ### 需求详细记录
 
@@ -184,6 +185,12 @@
   4. v1 只做对话框式（三平台一致零依赖）；静默导出（WebView2 PrintToPdf / WKWebView createPDF / GTK 打印设置三套 API）留 v2。
 - **工作量**：约 1–1.5 理想人天；零新增依赖。
 - **处理状态**：✅ 已完成 (`resolved`) 2026-10-05（feat/print-pdf，v0.10.0 发布）
+
+#### FEAT-008: Windows 静默导出 PDF——WebView2 PrintToPdf + 预填文件名另存为
+- **立项提案**：详见 `docs/proposals/2026-10-05-打印导出PDF静默保存提案.md`
+- **需求背景**：FEAT-007 打印路线在 Windows 弹 WebView2 打印对话框，用户需手动把打印机切到 "Microsoft Print to PDF"（选错则无保存入口），且保存文件名非 md 文件名。WebView2 ShowPrintUI 无预选 API，对话框路线无解；`PrintToPdf` 静默导出 + 应用自弹另存为对话框（预填文件名）是正解。
+- **方案要点**：`app.printToPdf` IPC → 另存为对话框（复用 `pick_export_file("pdf")`）→ `WebViewExtWindows::controller()` → `ICoreWebView2_16::PrintToPdf(路径, None, handler)`，`webview2_com::wait_with_pump` 保活等待，结果经 `workspace:print-pdf-result` 回执。零新增依赖；macOS/Linux 维持打印对话框不变。
+- **处理状态**：🚧 进行中 (`in_progress`) 2026-10-05（feat/print-pdf）
 
 ---
 

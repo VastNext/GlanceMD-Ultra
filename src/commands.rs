@@ -183,6 +183,7 @@ pub fn register_builtin() {
         ("pandoc.reveal", pandoc_reveal),
         ("file.pickPandoc", file_pick_pandoc),
         ("app.print", app_print),
+        ("app.printToPdf", app_print_to_pdf),
         ("workspace.recovery.snapshot", recovery_snapshot),
         ("workspace.recovery.list", recovery_list),
         ("workspace.recovery.restore", recovery_restore),
@@ -2122,6 +2123,47 @@ fn app_print(c: &CommandContext, _: &CommandPayload) {
     if let Err(e) = c.webview.print() {
         crate::log_error!("app", "打开系统打印对话框失败: {e}");
         ipc::send_to_js(c.webview, "error", &json!({"message": e.to_string()}));
+    }
+}
+
+/// `app.printToPdf`（FEAT-008，Windows）：静默导出 PDF。
+///
+/// 流程：主线程弹另存为对话框（PDF 过滤器 + 预填 md 文件名，用户取消则以
+/// `cancelled` 回执）→ `platform::pdf_print::print_webview_to_pdf` 直写 PDF
+/// （WebView2 PrintToPdf，应用 print.css；内部消息泵保活，UI 不冻结）→
+/// 结果经 `workspace:print-pdf-result` 事件回执前端 toast。
+fn app_print_to_pdf(c: &CommandContext, p: &CommandPayload) {
+    let request_id = string(p, &["requestId"]).unwrap_or_else(|| "anon".into());
+    let suggest_name = string(p, &["suggestName"]).unwrap_or_default();
+    let Some(out_path) = file_ops::pick_export_file("pdf", &suggest_name) else {
+        ipc::send_to_js(
+            c.webview,
+            "workspace:print-pdf-result",
+            &json!({ "requestId": request_id, "ok": false, "cancelled": true }),
+        );
+        return;
+    };
+    crate::log_info!("app", "静默导出 PDF: {}", out_path);
+    match crate::platform::pdf_print::print_webview_to_pdf(
+        c.webview,
+        std::path::Path::new(&out_path),
+    ) {
+        Ok(()) => {
+            crate::log_info!("app", "PDF 导出成功: {}", out_path);
+            ipc::send_to_js(
+                c.webview,
+                "workspace:print-pdf-result",
+                &json!({ "requestId": request_id, "ok": true, "outPath": out_path }),
+            );
+        }
+        Err(e) => {
+            crate::log_error!("app", "PDF 导出失败: {e}");
+            ipc::send_to_js(
+                c.webview,
+                "workspace:print-pdf-result",
+                &json!({ "requestId": request_id, "ok": false, "message": e }),
+            );
+        }
     }
 }
 

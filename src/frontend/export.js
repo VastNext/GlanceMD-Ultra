@@ -306,9 +306,15 @@
   }
 
   // ── 导出流程 ──
-  // 打印导出（FEAT-007）：以浅色主题强制重渲染预览 DOM（纯编辑模式下预览
-  // 是陈旧的；mermaid/hljs 随浅色主题出浅色版，深色图在纸张上不可读），
-  // 然后交由 app.print 弹系统打印对话框。主题保持浅色，用户可随时切回。
+  // 打印导出（FEAT-007/008）：以浅色主题强制重渲染预览 DOM（纯编辑模式下
+  // 预览是陈旧的；mermaid/hljs 随浅色主题出浅色版，深色图在纸张上不可读）。
+  // Windows 走 app.printToPdf 静默导出（另存为对话框预填 md 文件名，直写
+  // PDF）；macOS/Linux 走 app.print 弹系统打印对话框（选自带的 PDF 输出）。
+  function isWindowsPlatform() {
+    var p = (typeof document !== 'undefined' && document.body && document.body.dataset && document.body.dataset.platform) || 'windows';
+    return p === 'windows';
+  }
+
   function renderPreviewForPrint(markdown) {
     var previewEl = (typeof document !== 'undefined') ? document.getElementById('preview') : null;
     if (!previewEl) return;
@@ -328,8 +334,30 @@
     }
     closeMenu();
     renderPreviewForPrint(target.content);
-    toast(t('export.printOpening'));
-    sendToRust('app.print');
+    var requestId = 'printpdf-' + (++state.seq);
+    if (isWindowsPlatform()) {
+      toast(t('export.printSaving'));
+      sendToRust('app.printToPdf', {
+        requestId: requestId,
+        suggestName: suggestName(target, 'pdf')
+      });
+    } else {
+      toast(t('export.printOpening'));
+      sendToRust('app.print');
+    }
+  }
+
+  function onPrintPdfResult(data) {
+    if (!data || typeof data.requestId !== 'string' || data.requestId.indexOf('printpdf-') !== 0) return;
+    if (window.AppToast && typeof window.AppToast.hide === 'function') window.AppToast.hide();
+    if (data.cancelled) return;
+    if (data.ok) {
+      state.lastExport = { path: data.outPath || '' };
+      toast(t('export.success', { path: data.outPath || '' }));
+    } else {
+      toast(data.message || t('export.failed'), { sticky: true });
+    }
+    if (state.isOpen) renderMenuContent();
   }
 
   function startExport(format) {
@@ -418,6 +446,7 @@
     if (window.Workspace && typeof window.Workspace.on === 'function') {
       window.Workspace.on('workspace:pandoc-detect-result', onDetectResult);
       window.Workspace.on('workspace:pandoc-export-result', onExportResult);
+      window.Workspace.on('workspace:print-pdf-result', onPrintPdfResult);
     }
     if (typeof window.addEventListener === 'function') {
       window.addEventListener('i18n-changed', function() {
@@ -449,6 +478,7 @@
     requestDetect: requestDetect,
     onDetectResult: onDetectResult,
     onExportResult: onExportResult,
+    onPrintPdfResult: onPrintPdfResult,
     getExportTarget: getExportTarget,
     itemDisabledReason: itemDisabledReason,
     detectLabel: detectLabel,

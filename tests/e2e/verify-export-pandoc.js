@@ -164,15 +164,15 @@ fs.mkdirSync(outDir, { recursive: true });
   check('无引擎：其余五项（含打印路线）可用', noengine.othersEnabled === 5);
 
   // ── 4.5 打印导出路线：点击 → 预览刷新 + app.print 上行 ──
-  const beforePrint = (await ipcLog()).filter((m) => m.command === 'app.print').length;
+  const beforePrint = (await ipcLog()).filter((m) => m.command === 'app.printToPdf').length;
   await page.click('#export-menu [data-export-format="pdf-print"]');
   await page.waitForTimeout(200);
-  const afterPrint = (await ipcLog()).filter((m) => m.command === 'app.print').length;
+  const afterPrint = (await ipcLog()).filter((m) => m.command === 'app.printToPdf').length;
   const previewRendered = await page.evaluate(() => {
     const p = document.getElementById('preview');
     return !!p && p.innerHTML.length > 0;
   });
-  check('打印项点击上行 app.print', afterPrint === beforePrint + 1);
+  check('打印项点击上行 app.printToPdf（Windows 静默导出）', afterPrint === beforePrint + 1);
   check('打印前预览 DOM 已强制刷新', previewRendered);
   await page.screenshot({ path: path.join(outDir, 'light-menu-noengine.png') });
   await page.evaluate(() => document.body.click());

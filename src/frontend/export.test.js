@@ -424,6 +424,60 @@ test('非本轮 requestId 的回执被忽略', () => {
   assert.ok(!h.toasts.includes('过期回执'), '过期回执不弹提示');
 });
 
+test('打印导出（Windows）：pdf-print 点击走 app.printToPdf 并预填 md 文件名', () => {
+  const h = loadHarness();
+  h.ctx.ExportUI.openMenu();
+  emitDetect(h, {
+    requestId: h.ipcMsgs.find((m) => m.command === 'pandoc.detect').requestId,
+    ok: true, found: false,
+  });
+  // 未装 pandoc 也能导 PDF：预览 DOM 刷新 + app.printToPdf 上行（另存为预填文件名）
+  const printItem = menuItems(h).find((el) => el.attrs['data-export-format'] === 'pdf-print');
+  (h.listeners['export-menu'].click || []).forEach((fn) => fn({
+    target: printItem, preventDefault() {}, stopPropagation() {},
+  }));
+  const msg = h.ipcMsgs.find((m) => m.command === 'app.printToPdf');
+  assert.ok(msg, 'app.printToPdf 上行（Windows 静默导出）');
+  assert.equal(msg.suggestName, 'note.pdf', '默认文件名为 md 文件名 + .pdf');
+  assert.ok(msg.requestId.startsWith('printpdf-'), 'requestId 带 printpdf- 前缀');
+  assert.ok(h.ctx.ExportUI.getState().isOpen === false, '发起导出后菜单关闭');
+});
+
+test('打印导出（macOS/Linux）：pdf-print 点击走 app.print 弹系统打印对话框', () => {
+  const h = loadHarness();
+  h.body.dataset.platform = 'macos';
+  h.ctx.ExportUI.startExport('pdf-print');
+  assert.ok(h.ipcMsgs.find((m) => m.command === 'app.print'), '非 Windows 走系统打印对话框');
+  assert.ok(!h.ipcMsgs.find((m) => m.command === 'app.printToPdf'), '非 Windows 不走静默导出');
+});
+
+test('静默导出回执：成功记 lastExport，取消静默，失败透传', () => {
+  const h = loadHarness();
+  h.ctx.ExportUI.startExport('pdf-print');
+  let requestId = h.ipcMsgs.find((m) => m.command === 'app.printToPdf').requestId;
+  h.ctx.ExportUI.onPrintPdfResult({ requestId, ok: true, outPath: 'D:/out/note.pdf' });
+  assert.equal(h.ctx.ExportUI.getState().lastExport.path, 'D:/out/note.pdf', '成功记入 lastExport');
+  h.ctx.ExportUI.openMenu();
+  assert.ok(h.els['export-menu'].querySelector('[data-export-action="reveal"]'), '支持打开所在文件夹');
+  (h.listeners['export-menu'].click || []).forEach((fn) => fn({
+    target: h.els['export-menu'].querySelector('[data-export-action="reveal"]'),
+    preventDefault() {}, stopPropagation() {},
+  }));
+  assert.ok(h.ipcMsgs.find((m) => m.command === 'pandoc.reveal'), 'reveal 上行');
+
+  h.ctx.ExportUI.startExport('pdf-print');
+  requestId = h.ipcMsgs.filter((m) => m.command === 'app.printToPdf')[1].requestId;
+  const toastLen = h.toasts.length;
+  h.ctx.ExportUI.onPrintPdfResult({ requestId, ok: false, cancelled: true });
+  assert.equal(h.ctx.ExportUI.getState().exportingFormat, null, '取消后复位');
+  assert.ok(!h.toasts.slice(toastLen).some((t) => t.includes('失败')), '取消不弹错误');
+
+  h.ctx.ExportUI.startExport('pdf-print');
+  requestId = h.ipcMsgs.filter((m) => m.command === 'app.printToPdf')[2].requestId;
+  h.ctx.ExportUI.onPrintPdfResult({ requestId, ok: false, message: 'PDF 导出失败，请重试' });
+  assert.ok(h.toasts.includes('PDF 导出失败，请重试'), '失败 toast 透传');
+});
+
 test('i18n 完整性：导出相关键在 zh-CN 与 en 键集合一致', () => {
   const ctx = { window: null };
   ctx.window = ctx;
