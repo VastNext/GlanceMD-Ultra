@@ -122,15 +122,6 @@ fn should_close_window(has_dirty_tabs: bool, confirm_discard: impl FnOnce() -> b
     !has_dirty_tabs || confirm_discard()
 }
 
-fn save_window_state(window: &tao::window::Window) {
-    let inner_size = window.inner_size();
-    let outer_pos = window.outer_position().unwrap_or_default();
-    window_state::save_window_state(
-        (outer_pos.x, outer_pos.y),
-        (inner_size.width, inner_size.height),
-    );
-}
-
 #[cfg(not(target_os = "windows"))]
 fn stdin_is_piped() -> bool {
     use std::io::IsTerminal;
@@ -504,7 +495,7 @@ fn main() {
         std::env::set_var("WEBVIEW2_USER_DATA_FOLDER", data_base.join("webview2"));
     }
 
-    let (pos, size) = window_state::load_window_state();
+    let state = window_state::load_window_state();
 
     let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
     let proxy: EventLoopProxy<UserEvent> = event_loop.create_proxy();
@@ -542,8 +533,9 @@ fn main() {
         .with_title("GlanceMD Ultra - Untitled")
         .with_decorations(!cfg!(target_os = "windows"))
         .with_window_icon(load_window_icon())
-        .with_inner_size(LogicalSize::new(size.0 as f64, size.1 as f64))
-        .with_position(LogicalPosition::new(pos.0 as f64, pos.1 as f64))
+        .with_inner_size(LogicalSize::new(state.width as f64, state.height as f64))
+        .with_position(LogicalPosition::new(state.x as f64, state.y as f64))
+        .with_maximized(state.maximized)
         .build(&event_loop)
         .unwrap();
 
@@ -782,7 +774,7 @@ fn main() {
                     // 若前端存在未保存修改，委托前端自研居中对话框统一拦截确认，不再弹出原生系统 MessageBox
                     let _ = _webview.evaluate_script("if (typeof window.requestCloseWindow === 'function') window.requestCloseWindow();");
                 } else {
-                    save_window_state(&window);
+                    window_state::save_from_window(&window);
                     *control_flow = ControlFlow::Exit;
                 }
             }
