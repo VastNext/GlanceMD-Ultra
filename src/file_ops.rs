@@ -63,6 +63,48 @@ pub fn pick_pandoc_binary() -> Option<String> {
         .map(|p| p.to_string_lossy().to_string())
 }
 
+fn export_filename(format: &str, suggest_name: &str) -> String {
+    let extension = match format {
+        "docx" | "epub" | "html" | "odt" | "pdf" => format,
+        _ => "md",
+    };
+    let name = suggest_name.trim();
+    let stem = match name.rsplit_once('.') {
+        Some((stem, ext)) if ext.eq_ignore_ascii_case(extension) => stem,
+        _ => name,
+    };
+    // 原生对话框只接收文件名；替换路径分隔符、控制字符和 Windows 非法字符。
+    let cleaned: String = stem
+        .chars()
+        .map(|c| {
+            if c.is_control() || "\\/:*?\"<>|".contains(c) {
+                '_'
+            } else {
+                c
+            }
+        })
+        .collect();
+    let mut base = cleaned.trim().trim_end_matches(['.', ' ']).to_string();
+    if base.is_empty() {
+        base = "untitled".into();
+    }
+    // Windows 设备名即使附带扩展名也不可用。
+    let device = base.split('.').next().unwrap_or("").to_uppercase();
+    let numbered_device = device
+        .strip_prefix("COM")
+        .or_else(|| device.strip_prefix("LPT"))
+        .is_some_and(|n| {
+            matches!(
+                n,
+                "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "¹" | "²" | "³"
+            )
+        });
+    if matches!(device.as_str(), "CON" | "PRN" | "AUX" | "NUL") || numbered_device {
+        base.insert(0, '_');
+    }
+    format!("{base}.{extension}")
+}
+
 /// 导出另存为对话框（FEAT-006）：按格式加过滤器并预填建议文件名。
 /// 未知格式回退 Markdown 过滤器（前端只发白名单格式，此处兜底）。
 pub fn pick_export_file(format: &str, suggest_name: &str) -> Option<String> {
@@ -88,9 +130,7 @@ pub fn pick_export_file(format: &str, suggest_name: &str) -> Option<String> {
         }
     }
     dialog = dialog.add_filter("All files", &["*"]);
-    if !suggest_name.trim().is_empty() {
-        dialog = dialog.set_file_name(suggest_name.trim());
-    }
+    dialog = dialog.set_file_name(export_filename(format, suggest_name));
     dialog.save_file().map(|p| p.to_string_lossy().to_string())
 }
 
@@ -105,4 +145,45 @@ pub fn read_file(path: &str) -> Result<String, std::io::Error> {
 
 pub fn write_file(path: &str, content: &str) -> Result<(), std::io::Error> {
     fs::write(path, content)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn export_filename_preserves_document_basename() {
+        assert_eq!(export_filename("pdf", "会议纪要.pdf"), "会议纪要.pdf");
+        assert_eq!(export_filename("pdf", "draft.v2.pdf"), "draft.v2.pdf");
+        assert_eq!(export_filename("pdf", "REPORT.PDF"), "REPORT.pdf");
+        for format in ["docx", "epub", "html", "odt", "pdf"] {
+            let name = format!("会议纪要.v2.{format}");
+            assert_eq!(export_filename(format, &name), name);
+            assert_eq!(export_filename(format, ""), format!("untitled.{format}"));
+        }
+        assert_eq!(export_filename("unknown", "note.md"), "note.md");
+    }
+
+    #[test]
+    fn export_filename_replaces_invalid_windows_characters() {
+        assert_eq!(
+            export_filename("pdf", "a\\/:*?\"<>|\0\n.pdf"),
+            "a___________.pdf"
+        );
+        assert_eq!(export_filename("pdf", "  会议纪要. .pdf  "), "会议纪要.pdf");
+    }
+
+    #[test]
+    fn export_filename_always_has_a_usable_basename() {
+        for name in ["", "   ", ".pdf", "...pdf"] {
+            assert_eq!(export_filename("pdf", name), "untitled.pdf");
+        }
+        for name in ["CON", "nul", "COM1", "LPT9", "COM¹", "LPT²", "AUX.backup"] {
+            assert_eq!(
+                export_filename("pdf", &format!("{name}.pdf")),
+                format!("_{name}.pdf")
+            );
+        }
+        assert_eq!(export_filename("pdf", "COM10.pdf"), "COM10.pdf");
+    }
 }

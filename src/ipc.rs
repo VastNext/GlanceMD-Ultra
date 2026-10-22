@@ -320,6 +320,20 @@ mod tests {
     use super::registry_command_id;
 
     #[test]
+    fn print_pdf_preserves_suggested_filename_in_payload() {
+        let message: super::IpcMessage = serde_json::from_str(
+            r#"{"command":"app.printToPdf","requestId":"printpdf-1","suggestName":"会议纪要.pdf"}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            registry_command_id(&message.command).as_deref(),
+            Some("app.printToPdf")
+        );
+        assert_eq!(message.extra["suggestName"], "会议纪要.pdf");
+        assert_eq!(message.extra["requestId"], "printpdf-1");
+    }
+
+    #[test]
     fn 注册表通配前缀覆盖_file_系列() {
         // BUG-001 教训：file.reload 曾因通配清单缺 `file.` 前缀被 legacy 分支
         // 当作未知命令丢弃，热重载链路在真实 IPC 分发处断裂
