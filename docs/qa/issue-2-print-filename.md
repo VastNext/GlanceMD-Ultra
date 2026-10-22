@@ -18,11 +18,13 @@
 - 原有 Playwright 冒烟 119 项通过；新增 `print-filename.spec.js` 的明暗两项通过，实际点击打印样式导出，确认中文名称、取消后切换文档及新请求名称。
 - 新增 IPC 反序列化测试确认 `suggestName` 和 `requestId` 保留在命令扩展参数中。
 - 双主题截图位于隔离工作区 `tests/e2e/test-results/print-filename-*/print-menu-*.png`，已查看，菜单显示正常。这些是浏览器截图，不是原生保存对话框截图。
+- 实现提交 `09ffb14258c7ec1680c2c94ca84baaba476840d2` 的四平台 [Build 39816096364](https://github.com/VastNext/GlanceMD-Ultra/actions/runs/39816096364) 全部成功：Windows x64、macOS arm64、macOS x64、Linux x64。文档更新后的候选提交和合入后的 main 仍须分别显式运行 Build 并确认全绿。
 
 ## 审查与限制
 
 - 自审覆盖：IPC 字段传递、跨格式扩展名、Unicode 保留、取消后重试、不改最终用户选择的路径、无新增依赖。
-- 独立审查尝试受阻：Paseo 未绑定当前会话；本地 Codex 经指定代理返回 HTTP 403，未获得审查结论。
+- 初次独立审查工具受阻后，主代理补充的 correctness-reviewer 已审查全部四个变更文件，无阻塞 findings；审查明确原 Issue 尚未验证解决，统一跨平台文件名清理属于已知范围变化。
+- 主代理补充调查发现 HTML 无 `title`、无 `document.title` 更新，系统 `app.print` 直接调用 `webview.print` 而不设置标题。但 Windows 正常菜单走 `app.printToPdf`，且 Ctrl+P 不是打印命令，因此该线索不能认定为原问题根因，本次不据此修改系统打印路径。
 - 没有 Windows 原生 UI 自动化验证，不宣称系统保存对话框已验证或 Issue 已完全解决。
 - 需报告者确认具体入口（应用导出菜单还是系统打印栈）、原生对话框截图与实际文件名，才能继续定位普通文件名为空的问题。Issue 保持打开。
 - 主工作区原有 QA 图片、`.zcode*` 和分支均未改动；冒烟生成的图片仅留在隔离工作区，不纳入提交。
